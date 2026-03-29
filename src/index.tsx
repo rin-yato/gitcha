@@ -1,44 +1,44 @@
 import { render } from "@opentui/solid";
 
-import { theme } from "@/constants/theme";
+import { ThemeProvider, useTheme } from "./styles/theme";
 
 function App() {
+  const theme = useTheme();
+
   return (
-    <box
-      id="app"
-      backgroundColor={theme.colors.background}
-      flexDirection="row"
-      width="100%"
-      height="100%"
-    >
+    <box id="app" flexDirection="row" width="100%" height="100%">
       <box
         id="sidebar"
-        backgroundColor={theme.colors.surface}
+        backgroundColor={theme().surface}
         border
-        borderStyle={theme.border.style}
-        borderColor={theme.colors.border}
+        borderStyle="single"
+        borderColor={theme().border}
         width="30%"
         flexDirection="column"
-        padding={theme.spacing.md}
+        padding={1}
       >
         <text id="sidebar-title" content="SOURCE CONTROL" />
         <text id="file-tree" content="No changes detected" />
       </box>
       <box
         id="diff-panel"
-        backgroundColor={theme.colors.background}
         border
-        borderStyle={theme.border.style}
-        borderColor={theme.colors.border}
+        borderStyle="single"
+        borderColor={theme().border}
         flexGrow={1}
         flexDirection="column"
-        padding={theme.spacing.md}
+        padding={1}
       >
         <text id="diff-title" content="DIFF VIEW" />
-        <text id="diff-content" content="Select a file to view changes" />
+        <text id="diff-content" fg="black" content="Select a file to view changes" />
+        <text id="henlo" fg="black" content={JSON.stringify(theme(), null, 2)} />
       </box>
     </box>
   );
 }
 
-render(() => <App />);
+render(() => (
+  <ThemeProvider>
+    <App />
+  </ThemeProvider>
+));
