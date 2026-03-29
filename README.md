@@ -40,8 +40,23 @@ To provide a feature-rich, keyboard-centric Git workflow with an easy-to-underst
 
 ## 🚀 AI Agent Implementation Milestones
 
-1. **Bootstrap Project:** Initialize Bun, install `@opentui/core`, and set up the basic layout shell (Left Sidebar for files, Right Panel for diffs).
-2. **Git Integration:** Implement the underlying Node/Bun `child_process` logic to parse `git status` and populate the Source Control Panel.
-3. **Build the Diff View:** Hook up OpenTUI's `Diff` component to render `git diff` outputs for the currently selected file.
-4. **Interactivity & State:** Implement state management for staging/unstaging and bind keys for navigation.
-5. **Commit Interface:** Build the input box, capture the message, and execute the `git commit` command.
+- ✅ **Phase 1 - Bootstrap Project:** Initialize Bun, install `@opentui/core`, and set up the basic layout shell (Left Sidebar for files, Right Panel for diffs).
+- ✅ **Phase 2 - Git Integration:** Implement the underlying Node/Bun `child_process` logic to parse `git status` and populate the Source Control Panel.
+- **Phase 3 - Build the Diff View:** Hook up OpenTUI's `Diff` component to render `git diff` outputs for the currently selected file.
+- **Phase 4 - Interactivity & State:** Implement state management for staging/unstaging and bind keys for navigation.
+- **Phase 5 - Commit Interface:** Build the input box, capture the message, and execute the `git commit` command.
+
+## 📁 Project Structure
+
+```
+src/
+├── git/              # Git integration module
+│   ├── index.ts      # Main exports
+│   ├── types.ts      # Type definitions
+│   ├── commands.ts   # Git command wrappers
+│   └── parser.ts     # Status parsing logic
+├── styles/           # Theme and styling
+│   └── theme.tsx
+├── constants/        # Constants
+│   └── theme.ts
+└── index.tsx         # Main application entry
