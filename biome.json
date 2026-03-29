@@ -1,0 +1,110 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "files": {
+    "includes": ["**", "!**/node_modules"],
+    "ignoreUnknown": true
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": {
+          "level": "on",
+          "options": {
+            "groups": [
+              "@opentui/**",
+              ":BLANK_LINE:",
+              ["@/libs/**"],
+              ":BLANK_LINE:",
+              ["@/hooks/**"],
+              ":BLANK_LINE:",
+              ["@/contants/**"],
+              ":BLANK_LINE:",
+              ["@/components/**"],
+              ":BLANK_LINE:",
+              ["@/modules/**"],
+              ":BLANK_LINE:",
+              ":PACKAGE:",
+              ":BLANK_LINE:",
+              ":PATH:"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true,
+    "defaultBranch": "main"
+  },
+  "formatter": {
+    "enabled": true,
+    "indentWidth": 2,
+    "indentStyle": "space",
+    "lineWidth": 96
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "enabled": true,
+      "quoteStyle": "double",
+      "jsxQuoteStyle": "double",
+      "indentStyle": "space",
+      "indentWidth": 2,
+      "lineWidth": 96
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "complexity": {
+        "noForEach": "off"
+      },
+      "style": {
+        "useNodejsImportProtocol": "off",
+        "noNonNullAssertion": "off"
+      },
+      "suspicious": {
+        "noExplicitAny": "off",
+        "noArrayIndexKey": "off",
+        "noConfusingLabels": "off",
+        "noUnknownAtRules": "off",
+        "noTemplateCurlyInString": "off"
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "off",
+        "noChildrenProp": "off",
+        "noUnusedVariables": {
+          "level": "warn",
+          "fix": "unsafe"
+        },
+        "noUnusedFunctionParameters": {
+          "level": "warn",
+          "fix": "unsafe"
+        }
+      },
+      "a11y": {
+        "noPositiveTabindex": "off",
+        "noNoninteractiveTabindex": "off"
+      },
+      "nursery": {
+        "useSortedClasses": {
+          "level": "warn",
+          "fix": "safe",
+          "options": {
+            "attributes": ["className", "class"],
+            "functions": ["clsx", "cva", "tw", "cn", "tv"]
+          }
+        }
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "off"
+      }
+    }
+  }
+}

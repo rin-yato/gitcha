@@ -4,6 +4,7 @@
   "type": "module",
   "private": true,
   "devDependencies": {
+    "@biomejs/biome": "^2.4.9",
     "@types/bun": "latest"
   },
   "peerDependencies": {
@@ -15,6 +16,10 @@
     "solid-js": "^1.9.12"
   },
   "scripts": {
-    "dev": "bun run src/index.tsx"
+    "dev": "bun run src/index.tsx",
+    "typecheck": "tsc --noEmit",
+    "check": "biome check",
+    "fix": "biome check --write --unsafe",
+    "ci": "bun run check && bun run typecheck"
   }
 }

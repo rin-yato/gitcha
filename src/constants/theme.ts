@@ -19,4 +19,3 @@ export const theme = {
     md: 4,
   },
 };
-

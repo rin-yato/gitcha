@@ -42,4 +42,3 @@ function App() {
 }
 
 render(() => <App />);
-
