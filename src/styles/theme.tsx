@@ -94,7 +94,7 @@ const defaultLightTheme: Theme = {
   error: "#9d5f5f",
 };
 
-function generateThemeFromPalette(palette: TerminalColors): Theme {
+function _generateThemeFromPalette(palette: TerminalColors): Theme {
   const bg = palette.defaultBackground ?? "#1e1e2e";
   const fg = palette.defaultForeground ?? "#cdd6f4";
 
@@ -139,14 +139,15 @@ const ThemeContext = createContext<() => Theme>(() => defaultDarkTheme);
 
 export function ThemeProvider(props: { children: any }) {
   const renderer = useRenderer();
-  const [palette] = createResource(() => renderer.getPalette());
+  const [_palette] = createResource(() => renderer.getPalette());
 
   const theme = createMemo(() => {
     return opencodeLightTheme;
-    if (palette.loading || palette.error) {
-      return renderer.themeMode === "light" ? defaultLightTheme : defaultDarkTheme;
-    }
-    return generateThemeFromPalette(palette()!);
+    // TODO: re-enable dynamic palette loading when needed
+    // if (palette.loading || palette.error) {
+    //   return renderer.themeMode === "light" ? defaultLightTheme : defaultDarkTheme;
+    // }
+    // return generateThemeFromPalette(palette()!);
   });
 
   return <ThemeContext.Provider value={theme}>{props.children}</ThemeContext.Provider>;

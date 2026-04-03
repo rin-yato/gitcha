@@ -1,10 +1,7 @@
 import { render, useKeyboard } from "@opentui/solid";
 
-import { createMemo } from "solid-js";
-
 import { DiffPanel } from "./components/diff-panel";
 import { SourceControlPanel } from "./components/source-control-panel";
-import { buildFileTree } from "./git";
 import { AppStateProvider, GitProvider, useAppState, useGit } from "./state";
 import { ThemeProvider, useTheme } from "./styles/theme";
 
@@ -16,19 +13,6 @@ function App() {
   const status = () => git.status();
   const selectedFile = () => app.selectedFile();
   const focusedRow = () => app.focusedRow();
-
-  const stagedTree = createMemo(() => {
-    const s = status();
-    return s ? buildFileTree(s.files.staged) : null;
-  });
-  const changesTree = createMemo(() => {
-    const s = status();
-    return s ? buildFileTree(s.files.changes) : null;
-  });
-  const untrackedTree = createMemo(() => {
-    const s = status();
-    return s ? buildFileTree(s.files.untracked) : null;
-  });
 
   useKeyboard((event) => {
     if (event.name === "up" || event.name === "k") app.focusPreviousRow();
@@ -88,15 +72,8 @@ function App() {
           theme={theme()}
           status={status()}
           error={git.error()}
-          visibleRows={app.visibleRows()}
           selectedFile={selectedFile()}
           focusedPath={focusedRow()?.path ?? null}
-          focusedRowIndex={app.focusedRowIndex()}
-          stagedTree={stagedTree()}
-          changesTree={changesTree()}
-          untrackedTree={untrackedTree()}
-          isExpanded={app.isExpanded}
-          toggleDirectory={app.toggleDirectory}
           selectFile={app.selectFile}
           stageSelectedFile={app.stageSelectedFile}
           unstageSelectedFile={app.unstageSelectedFile}
