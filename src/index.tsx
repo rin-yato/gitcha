@@ -1,6 +1,6 @@
 import { render, useKeyboard } from "@opentui/solid";
 
-import { DiffPanel } from "./components/diff-panel";
+import { CodePanel } from "./components/code-panel";
 import { SourceControlPanel } from "./components/source-control-panel";
 import { AppStateProvider, GitProvider, useAppState, useGit } from "./state";
 import { ThemeProvider, useTheme } from "./styles/theme";
@@ -46,9 +46,10 @@ function App() {
         refreshStatus={git.refreshStatus}
       />
 
-      <DiffPanel
+      <CodePanel
         theme={theme()}
         selectedFile={selectedFile()}
+        selectedFileKey={app.selectedFileKey()}
         diffContent={app.diffContent()}
         diffViewMode={app.diffViewMode()}
         toggleDiffViewMode={app.toggleDiffViewMode}

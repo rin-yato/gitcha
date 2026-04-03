@@ -1,6 +1,7 @@
 import { For, Show } from "solid-js";
 
 import type { GitRepoStatus, GitStatusFile } from "../git";
+import type { FileSection } from "../state";
 import type { Theme } from "../styles/theme";
 
 const STATUS_SYMBOLS: Record<string, string> = {
@@ -35,6 +36,7 @@ function getFileColor(file: GitStatusFile, theme: Theme): string {
 
 function FlatFileItem(props: {
   file: GitStatusFile;
+  section: FileSection;
   isSelected: boolean;
   isActive: boolean;
   onSelect: () => void;
@@ -92,7 +94,7 @@ export function SourceControlPanel(props: {
   error: string | null;
   selectedFile: string | null;
   focusedPath: string | null;
-  selectFile: (path: string) => void;
+  selectFile: (path: string, section?: FileSection) => void;
   stageSelectedFile: () => void;
   unstageSelectedFile: () => void;
   discardSelectedFile: () => void;
@@ -127,9 +129,10 @@ export function SourceControlPanel(props: {
                 {(file) => (
                   <FlatFileItem
                     file={file}
+                    section="staged"
                     isSelected={props.focusedPath === file.path}
                     isActive={props.selectedFile === file.path}
-                    onSelect={() => props.selectFile(file.path)}
+                    onSelect={() => props.selectFile(file.path, "staged")}
                     theme={props.theme}
                   />
                 )}
@@ -154,9 +157,10 @@ export function SourceControlPanel(props: {
                 {(file) => (
                   <FlatFileItem
                     file={file}
+                    section="changes"
                     isSelected={props.focusedPath === file.path}
                     isActive={props.selectedFile === file.path}
-                    onSelect={() => props.selectFile(file.path)}
+                    onSelect={() => props.selectFile(file.path, "changes")}
                     theme={props.theme}
                   />
                 )}
@@ -170,15 +174,6 @@ export function SourceControlPanel(props: {
                 selectable={false}
               />
             </Show>
-
-            <box flexDirection="row" gap={2}>
-              <text content="s" fg={props.theme.accent} attributes={1} selectable={false} />
-              <text content="stage" fg={props.theme.textMuted} selectable={false} />
-              <text content="u" fg={props.theme.accent} attributes={1} selectable={false} />
-              <text content="unstage" fg={props.theme.textMuted} selectable={false} />
-              <text content="x" fg={props.theme.accent} attributes={1} selectable={false} />
-              <text content="discard" fg={props.theme.textMuted} selectable={false} />
-            </box>
           </box>
         )}
       </Show>

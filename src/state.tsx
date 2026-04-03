@@ -12,7 +12,7 @@ import type { GitRepoStatus, GitStatusFile } from "./git";
 import {
   commitChanges as commitGitChanges,
   discardChanges as discardGitChanges,
-  getFileDiff,
+  getFileDiffWithContext,
   getRecentCommits,
   getRepoStatus,
   pullChanges as pullGitChanges,
@@ -22,6 +22,7 @@ import {
 } from "./git";
 
 export type DiffViewMode = "unified" | "split";
+export type FileSection = "staged" | "changes";
 
 type GitContextValue = {
   status: () => GitRepoStatus | null;
@@ -117,6 +118,8 @@ export function useGit() {
 
 type AppStateContextValue = {
   selectedFile: () => string | null;
+  selectedFileKey: () => string | null;
+  selectedFileSection: () => FileSection | null;
   diffContent: () => string | null;
   focusedRowIndex: () => number;
   visibleFiles: () => GitStatusFile[];
@@ -136,6 +139,8 @@ const AppStateContext = createContext<AppStateContextValue>();
 export function AppStateProvider(props: { children: any }) {
   const git = useGit();
   const [selectedFile, setSelectedFile] = createSignal<string | null>(null);
+  const [selectedFileKey, setSelectedFileKey] = createSignal<string | null>(null);
+  const [selectedFileSection, setSelectedFileSection] = createSignal<FileSection | null>(null);
   const [diffContent, setDiffContent] = createSignal<string | null>(null);
   const [focusedRowIndex, setFocusedRowIndex] = createSignal(0);
   const [diffViewMode, setDiffViewMode] = createSignal<DiffViewMode>("unified");
@@ -152,12 +157,21 @@ export function AppStateProvider(props: { children: any }) {
   const selectedFileInfo = createMemo(() => {
     const status = git.status();
     const filePath = selectedFile();
+    const section = selectedFileSection();
     if (!status || !filePath) return null;
+
+    if (section === "staged") {
+      return status.files.staged.find((file) => file.path === filePath) ?? null;
+    }
+
+    if (section === "changes") {
+      return status.files.changes.find((file) => file.path === filePath) ?? null;
+    }
 
     return visibleFiles().find((file) => file.path === filePath) ?? null;
   });
 
-  const loadDiff = (filePath: string) => {
+  const loadFile = (filePath: string, section: FileSection | null) => {
     try {
       const status = git.status();
       if (!status) {
@@ -165,26 +179,30 @@ export function AppStateProvider(props: { children: any }) {
         return;
       }
 
-      const isStaged = status.files.staged.some((file) => file.path === filePath);
-      const diff = getFileDiff(filePath, { staged: isStaged });
-      setDiffContent(diff || "No changes to display");
+      const isStaged = section === "staged";
+      const diff = getFileDiffWithContext(filePath, { staged: isStaged });
+      setDiffContent(diff || "No content to display");
     } catch (e) {
-      setDiffContent(`Error loading diff: ${e instanceof Error ? e.message : "Unknown error"}`);
+      setDiffContent(`Error loading file: ${e instanceof Error ? e.message : "Unknown error"}`);
     }
   };
 
-  const selectFile = (filePath: string) => {
+  const selectFile = (filePath: string, section: FileSection = "changes") => {
     setSelectedFile(filePath);
-    loadDiff(filePath);
+    setSelectedFileKey(`${section}:${filePath}`);
+    setSelectedFileSection(section);
+    loadFile(filePath, section);
   };
 
   const focusRow = (nextIndex: number) => {
     const files = visibleFiles();
     const file = files[nextIndex];
+    const section: FileSection | null =
+      nextIndex < (git.status()?.files.staged.length ?? 0) ? "staged" : "changes";
     setFocusedRowIndex(nextIndex);
 
     if (file) {
-      selectFile(file.path);
+      selectFile(file.path, section ?? "changes");
     }
   };
 
@@ -192,13 +210,20 @@ export function AppStateProvider(props: { children: any }) {
     git.status();
     const files = visibleFiles();
     if (files.length > 0 && !selectedFile()) {
-      const first = files[0];
+      const stagedFiles = git.status()?.files.staged ?? [];
+      const changesFiles = git.status()?.files.changes ?? [];
+      const first = stagedFiles[0] ?? changesFiles[0];
+      const firstSection: FileSection = stagedFiles.length > 0 ? "staged" : "changes";
       if (first) {
         setSelectedFile(first.path);
-        loadDiff(first.path);
+        setSelectedFileKey(`${firstSection}:${first.path}`);
+        setSelectedFileSection(firstSection);
+        loadFile(first.path, firstSection);
       }
     } else if (files.length === 0) {
       setSelectedFile(null);
+      setSelectedFileKey(null);
+      setSelectedFileSection(null);
       setDiffContent(null);
     }
   });
@@ -237,6 +262,8 @@ export function AppStateProvider(props: { children: any }) {
     <AppStateContext.Provider
       value={{
         selectedFile,
+        selectedFileKey,
+        selectedFileSection,
         diffContent,
         focusedRowIndex,
         visibleFiles,

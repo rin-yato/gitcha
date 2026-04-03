@@ -102,6 +102,27 @@ export function getFileDiff(
 }
 
 /**
+ * Get full file diff with lots of context (for showing whole file with changes highlighted)
+ */
+export function getFileDiffWithContext(
+  filePath: string,
+  options: { staged?: boolean; cwd?: string } = {},
+): string {
+  const { staged = false, cwd } = options;
+  const args = staged
+    ? ["diff", "--staged", "-U500", "--", filePath]
+    : ["diff", "-U500", "--", filePath];
+  return execGit(args, { cwd });
+}
+
+/**
+ * Get diff for unstaged changes against staged (what was already staged)
+ */
+export function getUnstagedDiff(filePath: string, cwd?: string): string {
+  return execGit(["diff", "--", filePath], { cwd });
+}
+
+/**
  * Commit staged changes with a message
  */
 export function commitChanges(message: string, cwd?: string): void {
