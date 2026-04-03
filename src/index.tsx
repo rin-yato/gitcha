@@ -41,54 +41,33 @@ function App() {
   return (
     <box
       id="app"
-      flexDirection="column"
+      flexDirection="row"
       width="100%"
       height="100%"
       backgroundColor={theme().background}
       paddingX={2}
       paddingY={1}
     >
-      <box flexDirection="row" justifyContent="space-between" paddingBottom={1}>
-        <box flexDirection="column">
-          <text fg={theme().text} attributes={1} selectable={false}>
-            Review Workspace
-          </text>
-          <text fg={theme().textMuted} selectable={false}>
-            focused code review
-          </text>
-        </box>
-        <box flexDirection="row" gap={2}>
-          <text fg={theme().textMuted} selectable={false}>
-            {status()?.branch || "no repository"}
-          </text>
-          <text fg={theme().accent} selectable={false}>
-            {app.diffViewMode()}
-          </text>
-        </box>
-      </box>
+      <SourceControlPanel
+        theme={theme()}
+        status={status()}
+        error={git.error()}
+        selectedFile={selectedFile()}
+        focusedPath={focusedRow()?.path ?? null}
+        selectFile={app.selectFile}
+        stageSelectedFile={app.stageSelectedFile}
+        unstageSelectedFile={app.unstageSelectedFile}
+        discardSelectedFile={app.discardSelectedFile}
+        refreshStatus={git.refreshStatus}
+      />
 
-      <box flexDirection="row" flexGrow={1} gap={3}>
-        <SourceControlPanel
-          theme={theme()}
-          status={status()}
-          error={git.error()}
-          selectedFile={selectedFile()}
-          focusedPath={focusedRow()?.path ?? null}
-          selectFile={app.selectFile}
-          stageSelectedFile={app.stageSelectedFile}
-          unstageSelectedFile={app.unstageSelectedFile}
-          discardSelectedFile={app.discardSelectedFile}
-          refreshStatus={git.refreshStatus}
-        />
-
-        <DiffPanel
-          theme={theme()}
-          selectedFile={selectedFile()}
-          diffContent={app.diffContent()}
-          diffViewMode={app.diffViewMode()}
-          toggleDiffViewMode={app.toggleDiffViewMode}
-        />
-      </box>
+      <DiffPanel
+        theme={theme()}
+        selectedFile={selectedFile()}
+        diffContent={app.diffContent()}
+        diffViewMode={app.diffViewMode()}
+        toggleDiffViewMode={app.toggleDiffViewMode}
+      />
     </box>
   );
 }
