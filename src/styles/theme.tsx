@@ -19,18 +19,18 @@ export interface Theme {
 }
 
 const defaultDarkTheme: Theme = {
-  background: "#1e1e2e",
-  surface: "#313244",
-  border: "#45475a",
-  text: "#cdd6f4",
-  textMuted: "#6c7086",
-  accent: "#89b4fa",
-  added: "#a6e3a1",
-  removed: "#f38ba8",
-  modified: "#f9e2af",
-  success: "#a6e3a1",
-  warning: "#f9e2af",
-  error: "#f38ba8",
+  background: "#1a1b26", // Darker background
+  surface: "#24283b", // Lighter surface for better legibility
+  border: "#565f89", // Brighter borders
+  text: "#a9b1d6", // Softer white text
+  textMuted: "#787c99", // Muted text
+  accent: "#7aa2f7", // Bright blue accent
+  added: "#73daca", // Teal green for added
+  removed: "#f7768e", // Pink red for removed
+  modified: "#e0af68", // Orange for modified
+  success: "#73daca", // Teal green
+  warning: "#e0af68", // Orange
+  error: "#f7768e", // Pink red
 };
 
 const defaultLightTheme: Theme = {

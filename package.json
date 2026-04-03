@@ -16,7 +16,6 @@
     "solid-js": "^1.9.12"
   },
   "scripts": {
-    "dev": "bun run src/index.tsx",
     "typecheck": "tsc --noEmit",
     "check": "biome check",
     "fix": "biome check --write --unsafe",

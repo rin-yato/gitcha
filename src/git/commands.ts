@@ -19,7 +19,16 @@ export function execGit(
     return result || "";
   } catch (error) {
     if (error instanceof Error) {
-      const execError = error as Error & { stderr?: string; status?: number };
+      const execError = error as Error & {
+        stderr?: string;
+        stdout?: string;
+        status?: number;
+      };
+
+      if (execError.status === 1 && execError.stdout) {
+        return execError.stdout;
+      }
+
       // Status 1 often means no changes, not a real error
       if (execError.status === 1 && !execError.stderr) {
         return "";
@@ -67,7 +76,12 @@ export function unstageFile(filePath: string, cwd?: string): void {
  * Discard changes in a file (destructive!)
  */
 export function discardChanges(filePath: string, cwd?: string): void {
-  execGit(["checkout", "--", filePath], { cwd });
+  try {
+    execGit(["checkout", "--", filePath], { cwd });
+  } catch {
+    // Untracked files are removed instead of restored.
+    execGit(["clean", "-f", "--", filePath], { cwd });
+  }
 }
 
 /**
@@ -75,9 +89,13 @@ export function discardChanges(filePath: string, cwd?: string): void {
  */
 export function getFileDiff(
   filePath: string,
-  options: { staged?: boolean; cwd?: string } = {},
+  options: { staged?: boolean; untracked?: boolean; cwd?: string } = {},
 ): string {
-  const { staged = false, cwd } = options;
-  const args = staged ? ["diff", "--staged", "--", filePath] : ["diff", "--", filePath];
+  const { staged = false, untracked = false, cwd } = options;
+  const args = untracked
+    ? ["diff", "--no-index", "--", "/dev/null", filePath]
+    : staged
+      ? ["diff", "--staged", "--", filePath]
+      : ["diff", "--", filePath];
   return execGit(args, { cwd });
 }
