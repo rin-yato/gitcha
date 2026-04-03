@@ -46,6 +46,24 @@ To provide a feature-rich, keyboard-centric Git workflow with an easy-to-underst
 - **Phase 4 - Interactivity & State:** Implement state management for staging/unstaging and bind keys for navigation.
 - **Phase 5 - Commit Interface:** Build the input box, capture the message, and execute the `git commit` command.
 
+## Build and Install
+
+### Local build
+
+```sh
+bun run build
+```
+
+This generates a compiled macOS binary in `dist/sourcery` using Bun compile and the OpenTUI Solid Bun plugin.
+
+### Install on macOS
+
+```sh
+bun run install:local
+```
+
+By default, this installs the compiled binary to `~/.local/bin/sourcery`. Set `PREFIX` to change the install location.
+
 ## 📁 Project Structure
 
 ```
