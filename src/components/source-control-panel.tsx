@@ -99,13 +99,7 @@ export function SourceControlPanel(props: {
   refreshStatus: () => void;
 }) {
   return (
-    <box
-      backgroundColor={props.theme.surface}
-      width="30%"
-      flexDirection="column"
-      paddingX={1}
-      paddingY={1}
-    >
+    <box backgroundColor={props.theme.surface} width="30%" flexDirection="column">
       <Show when={props.error}>
         <text fg={props.theme.error} selectable={true}>
           {props.error}
@@ -116,7 +110,7 @@ export function SourceControlPanel(props: {
         {(s: () => GitRepoStatus) => (
           <box flexDirection="column" flexGrow={1}>
             <Show when={s().files.staged.length > 0}>
-              <box flexDirection="row" gap={1} paddingBottom={1}>
+              <box flexDirection="row" gap={1}>
                 <text
                   content="Staged"
                   fg={props.theme.text}
@@ -143,7 +137,7 @@ export function SourceControlPanel(props: {
             </Show>
 
             <Show when={s().files.changes.length > 0}>
-              <box flexDirection="row" gap={1} paddingTop={2} paddingBottom={1}>
+              <box flexDirection="row" gap={1}>
                 <text
                   content="Changes"
                   fg={props.theme.text}
@@ -177,7 +171,7 @@ export function SourceControlPanel(props: {
               />
             </Show>
 
-            <box flexDirection="row" gap={2} paddingTop={3}>
+            <box flexDirection="row" gap={2}>
               <text content="s" fg={props.theme.accent} attributes={1} selectable={false} />
               <text content="stage" fg={props.theme.textMuted} selectable={false} />
               <text content="u" fg={props.theme.accent} attributes={1} selectable={false} />

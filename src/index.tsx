@@ -12,24 +12,11 @@ function App() {
 
   const status = () => git.status();
   const selectedFile = () => app.selectedFile();
-  const focusedRow = () => app.focusedRow();
+  const focusedFile = () => app.focusedFile();
 
   useKeyboard((event) => {
     if (event.name === "up" || event.name === "k") app.focusPreviousRow();
     if (event.name === "down" || event.name === "j") app.focusNextRow();
-    if (event.name === "enter") app.activateFocusedRow();
-    if (event.name === "h") {
-      const row = focusedRow();
-      if (row?.isDirectory && app.isExpanded(row.path)) {
-        app.collapseDirectory(row.path);
-      }
-    }
-    if (event.name === "l") {
-      const row = focusedRow();
-      if (row?.isDirectory) {
-        app.expandDirectory(row.path);
-      }
-    }
     if (event.name === "space") app.toggleDiffViewMode();
     if (event.name === "r") git.refreshStatus();
     if (event.name === "s") app.stageSelectedFile();
@@ -45,15 +32,13 @@ function App() {
       width="100%"
       height="100%"
       backgroundColor={theme().background}
-      paddingX={2}
-      paddingY={1}
     >
       <SourceControlPanel
         theme={theme()}
         status={status()}
         error={git.error()}
         selectedFile={selectedFile()}
-        focusedPath={focusedRow()?.path ?? null}
+        focusedPath={focusedFile()?.path ?? null}
         selectFile={app.selectFile}
         stageSelectedFile={app.stageSelectedFile}
         unstageSelectedFile={app.unstageSelectedFile}
