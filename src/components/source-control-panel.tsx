@@ -1,6 +1,7 @@
 import { For, Show } from "solid-js";
 
 import type { FileTreeNode, GitRepoStatus } from "../git";
+import type { VisibleTreeRow } from "../state";
 import type { Theme } from "../styles/theme";
 import { createFileTreeTheme, FileTreeItem } from "./file-tree-item";
 
@@ -8,9 +9,10 @@ export function SourceControlPanel(props: {
   theme: Theme;
   status: GitRepoStatus | null;
   error: string | null;
-  allFiles: { path: string }[];
+  visibleRows: VisibleTreeRow[];
   selectedFile: string | null;
-  cursorIndex: number;
+  focusedPath: string | null;
+  focusedRowIndex: number;
   stagedTree: FileTreeNode | null;
   changesTree: FileTreeNode | null;
   untrackedTree: FileTreeNode | null;
@@ -26,56 +28,65 @@ export function SourceControlPanel(props: {
 
   return (
     <box
-      backgroundColor={props.theme.background}
-      border
-      borderStyle="rounded"
-      borderColor={props.theme.border}
-      width="36%"
+      backgroundColor={props.theme.surface}
+      width="32%"
       flexDirection="column"
-      padding={1}
+      paddingX={1}
+      paddingY={1}
     >
-      <box flexDirection="row" justifyContent="space-between">
-        <text fg={props.theme.accent} attributes={1} selectable={false}>
-          SOURCE CONTROL
-        </text>
+      <box flexDirection="row" justifyContent="space-between" paddingBottom={1}>
+        <box flexDirection="column">
+          <text fg={props.theme.text} attributes={1} selectable={false}>
+            Review Queue
+          </text>
+          <text fg={props.theme.textMuted} selectable={false}>
+            files ready for review
+          </text>
+        </box>
         <text
-          content={`[${props.allFiles.length === 0 ? 0 : props.cursorIndex + 1}/${props.allFiles.length}]`}
+          content={`${props.visibleRows.length === 0 ? 0 : props.focusedRowIndex + 1}/${props.visibleRows.length}`}
           fg={props.theme.textMuted}
           selectable={false}
         />
       </box>
-      <text content="" />
+
+      <Show when={props.error}>
+        <text fg={props.theme.error} selectable={true}>
+          {props.error}
+        </text>
+      </Show>
+
+      <box paddingTop={1} paddingBottom={1}>
+        <text fg={props.theme.textMuted} selectable={false}>
+          {props.focusedPath || "no file focused"}
+        </text>
+      </box>
 
       <Show when={props.status}>
         {(s: () => GitRepoStatus) => (
           <>
-            <box flexDirection="row" gap={1}>
-              <text
-                content={s().isRepo ? "●" : "○"}
-                fg={s().isRepo ? props.theme.success : props.theme.warning}
-                selectable={false}
-              />
+            <box flexDirection="column" paddingBottom={1}>
               <text
                 content={s().branch || "Not a git repository"}
                 fg={props.theme.text}
                 selectable={false}
               />
-            </box>
-            <Show when={s().upstream}>
               <text
-                content={`  ${s().aheadCount > 0 ? `↑${s().aheadCount}` : ""}${s().behindCount > 0 ? `↓${s().behindCount}` : ""} ${s().upstream}`}
+                content={
+                  s().upstream
+                    ? `${s().aheadCount > 0 ? `↑${s().aheadCount} ` : ""}${s().behindCount > 0 ? `↓${s().behindCount} ` : ""}${s().upstream}`
+                    : "local working tree"
+                }
                 fg={props.theme.textMuted}
                 selectable={false}
               />
-            </Show>
-            <text content="" />
+            </box>
 
             <Show when={s().files.staged.length > 0}>
-              <box flexDirection="row" gap={1} paddingBottom={1}>
-                <text content="✓" fg={props.theme.added} selectable={false} />
+              <box flexDirection="row" gap={1} paddingBottom={1} paddingTop={1}>
                 <text
-                  content={`STAGED (${s().files.staged.length})`}
-                  fg={props.theme.added}
+                  content={`Staged · ${s().files.staged.length}`}
+                  fg={props.theme.textMuted}
                   selectable={false}
                 />
               </box>
@@ -84,7 +95,8 @@ export function SourceControlPanel(props: {
                   <FileTreeItem
                     node={node}
                     depth={0}
-                    isSelected={props.selectedFile === node.path}
+                    isSelected={props.focusedPath === node.path}
+                    isActive={props.selectedFile === node.path}
                     isExpanded={props.isExpanded}
                     onSelect={() => props.selectFile(node.path)}
                     onToggleDirectory={() => props.toggleDirectory(node.path)}
@@ -92,15 +104,13 @@ export function SourceControlPanel(props: {
                   />
                 )}
               </For>
-              <text content="" />
             </Show>
 
             <Show when={s().files.changes.length > 0}>
-              <box flexDirection="row" gap={1} paddingBottom={1}>
-                <text content="~" fg={props.theme.modified} selectable={false} />
+              <box flexDirection="row" gap={1} paddingBottom={1} paddingTop={1}>
                 <text
-                  content={`CHANGES (${s().files.changes.length})`}
-                  fg={props.theme.modified}
+                  content={`Changes · ${s().files.changes.length}`}
+                  fg={props.theme.textMuted}
                   selectable={false}
                 />
               </box>
@@ -109,7 +119,8 @@ export function SourceControlPanel(props: {
                   <FileTreeItem
                     node={node}
                     depth={0}
-                    isSelected={props.selectedFile === node.path}
+                    isSelected={props.focusedPath === node.path}
+                    isActive={props.selectedFile === node.path}
                     isExpanded={props.isExpanded}
                     onSelect={() => props.selectFile(node.path)}
                     onToggleDirectory={() => props.toggleDirectory(node.path)}
@@ -117,14 +128,12 @@ export function SourceControlPanel(props: {
                   />
                 )}
               </For>
-              <text content="" />
             </Show>
 
             <Show when={s().files.untracked.length > 0}>
-              <box flexDirection="row" gap={1} paddingBottom={1}>
-                <text content="?" fg={props.theme.textMuted} selectable={false} />
+              <box flexDirection="row" gap={1} paddingBottom={1} paddingTop={1}>
                 <text
-                  content={`UNTRACKED (${s().files.untracked.length})`}
+                  content={`Untracked · ${s().files.untracked.length}`}
                   fg={props.theme.textMuted}
                   selectable={false}
                 />
@@ -134,7 +143,8 @@ export function SourceControlPanel(props: {
                   <FileTreeItem
                     node={node}
                     depth={0}
-                    isSelected={props.selectedFile === node.path}
+                    isSelected={props.focusedPath === node.path}
+                    isActive={props.selectedFile === node.path}
                     isExpanded={props.isExpanded}
                     onSelect={() => props.selectFile(node.path)}
                     onToggleDirectory={() => props.toggleDirectory(node.path)}
@@ -145,32 +155,21 @@ export function SourceControlPanel(props: {
             </Show>
 
             <Show when={s().totalFiles === 0}>
-              <box flexDirection="row" gap={1}>
-                <text content="✓" fg={props.theme.success} selectable={false} />
+              <box paddingTop={1}>
                 <text
                   content="Working tree clean"
-                  fg={props.theme.success}
+                  fg={props.theme.textMuted}
                   selectable={false}
                 />
               </box>
             </Show>
 
-            <text content="" />
-            <box border borderStyle="single" borderColor={props.theme.border} padding={1}>
+            <box paddingTop={2}>
               <text
-                content="j/k or arrows: navigate | h/l: collapse-expand | s/u/x: stage/unstage/discard | r: refresh"
+                content="j/k move  space toggle diff  s/u/x act  r refresh"
                 fg={props.theme.textMuted}
                 selectable={false}
               />
-            </box>
-            <text content="" />
-            <box flexDirection="row" gap={1}>
-              <text fg={props.theme.textMuted} selectable={false}>
-                Selected:
-              </text>
-              <text fg={props.theme.text} selectable={true}>
-                {props.selectedFile || "none"}
-              </text>
             </box>
           </>
         )}

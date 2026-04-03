@@ -19,33 +19,33 @@ export interface Theme {
 }
 
 const defaultDarkTheme: Theme = {
-  background: "#1a1b26", // Darker background
-  surface: "#24283b", // Lighter surface for better legibility
-  border: "#565f89", // Brighter borders
-  text: "#a9b1d6", // Softer white text
-  textMuted: "#787c99", // Muted text
-  accent: "#7aa2f7", // Bright blue accent
-  added: "#73daca", // Teal green for added
-  removed: "#f7768e", // Pink red for removed
-  modified: "#e0af68", // Orange for modified
-  success: "#73daca", // Teal green
-  warning: "#e0af68", // Orange
-  error: "#f7768e", // Pink red
+  background: "#101418",
+  surface: "#171c22",
+  border: "#2b3340",
+  text: "#d6dde8",
+  textMuted: "#7f8a99",
+  accent: "#8ca3c7",
+  added: "#7ab69a",
+  removed: "#c48888",
+  modified: "#c9b17f",
+  success: "#7ab69a",
+  warning: "#c9b17f",
+  error: "#c48888",
 };
 
 const defaultLightTheme: Theme = {
-  background: "#eff1f5",
-  surface: "#e6e9ef",
-  border: "#ccd0da",
-  text: "#4c4f69",
-  textMuted: "#8c8fa1",
-  accent: "#1e66f5",
-  added: "#40a02b",
-  removed: "#d20f39",
-  modified: "#df8e1d",
-  success: "#40a02b",
-  warning: "#df8e1d",
-  error: "#d20f39",
+  background: "#f4f6f8",
+  surface: "#e8edf2",
+  border: "#d4dbe3",
+  text: "#1e2732",
+  textMuted: "#6e7885",
+  accent: "#5d728f",
+  added: "#4f8a69",
+  removed: "#9d5f5f",
+  modified: "#9a8151",
+  success: "#4f8a69",
+  warning: "#9a8151",
+  error: "#9d5f5f",
 };
 
 function generateThemeFromPalette(palette: TerminalColors): Theme {
@@ -57,11 +57,11 @@ function generateThemeFromPalette(palette: TerminalColors): Theme {
 
   return {
     background: bg,
-    surface: palette.palette[8] ?? adjustBrightness(bg, isLight ? -10 : 10),
+    surface: palette.palette[8] ?? adjustBrightness(bg, isLight ? -4 : 6),
     border: palette.palette[8] ?? base.border,
     text: fg,
     textMuted: palette.palette[8] ?? base.textMuted,
-    accent: palette.palette[4] ?? base.accent,
+    accent: palette.palette[6] ?? base.accent,
     added: palette.palette[2] ?? base.added,
     removed: palette.palette[1] ?? base.removed,
     modified: palette.palette[3] ?? base.modified,

@@ -2,7 +2,6 @@ import { render, useKeyboard } from "@opentui/solid";
 
 import { createMemo } from "solid-js";
 
-import { CommitPanel } from "./components/commit-panel";
 import { DiffPanel } from "./components/diff-panel";
 import { SourceControlPanel } from "./components/source-control-panel";
 import { buildFileTree } from "./git";
@@ -16,8 +15,8 @@ function App() {
 
   const status = () => git.status();
   const selectedFile = () => app.selectedFile();
+  const focusedRow = () => app.focusedRow();
 
-  const allFiles = createMemo(() => app.allFiles());
   const stagedTree = createMemo(() => {
     const s = status();
     return s ? buildFileTree(s.files.staged) : null;
@@ -32,18 +31,26 @@ function App() {
   });
 
   useKeyboard((event) => {
-    if (event.name === "up" || event.name === "k") app.selectPreviousFile();
-    if (event.name === "down" || event.name === "j") app.selectNextFile();
-    if (event.name === "h") app.toggleDiffViewMode();
-    if (event.name === "l") app.toggleDiffViewMode();
+    if (event.name === "up" || event.name === "k") app.focusPreviousRow();
+    if (event.name === "down" || event.name === "j") app.focusNextRow();
+    if (event.name === "enter") app.activateFocusedRow();
+    if (event.name === "h") {
+      const row = focusedRow();
+      if (row?.isDirectory && app.isExpanded(row.path)) {
+        app.collapseDirectory(row.path);
+      }
+    }
+    if (event.name === "l") {
+      const row = focusedRow();
+      if (row?.isDirectory) {
+        app.expandDirectory(row.path);
+      }
+    }
     if (event.name === "space") app.toggleDiffViewMode();
     if (event.name === "r") git.refreshStatus();
     if (event.name === "s") app.stageSelectedFile();
     if (event.name === "u") app.unstageSelectedFile();
     if (event.name === "x") app.discardSelectedFile();
-    if (event.name === "enter") git.commitChanges(app.commitMessage());
-    if (event.name === "p") git.pushChanges();
-    if (event.name === "P") git.pullChanges();
     if (event.name === "escape") process.exit(0);
   });
 
@@ -54,24 +61,37 @@ function App() {
       width="100%"
       height="100%"
       backgroundColor={theme().background}
+      paddingX={2}
+      paddingY={1}
     >
-      <box flexDirection="row" gap={1} paddingBottom={1}>
-        <text fg={theme().accent} attributes={1} selectable={false}>
-          GitTUIhel
-        </text>
-        <text fg={theme().textMuted} selectable={false}>
-          minimalist source control
-        </text>
+      <box flexDirection="row" justifyContent="space-between" paddingBottom={1}>
+        <box flexDirection="column">
+          <text fg={theme().text} attributes={1} selectable={false}>
+            Review Workspace
+          </text>
+          <text fg={theme().textMuted} selectable={false}>
+            focused code review
+          </text>
+        </box>
+        <box flexDirection="row" gap={2}>
+          <text fg={theme().textMuted} selectable={false}>
+            {status()?.branch || "no repository"}
+          </text>
+          <text fg={theme().accent} selectable={false}>
+            {app.diffViewMode()}
+          </text>
+        </box>
       </box>
 
-      <box flexDirection="row" flexGrow={1} gap={1}>
+      <box flexDirection="row" flexGrow={1} gap={3}>
         <SourceControlPanel
           theme={theme()}
           status={status()}
           error={git.error()}
-          allFiles={allFiles()}
+          visibleRows={app.visibleRows()}
           selectedFile={selectedFile()}
-          cursorIndex={app.cursorIndex()}
+          focusedPath={focusedRow()?.path ?? null}
+          focusedRowIndex={app.focusedRowIndex()}
           stagedTree={stagedTree()}
           changesTree={changesTree()}
           untrackedTree={untrackedTree()}
@@ -90,17 +110,6 @@ function App() {
           diffContent={app.diffContent()}
           diffViewMode={app.diffViewMode()}
           toggleDiffViewMode={app.toggleDiffViewMode}
-        />
-      </box>
-
-      <box marginTop={1}>
-        <CommitPanel
-          theme={theme()}
-          commitMessage={app.commitMessage}
-          setCommitMessage={app.setCommitMessage}
-          commitChanges={git.commitChanges}
-          pushChanges={git.pushChanges}
-          pullChanges={git.pullChanges}
         />
       </box>
     </box>

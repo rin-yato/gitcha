@@ -8,8 +8,9 @@ import {
   useContext,
 } from "solid-js";
 
-import type { GitRepoStatus, GitStatusFile } from "./git";
+import type { FileTreeNode, GitRepoStatus, GitStatusFile } from "./git";
 import {
+  buildFileTree,
   commitChanges as commitGitChanges,
   discardChanges as discardGitChanges,
   getFileDiff,
@@ -22,6 +23,16 @@ import {
 } from "./git";
 
 export type DiffViewMode = "unified" | "split";
+export type TreeSection = "staged" | "changes" | "untracked";
+
+export type VisibleTreeRow = {
+  id: string;
+  path: string;
+  depth: number;
+  isDirectory: boolean;
+  section: TreeSection;
+  node: FileTreeNode;
+};
 
 type GitContextValue = {
   status: () => GitRepoStatus | null;
@@ -118,19 +129,21 @@ export function useGit() {
 type AppStateContextValue = {
   selectedFile: () => string | null;
   diffContent: () => string | null;
-  cursorIndex: () => number;
+  focusedRowIndex: () => number;
   allFiles: () => GitStatusFile[];
   expandedPaths: () => string[];
+  visibleRows: () => VisibleTreeRow[];
+  focusedRow: () => VisibleTreeRow | null;
   isExpanded: (path: string) => boolean;
   toggleDirectory: (path: string) => void;
+  expandDirectory: (path: string) => void;
+  collapseDirectory: (path: string) => void;
   diffViewMode: () => DiffViewMode;
   toggleDiffViewMode: () => void;
-  commitMessage: () => string;
-  setCommitMessage: (value: string) => void;
   selectFile: (filePath: string) => void;
-  selectPreviousFile: () => void;
-  selectNextFile: () => void;
-  setCursorIndex: (index: number) => void;
+  focusPreviousRow: () => void;
+  focusNextRow: () => void;
+  activateFocusedRow: () => void;
   stageSelectedFile: () => void;
   unstageSelectedFile: () => void;
   discardSelectedFile: () => void;
@@ -142,10 +155,9 @@ export function AppStateProvider(props: { children: any }) {
   const git = useGit();
   const [selectedFile, setSelectedFile] = createSignal<string | null>(null);
   const [diffContent, setDiffContent] = createSignal<string | null>(null);
-  const [cursorIndex, setCursorIndex] = createSignal(0);
+  const [focusedRowIndex, setFocusedRowIndex] = createSignal(0);
   const [expandedPaths, setExpandedPaths] = createSignal<string[]>([]);
   const [diffViewMode, setDiffViewMode] = createSignal<DiffViewMode>("unified");
-  const [commitMessage, setCommitMessage] = createSignal("");
 
   const allFiles = createMemo(() => {
     const status = git.status();
@@ -161,6 +173,48 @@ export function AppStateProvider(props: { children: any }) {
 
     return allFiles().find((file) => file.path === filePath) ?? null;
   });
+
+  const visibleRows = createMemo<VisibleTreeRow[]>(() => {
+    const status = git.status();
+    if (!status) return [];
+
+    const rows: VisibleTreeRow[] = [];
+    const sections: Array<{ key: TreeSection; files: GitStatusFile[] }> = [
+      { key: "staged", files: status.files.staged },
+      { key: "changes", files: status.files.changes },
+      { key: "untracked", files: status.files.untracked },
+    ];
+
+    const walk = (node: FileTreeNode, section: TreeSection, depth: number) => {
+      rows.push({
+        id: `${section}:${node.path}`,
+        path: node.path,
+        depth,
+        isDirectory: node.isDirectory,
+        section,
+        node,
+      });
+
+      if (!node.isDirectory || !expandedPaths().includes(node.path)) {
+        return;
+      }
+
+      for (const child of node.children) {
+        walk(child, section, depth + 1);
+      }
+    };
+
+    for (const section of sections) {
+      const tree = buildFileTree(section.files);
+      for (const child of tree.children) {
+        walk(child, section.key, 0);
+      }
+    }
+
+    return rows;
+  });
+
+  const focusedRow = createMemo(() => visibleRows()[focusedRowIndex()] ?? null);
 
   const loadDiff = (filePath: string) => {
     try {
@@ -200,7 +254,6 @@ export function AppStateProvider(props: { children: any }) {
         const nextFile = files[0];
         if (nextFile) {
           setSelectedFile(nextFile.path);
-          setCursorIndex(0);
           expandAncestors(nextFile.path);
           loadDiff(nextFile.path);
           return;
@@ -208,7 +261,6 @@ export function AppStateProvider(props: { children: any }) {
       }
 
       setSelectedFile(null);
-      setCursorIndex(0);
       setDiffContent(null);
       return;
     }
@@ -220,18 +272,15 @@ export function AppStateProvider(props: { children: any }) {
     setSelectedFile(filePath);
     loadDiff(filePath);
     expandAncestors(filePath);
-
-    const index = allFiles().findIndex((file) => file.path === filePath);
-    if (index !== -1) {
-      setCursorIndex(index);
-    }
   };
 
-  const selectByCursor = (nextIndex: number) => {
-    const file = allFiles()[nextIndex];
-    setCursorIndex(nextIndex);
-    if (file) {
-      selectFile(file.path);
+  const focusRow = (nextIndex: number) => {
+    const rows = visibleRows();
+    const row = rows[nextIndex];
+    setFocusedRowIndex(nextIndex);
+
+    if (row && !row.isDirectory) {
+      selectFile(row.path);
     }
   };
 
@@ -246,7 +295,6 @@ export function AppStateProvider(props: { children: any }) {
       const first = files[0];
       if (first) {
         setSelectedFile(first.path);
-        setCursorIndex(0);
         expandAncestors(first.path);
         loadDiff(first.path);
       }
@@ -254,18 +302,32 @@ export function AppStateProvider(props: { children: any }) {
   });
 
   createEffect(() => {
-    const files = allFiles();
-    const index = cursorIndex();
+    const rows = visibleRows();
+    const index = focusedRowIndex();
 
-    if (files.length === 0) {
+    if (rows.length === 0) {
       if (index !== 0) {
-        setCursorIndex(0);
+        setFocusedRowIndex(0);
       }
       return;
     }
 
-    if (index >= files.length) {
-      setCursorIndex(files.length - 1);
+    if (index >= rows.length) {
+      setFocusedRowIndex(rows.length - 1);
+    }
+  });
+
+  createEffect(() => {
+    const filePath = selectedFile();
+    const rows = visibleRows();
+
+    if (!filePath || rows.length === 0) {
+      return;
+    }
+
+    const nextIndex = rows.findIndex((row) => row.path === filePath && !row.isDirectory);
+    if (nextIndex !== -1 && focusedRowIndex() !== nextIndex) {
+      setFocusedRowIndex(nextIndex);
     }
   });
 
@@ -274,9 +336,11 @@ export function AppStateProvider(props: { children: any }) {
       value={{
         selectedFile,
         diffContent,
-        cursorIndex,
+        focusedRowIndex,
         allFiles,
         expandedPaths,
+        visibleRows,
+        focusedRow,
         isExpanded: (path) => expandedPaths().includes(path),
         toggleDirectory: (path) => {
           setExpandedPaths((current) =>
@@ -285,16 +349,35 @@ export function AppStateProvider(props: { children: any }) {
               : [...current, path],
           );
         },
+        expandDirectory: (path) => {
+          setExpandedPaths((current) =>
+            current.includes(path) ? current : [...current, path],
+          );
+        },
+        collapseDirectory: (path) => {
+          setExpandedPaths((current) => current.filter((item) => item !== path));
+        },
         diffViewMode,
         toggleDiffViewMode: () =>
           setDiffViewMode((current) => (current === "unified" ? "split" : "unified")),
-        commitMessage,
-        setCommitMessage,
         selectFile,
-        selectPreviousFile: () => selectByCursor(Math.max(0, cursorIndex() - 1)),
-        selectNextFile: () =>
-          selectByCursor(Math.min(allFiles().length - 1, cursorIndex() + 1)),
-        setCursorIndex,
+        focusPreviousRow: () => focusRow(Math.max(0, focusedRowIndex() - 1)),
+        focusNextRow: () => focusRow(Math.min(visibleRows().length - 1, focusedRowIndex() + 1)),
+        activateFocusedRow: () => {
+          const row = focusedRow();
+          if (!row) return;
+
+          if (row.isDirectory) {
+            setExpandedPaths((current) =>
+              current.includes(row.path)
+                ? current.filter((item) => item !== row.path)
+                : [...current, row.path],
+            );
+            return;
+          }
+
+          selectFile(row.path);
+        },
         stageSelectedFile: () => {
           const file = selectedFileInfo();
           if (file) git.stageFile(file.path);

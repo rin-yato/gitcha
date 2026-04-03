@@ -73,14 +73,19 @@ export function FileTreeItem(props: {
   node: FileTreeNode;
   depth: number;
   isSelected: boolean;
+  isActive: boolean;
   onSelect: () => void;
   onToggleDirectory: () => void;
   isExpanded: (path: string) => boolean;
   theme: FileTreeTheme;
 }) {
   const indent = "  ".repeat(props.depth);
-  const rowBackground = () => (props.isSelected ? `${props.theme.accent}22` : undefined);
-  const rowForeground = () => (props.isSelected ? props.theme.accent : undefined);
+  const rowBackground = () => {
+    if (props.isSelected) return `${props.theme.accent}12`;
+    if (props.isActive) return `${props.theme.surface}`;
+    return undefined;
+  };
+  const rowForeground = () => (props.isSelected ? props.theme.text : props.theme.textMuted);
 
   return (
     <Show
@@ -108,6 +113,7 @@ export function FileTreeItem(props: {
                 node={child}
                 depth={props.depth + 1}
                 isSelected={props.isSelected && child.path === props.node.path}
+                isActive={props.isActive && child.path === props.node.path}
                 onSelect={props.onSelect}
                 onToggleDirectory={props.onToggleDirectory}
                 isExpanded={props.isExpanded}
@@ -132,8 +138,10 @@ export function FileTreeItem(props: {
           content={`${indent}${getStatusSymbol(props.node)}${props.node.name}`}
           fg={
             props.isSelected
-              ? props.theme.background
-              : getFileColor(props.node, props.theme, props.isSelected)
+              ? props.theme.text
+              : props.isActive
+                ? props.theme.accent
+                : getFileColor(props.node, props.theme, props.isSelected)
           }
           selectable={true}
         />
