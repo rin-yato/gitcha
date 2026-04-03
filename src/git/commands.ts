@@ -5,14 +5,15 @@ import { execSync } from "child_process";
  */
 export function execGit(
   args: string[],
-  options: { cwd?: string; encoding?: BufferEncoding } = {},
+  options: { cwd?: string; encoding?: BufferEncoding; input?: string | Buffer } = {},
 ): string {
-  const { cwd = process.cwd(), encoding = "utf-8" } = options;
+  const { cwd = process.cwd(), encoding = "utf-8", input } = options;
 
   try {
     const result = execSync(`git ${args.join(" ")}`, {
       cwd,
       encoding,
+      input,
       stdio: ["pipe", "pipe", "pipe"],
       maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large diffs
     });
@@ -98,4 +99,33 @@ export function getFileDiff(
       ? ["diff", "--staged", "--", filePath]
       : ["diff", "--", filePath];
   return execGit(args, { cwd });
+}
+
+/**
+ * Commit staged changes with a message
+ */
+export function commitChanges(message: string, cwd?: string): void {
+  execGit(["commit", "--file", "-"], { cwd, input: `${message.trim()}\n` });
+}
+
+/**
+ * Push current branch to its upstream
+ */
+export function pushChanges(cwd?: string): void {
+  execGit(["push"], { cwd });
+}
+
+/**
+ * Pull latest changes from upstream
+ */
+export function pullChanges(cwd?: string): void {
+  execGit(["pull", "--ff-only"], { cwd });
+}
+
+/**
+ * Get recent commit log lines
+ */
+export function getRecentCommits(limit = 12, cwd?: string): string[] {
+  const output = execGit(["log", "--oneline", "--decorate", "-n", String(limit)], { cwd });
+  return output.split(/\r?\n/).filter(Boolean);
 }

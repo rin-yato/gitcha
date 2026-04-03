@@ -74,6 +74,8 @@ export function FileTreeItem(props: {
   depth: number;
   isSelected: boolean;
   onSelect: () => void;
+  onToggleDirectory: () => void;
+  isExpanded: (path: string) => boolean;
   theme: FileTreeTheme;
 }) {
   const indent = "  ".repeat(props.depth);
@@ -84,33 +86,47 @@ export function FileTreeItem(props: {
     <Show
       when={!props.node.isDirectory}
       fallback={
-        <>
+        <box
+          ref={(el) => {
+            if (el) {
+              el.onMouseUp = props.onToggleDirectory;
+            }
+          }}
+          flexDirection="column"
+          width="100%"
+        >
           <box flexDirection="row" width="100%" backgroundColor={rowBackground()}>
             <text
-              content={`${indent}▸ ${props.node.name}`}
+              content={`${indent}${props.isExpanded(props.node.path) ? "▾" : "▸"} ${props.node.name}`}
               fg={rowForeground() ?? props.theme.textMuted}
               selectable={false}
             />
           </box>
-          <>
+          <Show when={props.isExpanded(props.node.path)}>
             {props.node.children.map((child) => (
               <FileTreeItem
                 node={child}
                 depth={props.depth + 1}
                 isSelected={props.isSelected && child.path === props.node.path}
                 onSelect={props.onSelect}
+                onToggleDirectory={props.onToggleDirectory}
+                isExpanded={props.isExpanded}
                 theme={props.theme}
               />
             ))}
-          </>
-        </>
+          </Show>
+        </box>
       }
     >
       <box
+        ref={(el) => {
+          if (el) {
+            el.onMouseUp = props.onSelect;
+          }
+        }}
         flexDirection="row"
         width="100%"
         backgroundColor={rowBackground()}
-        onMouseUp={props.onSelect}
       >
         <text
           content={`${indent}${getStatusSymbol(props.node)}${props.node.name}`}
