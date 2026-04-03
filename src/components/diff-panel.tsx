@@ -1,4 +1,7 @@
+import { createMemo } from "solid-js";
+
 import type { DiffViewMode } from "../state";
+import { createSyntaxStyle, detectFiletype, treeSitterClient } from "../styles/syntax";
 import type { Theme } from "../styles/theme";
 
 export function DiffPanel(props: {
@@ -8,6 +11,9 @@ export function DiffPanel(props: {
   diffViewMode: DiffViewMode;
   toggleDiffViewMode: () => void;
 }) {
+  const filetype = createMemo(() => detectFiletype(props.selectedFile));
+  const syntaxStyle = createMemo(() => createSyntaxStyle(props.theme));
+
   return (
     <box
       id="diff-panel"
@@ -36,7 +42,11 @@ export function DiffPanel(props: {
           <diff
             diff={props.diffContent}
             view={props.diffViewMode}
+            filetype={filetype()}
+            syntaxStyle={syntaxStyle()}
+            treeSitterClient={treeSitterClient}
             showLineNumbers
+            wrapMode="word"
             fg={props.theme.text}
             selectionBg={`${props.theme.accent}16`}
             addedBg={`${props.theme.added}12`}
@@ -44,6 +54,13 @@ export function DiffPanel(props: {
             contextBg={props.theme.background}
             lineNumberFg={props.theme.textMuted}
             lineNumberBg={props.theme.surface}
+            addedContentBg={`${props.theme.added}12`}
+            removedContentBg={`${props.theme.removed}12`}
+            contextContentBg={props.theme.background}
+            addedSignColor={props.theme.added}
+            removedSignColor={props.theme.removed}
+            addedLineNumberBg={`${props.theme.added}16`}
+            removedLineNumberBg={`${props.theme.removed}16`}
           />
         ) : (
           <text content="Loading diff..." fg={props.theme.textMuted} selectable={false} />

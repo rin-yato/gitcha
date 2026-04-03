@@ -16,7 +16,53 @@ export interface Theme {
   success: string;
   warning: string;
   error: string;
+  // Syntax colors
+  syntaxComment?: string;
+  syntaxKeyword?: string;
+  syntaxFunction?: string;
+  syntaxVariable?: string;
+  syntaxString?: string;
+  syntaxNumber?: string;
+  syntaxType?: string;
+  syntaxOperator?: string;
+  syntaxPunctuation?: string;
 }
+
+import opencodeLightThemeJson from "../themes/opencode-light.json";
+
+function parseJsonTheme(json: any): Theme {
+  const defs = json.defs || {};
+  const theme = json.theme || {};
+
+  const resolve = (val: string) => (defs[val] ? defs[val] : val);
+
+  return {
+    background: resolve(theme.background),
+    surface: resolve(theme.backgroundElement || theme.background),
+    border: resolve(theme.border),
+    text: resolve(theme.text),
+    textMuted: resolve(theme.textMuted),
+    accent: resolve(theme.primary || theme.accent),
+    added: resolve(theme.diffAdded || theme.success),
+    removed: resolve(theme.diffRemoved || theme.error),
+    modified: resolve(theme.warning),
+    success: resolve(theme.success),
+    warning: resolve(theme.warning),
+    error: resolve(theme.error),
+    // Syntax
+    syntaxComment: resolve(theme.syntaxComment),
+    syntaxKeyword: resolve(theme.syntaxKeyword),
+    syntaxFunction: resolve(theme.syntaxFunction),
+    syntaxVariable: resolve(theme.syntaxVariable),
+    syntaxString: resolve(theme.syntaxString),
+    syntaxNumber: resolve(theme.syntaxNumber),
+    syntaxType: resolve(theme.syntaxType),
+    syntaxOperator: resolve(theme.syntaxOperator),
+    syntaxPunctuation: resolve(theme.syntaxPunctuation),
+  };
+}
+
+const opencodeLightTheme = parseJsonTheme(opencodeLightThemeJson);
 
 const defaultDarkTheme: Theme = {
   background: "#101418",
@@ -96,6 +142,7 @@ export function ThemeProvider(props: { children: any }) {
   const [palette] = createResource(() => renderer.getPalette());
 
   const theme = createMemo(() => {
+    return opencodeLightTheme;
     if (palette.loading || palette.error) {
       return renderer.themeMode === "light" ? defaultLightTheme : defaultDarkTheme;
     }
