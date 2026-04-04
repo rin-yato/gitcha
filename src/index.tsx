@@ -1,4 +1,5 @@
-import { render, useKeyboard } from "@opentui/solid";
+import { createCliRenderer } from "@opentui/core";
+import { createRoot, useKeyboard } from "@opentui/react";
 
 import { CodePanel } from "./components/code-panel";
 import { SourceControlPanel } from "./components/source-control-panel";
@@ -9,10 +10,6 @@ function App() {
   const theme = useTheme();
   const git = useGit();
   const app = useAppState();
-
-  const status = () => git.status();
-  const selectedFile = () => app.selectedFile();
-  const focusedFile = () => app.focusedFile();
 
   useKeyboard((event) => {
     if (event.name === "up" || event.name === "k") app.focusPreviousRow();
@@ -31,14 +28,14 @@ function App() {
       flexDirection="row"
       width="100%"
       height="100%"
-      backgroundColor={theme().background}
+      backgroundColor={theme.background}
     >
       <SourceControlPanel
-        theme={theme()}
-        status={status()}
-        error={git.error()}
-        selectedFile={selectedFile()}
-        focusedPath={focusedFile()?.path ?? null}
+        theme={theme}
+        status={git.status}
+        error={git.error}
+        selectedFile={app.selectedFile}
+        focusedPath={app.focusedFile?.path ?? null}
         selectFile={app.selectFile}
         stageSelectedFile={app.stageSelectedFile}
         unstageSelectedFile={app.unstageSelectedFile}
@@ -47,23 +44,25 @@ function App() {
       />
 
       <CodePanel
-        theme={theme()}
-        selectedFile={selectedFile()}
-        selectedFileKey={app.selectedFileKey()}
-        diffContent={app.diffContent()}
-        diffViewMode={app.diffViewMode()}
+        theme={theme}
+        selectedFile={app.selectedFile}
+        selectedFileKey={app.selectedFileKey}
+        diffContent={app.diffContent}
+        diffViewMode={app.diffViewMode}
         toggleDiffViewMode={app.toggleDiffViewMode}
       />
     </box>
   );
 }
 
-render(() => (
+const renderer = await createCliRenderer();
+
+createRoot(renderer as never).render(
   <ThemeProvider>
     <GitProvider>
       <AppStateProvider>
         <App />
       </AppStateProvider>
     </GitProvider>
-  </ThemeProvider>
-));
+  </ThemeProvider>,
+);

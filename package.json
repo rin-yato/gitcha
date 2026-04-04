@@ -5,19 +5,20 @@
   "private": true,
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/react": "^19.0.0"
   },
   "peerDependencies": {
     "typescript": "^5"
   },
   "dependencies": {
-    "@opentui/core": "^0.1.92",
-    "@opentui/solid": "^0.1.92",
-    "solid-js": "^1.9.12"
+    "@opentui/core": "^0.1.96",
+    "@opentui/react": "^0.1.96",
+    "react": "^19.0.0"
   },
   "scripts": {
     "dev": "bun run --hot src/index.tsx",
-    "build": "bun run scripts/build.ts",
+    "buildd": "bun run scripts/build.ts",
     "install:local": "bun run scripts/install.ts",
     "typecheck": "tsc --noEmit",
     "check": "biome check",

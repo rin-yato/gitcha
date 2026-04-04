@@ -1,12 +1,5 @@
-import {
-  createContext,
-  createEffect,
-  createMemo,
-  createSignal,
-  onCleanup,
-  onMount,
-  useContext,
-} from "solid-js";
+import type React from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import type { GitRepoStatus, GitStatusFile } from "./git";
 import {
@@ -25,9 +18,9 @@ export type DiffViewMode = "unified" | "split";
 export type FileSection = "staged" | "changes";
 
 type GitContextValue = {
-  status: () => GitRepoStatus | null;
-  error: () => string | null;
-  commits: () => string[];
+  status: GitRepoStatus | null;
+  error: string | null;
+  commits: string[];
   refreshStatus: () => void;
   refreshCommits: () => void;
   stageFile: (filePath: string) => void;
@@ -38,12 +31,12 @@ type GitContextValue = {
   pullChanges: () => void;
 };
 
-const GitContext = createContext<GitContextValue>();
+const GitContext = createContext<GitContextValue | null>(null);
 
-export function GitProvider(props: { children: any }) {
-  const [status, setStatus] = createSignal<GitRepoStatus | null>(null);
-  const [error, setError] = createSignal<string | null>(null);
-  const [commits, setCommits] = createSignal<string[]>([]);
+export function GitProvider({ children }: { children: React.ReactNode }) {
+  const [status, setStatus] = useState<GitRepoStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [commits, setCommits] = useState<string[]>([]);
 
   const refreshStatus = () => {
     try {
@@ -76,36 +69,37 @@ export function GitProvider(props: { children: any }) {
     }
   };
 
-  onMount(() => {
+  useEffect(() => {
     refreshStatus();
     refreshCommits();
-    const timer = setInterval(refreshStatus, 2000);
-    const logTimer = setInterval(refreshCommits, 5000);
-    onCleanup(() => {
-      clearInterval(timer);
-      clearInterval(logTimer);
-    });
-  });
 
-  return (
-    <GitContext.Provider
-      value={{
-        status,
-        error,
-        commits,
-        refreshStatus,
-        refreshCommits,
-        stageFile: (filePath) => runGitAction(() => stageGitFile(filePath)),
-        unstageFile: (filePath) => runGitAction(() => unstageGitFile(filePath)),
-        discardChanges: (filePath) => runGitAction(() => discardGitChanges(filePath)),
-        commitChanges: (message) => runGitAction(() => commitGitChanges(message)),
-        pushChanges: () => runGitAction(() => pushGitChanges()),
-        pullChanges: () => runGitAction(() => pullGitChanges()),
-      }}
-    >
-      {props.children}
-    </GitContext.Provider>
+    const statusTimer = setInterval(refreshStatus, 2000);
+    const commitsTimer = setInterval(refreshCommits, 5000);
+
+    return () => {
+      clearInterval(statusTimer);
+      clearInterval(commitsTimer);
+    };
+  }, []);
+
+  const value = useMemo<GitContextValue>(
+    () => ({
+      status,
+      error,
+      commits,
+      refreshStatus,
+      refreshCommits,
+      stageFile: (filePath) => runGitAction(() => stageGitFile(filePath)),
+      unstageFile: (filePath) => runGitAction(() => unstageGitFile(filePath)),
+      discardChanges: (filePath) => runGitAction(() => discardGitChanges(filePath)),
+      commitChanges: (message) => runGitAction(() => commitGitChanges(message)),
+      pushChanges: () => runGitAction(() => pushGitChanges()),
+      pullChanges: () => runGitAction(() => pullGitChanges()),
+    }),
+    [commits, error, status],
   );
+
+  return <GitContext.Provider value={value}>{children}</GitContext.Provider>;
 }
 
 export function useGit() {
@@ -117,16 +111,19 @@ export function useGit() {
 }
 
 type AppStateContextValue = {
-  selectedFile: () => string | null;
-  selectedFileKey: () => string | null;
-  selectedFileSection: () => FileSection | null;
-  diffContent: () => string | null;
-  focusedRowIndex: () => number;
-  visibleFiles: () => GitStatusFile[];
-  focusedFile: () => GitStatusFile | null;
-  diffViewMode: () => DiffViewMode;
+  selectedFile: string | null;
+  selectedFileKey: string | null;
+  selectedFileSection: FileSection | null;
+  diffContent: string | null;
+  getScrollPosition: (key: string) => number;
+  setScrollPosition: (key: string, value: number) => void;
+  focusedRowIndex: number;
+  focusedFileKey: string | null;
+  visibleFiles: GitStatusFile[];
+  focusedFile: GitStatusFile | null;
+  diffViewMode: DiffViewMode;
   toggleDiffViewMode: () => void;
-  selectFile: (filePath: string) => void;
+  selectFile: (filePath: string, section?: FileSection) => void;
   focusPreviousRow: () => void;
   focusNextRow: () => void;
   stageSelectedFile: () => void;
@@ -134,46 +131,33 @@ type AppStateContextValue = {
   discardSelectedFile: () => void;
 };
 
-const AppStateContext = createContext<AppStateContextValue>();
+const AppStateContext = createContext<AppStateContextValue | null>(null);
 
-export function AppStateProvider(props: { children: any }) {
+export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const git = useGit();
-  const [selectedFile, setSelectedFile] = createSignal<string | null>(null);
-  const [selectedFileKey, setSelectedFileKey] = createSignal<string | null>(null);
-  const [selectedFileSection, setSelectedFileSection] = createSignal<FileSection | null>(null);
-  const [diffContent, setDiffContent] = createSignal<string | null>(null);
-  const [focusedRowIndex, setFocusedRowIndex] = createSignal(0);
-  const [diffViewMode, setDiffViewMode] = createSignal<DiffViewMode>("unified");
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [selectedFileSection, setSelectedFileSection] = useState<FileSection | null>(null);
+  const [diffContent, setDiffContent] = useState<string | null>(null);
+  const [focusedRowIndex, setFocusedRowIndex] = useState(0);
+  const [diffViewMode, setDiffViewMode] = useState<DiffViewMode>("unified");
+  const scrollPositionsRef = useRef(new Map<string, number>());
 
-  const visibleFiles = createMemo(() => {
-    const status = git.status();
-    if (!status) return [];
-
+  const status = git.status;
+  const visibleFiles = useMemo(() => {
+    if (!status) return [] as GitStatusFile[];
     return [...status.files.staged, ...status.files.changes];
-  });
+  }, [status]);
 
-  const focusedFile = createMemo(() => visibleFiles()[focusedRowIndex()] ?? null);
-
-  const selectedFileInfo = createMemo(() => {
-    const status = git.status();
-    const filePath = selectedFile();
-    const section = selectedFileSection();
-    if (!status || !filePath) return null;
-
-    if (section === "staged") {
-      return status.files.staged.find((file) => file.path === filePath) ?? null;
-    }
-
-    if (section === "changes") {
-      return status.files.changes.find((file) => file.path === filePath) ?? null;
-    }
-
-    return visibleFiles().find((file) => file.path === filePath) ?? null;
-  });
+  const stagedFileCount = status?.files.staged.length ?? 0;
+  const focusedFile = visibleFiles[focusedRowIndex] ?? null;
+  const selectedFileKey =
+    selectedFile && selectedFileSection ? `${selectedFileSection}:${selectedFile}` : null;
+  const focusedFileKey = focusedFile
+    ? `${focusedRowIndex < stagedFileCount ? "staged" : "changes"}:${focusedFile.path}`
+    : null;
 
   const loadFile = (filePath: string, section: FileSection | null) => {
     try {
-      const status = git.status();
       if (!status) {
         setDiffContent(null);
         return;
@@ -189,109 +173,109 @@ export function AppStateProvider(props: { children: any }) {
 
   const selectFile = (filePath: string, section: FileSection = "changes") => {
     setSelectedFile(filePath);
-    setSelectedFileKey(`${section}:${filePath}`);
     setSelectedFileSection(section);
     loadFile(filePath, section);
   };
 
   const focusRow = (nextIndex: number) => {
-    const files = visibleFiles();
-    const file = files[nextIndex];
-    const section: FileSection | null =
-      nextIndex < (git.status()?.files.staged.length ?? 0) ? "staged" : "changes";
+    const file = visibleFiles[nextIndex];
+    const section: FileSection = nextIndex < stagedFileCount ? "staged" : "changes";
     setFocusedRowIndex(nextIndex);
 
     if (file) {
-      selectFile(file.path, section ?? "changes");
+      selectFile(file.path, section);
     }
   };
 
-  createEffect(() => {
-    git.status();
-    const files = visibleFiles();
-    if (files.length > 0 && !selectedFile()) {
-      const stagedFiles = git.status()?.files.staged ?? [];
-      const changesFiles = git.status()?.files.changes ?? [];
-      const first = stagedFiles[0] ?? changesFiles[0];
-      const firstSection: FileSection = stagedFiles.length > 0 ? "staged" : "changes";
+  useEffect(() => {
+    const files = visibleFiles;
+    if (files.length > 0 && !selectedFile) {
+      const first = status?.files.staged[0] ?? status?.files.changes[0] ?? null;
+      const firstSection: FileSection = status?.files.staged.length ? "staged" : "changes";
+
       if (first) {
         setSelectedFile(first.path);
-        setSelectedFileKey(`${firstSection}:${first.path}`);
         setSelectedFileSection(firstSection);
         loadFile(first.path, firstSection);
       }
     } else if (files.length === 0) {
       setSelectedFile(null);
-      setSelectedFileKey(null);
       setSelectedFileSection(null);
       setDiffContent(null);
     }
-  });
+  }, [selectedFile, status, visibleFiles]);
 
-  createEffect(() => {
-    const files = visibleFiles();
-    const index = focusedRowIndex();
-
-    if (files.length === 0) {
-      if (index !== 0) {
+  useEffect(() => {
+    if (visibleFiles.length === 0) {
+      if (focusedRowIndex !== 0) {
         setFocusedRowIndex(0);
       }
       return;
     }
 
-    if (index >= files.length) {
-      setFocusedRowIndex(Math.max(0, files.length - 1));
+    if (focusedRowIndex >= visibleFiles.length) {
+      setFocusedRowIndex(Math.max(0, visibleFiles.length - 1));
     }
-  });
+  }, [focusedRowIndex, visibleFiles]);
 
-  createEffect(() => {
-    const filePath = selectedFile();
-    const files = visibleFiles();
+  useEffect(() => {
+    if (!selectedFile || visibleFiles.length === 0) return;
 
-    if (!filePath || files.length === 0) {
-      return;
-    }
-
-    const nextIndex = files.findIndex((file) => file.path === filePath);
-    if (nextIndex !== -1 && focusedRowIndex() !== nextIndex) {
+    const nextIndex = visibleFiles.findIndex((file) => file.path === selectedFile);
+    if (nextIndex !== -1 && focusedRowIndex !== nextIndex) {
       setFocusedRowIndex(nextIndex);
     }
-  });
+  }, [focusedRowIndex, selectedFile, visibleFiles]);
 
-  return (
-    <AppStateContext.Provider
-      value={{
-        selectedFile,
-        selectedFileKey,
-        selectedFileSection,
-        diffContent,
-        focusedRowIndex,
-        visibleFiles,
-        focusedFile,
-        diffViewMode,
-        toggleDiffViewMode: () =>
-          setDiffViewMode((current) => (current === "unified" ? "split" : "unified")),
-        selectFile,
-        focusPreviousRow: () => focusRow(Math.max(0, focusedRowIndex() - 1)),
-        focusNextRow: () =>
-          focusRow(Math.min(visibleFiles().length - 1, focusedRowIndex() + 1)),
-        stageSelectedFile: () => {
-          const file = selectedFileInfo();
-          if (file) git.stageFile(file.path);
-        },
-        unstageSelectedFile: () => {
-          const file = selectedFileInfo();
-          if (file) git.unstageFile(file.path);
-        },
-        discardSelectedFile: () => {
-          const file = selectedFileInfo();
-          if (file) git.discardChanges(file.path);
-        },
-      }}
-    >
-      {props.children}
-    </AppStateContext.Provider>
+  const value = useMemo<AppStateContextValue>(
+    () => ({
+      selectedFile,
+      selectedFileKey,
+      selectedFileSection,
+      diffContent,
+      getScrollPosition: (key) => scrollPositionsRef.current.get(key) ?? 0,
+      setScrollPosition: (key, value) => {
+        scrollPositionsRef.current.set(key, value);
+      },
+      focusedRowIndex,
+      focusedFileKey,
+      visibleFiles,
+      focusedFile,
+      diffViewMode,
+      toggleDiffViewMode: () =>
+        setDiffViewMode((current) => (current === "unified" ? "split" : "unified")),
+      selectFile,
+      focusPreviousRow: () => focusRow(Math.max(0, focusedRowIndex - 1)),
+      focusNextRow: () => focusRow(Math.min(visibleFiles.length - 1, focusedRowIndex + 1)),
+      stageSelectedFile: () => {
+        const file = selectedFile;
+        if (file) git.stageFile(file);
+      },
+      unstageSelectedFile: () => {
+        const file = selectedFile;
+        if (file) git.unstageFile(file);
+      },
+      discardSelectedFile: () => {
+        const file = selectedFile;
+        if (file) git.discardChanges(file);
+      },
+    }),
+    [
+      diffContent,
+      diffViewMode,
+      focusedFile,
+      focusedFileKey,
+      focusedRowIndex,
+      git,
+      selectedFile,
+      selectedFileKey,
+      selectedFileSection,
+      status,
+      visibleFiles,
+    ],
   );
+
+  return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }
 
 export function useAppState() {

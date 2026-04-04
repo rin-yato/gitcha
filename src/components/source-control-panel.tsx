@@ -1,4 +1,4 @@
-import { For, Show } from "solid-js";
+import type React from "react";
 
 import type { GitRepoStatus, GitStatusFile } from "../git";
 import type { FileSection } from "../state";
@@ -16,8 +16,7 @@ const STATUS_SYMBOLS: Record<string, string> = {
 };
 
 function getFileColor(file: GitStatusFile, theme: Theme): string {
-  const status = file.workingTreeStatus;
-  switch (status) {
+  switch (file.workingTreeStatus) {
     case "A":
       return theme.added;
     case "M":
@@ -30,7 +29,7 @@ function getFileColor(file: GitStatusFile, theme: Theme): string {
     case "?":
       return theme.textMuted;
     default:
-      return status !== " " ? theme.modified : theme.text;
+      return file.workingTreeStatus !== " " ? theme.modified : theme.text;
   }
 }
 
@@ -42,33 +41,28 @@ function FlatFileItem(props: {
   onSelect: () => void;
   theme: Theme;
 }) {
-  const rowBackground = () => {
-    if (props.isSelected) return `${props.theme.accent}12`;
-    if (props.isActive) return props.theme.surface;
-    return undefined;
-  };
-
+  const fileName = props.file.path.split("/").pop() || props.file.path;
+  const folderPath = props.file.path.includes("/")
+    ? props.file.path.substring(0, props.file.path.lastIndexOf("/"))
+    : "";
   const status =
     props.file.workingTreeStatus !== " "
       ? props.file.workingTreeStatus
       : props.file.indexStatus;
   const symbol = STATUS_SYMBOLS[status] || " ";
 
-  const fileName = props.file.path.split("/").pop() || props.file.path;
-  const folderPath = props.file.path.includes("/")
-    ? props.file.path.substring(0, props.file.path.lastIndexOf("/"))
-    : "";
-
   return (
     <box
-      ref={(el) => {
-        if (el) {
-          el.onMouseUp = props.onSelect;
-        }
-      }}
+      onMouseUp={props.onSelect}
       flexDirection="row"
       width="100%"
-      backgroundColor={rowBackground()}
+      backgroundColor={
+        props.isSelected
+          ? `${props.theme.accent}12`
+          : props.isActive
+            ? props.theme.surface
+            : undefined
+      }
     >
       <text
         content={`${symbol} ${fileName}`}
@@ -81,9 +75,9 @@ function FlatFileItem(props: {
         }
         selectable={true}
       />
-      <Show when={folderPath}>
+      {folderPath ? (
         <text content={`  ${folderPath}`} fg={props.theme.textMuted} selectable={false} />
-      </Show>
+      ) : null}
     </box>
   );
 }
@@ -100,83 +94,64 @@ export function SourceControlPanel(props: {
   discardSelectedFile: () => void;
   refreshStatus: () => void;
 }) {
+  const staged = props.status?.files.staged ?? [];
+  const changes = props.status?.files.changes ?? [];
+
   return (
     <box backgroundColor={props.theme.surface} width="30%" flexDirection="column">
-      <Show when={props.error}>
-        <text fg={props.theme.error} selectable={true}>
+      {props.error ? (
+        <text fg={props.theme.error} selectable>
           {props.error}
         </text>
-      </Show>
+      ) : null}
 
-      <Show when={props.status}>
-        {(s: () => GitRepoStatus) => (
-          <box flexDirection="column" flexGrow={1}>
-            <Show when={s().files.staged.length > 0}>
-              <box flexDirection="row" gap={1}>
-                <text
-                  content="Staged"
-                  fg={props.theme.text}
-                  attributes={1}
-                  selectable={false}
-                />
-                <text
-                  content={`· ${s().files.staged.length}`}
-                  fg={props.theme.added}
-                  selectable={false}
-                />
-              </box>
-              <For each={s().files.staged}>
-                {(file) => (
-                  <FlatFileItem
-                    file={file}
-                    section="staged"
-                    isSelected={props.focusedPath === file.path}
-                    isActive={props.selectedFile === file.path}
-                    onSelect={() => props.selectFile(file.path, "staged")}
-                    theme={props.theme}
-                  />
-                )}
-              </For>
-            </Show>
-
-            <Show when={s().files.changes.length > 0}>
-              <box flexDirection="row" gap={1}>
-                <text
-                  content="Changes"
-                  fg={props.theme.text}
-                  attributes={1}
-                  selectable={false}
-                />
-                <text
-                  content={`· ${s().files.changes.length}`}
-                  fg={props.theme.modified}
-                  selectable={false}
-                />
-              </box>
-              <For each={s().files.changes}>
-                {(file) => (
-                  <FlatFileItem
-                    file={file}
-                    section="changes"
-                    isSelected={props.focusedPath === file.path}
-                    isActive={props.selectedFile === file.path}
-                    onSelect={() => props.selectFile(file.path, "changes")}
-                    theme={props.theme}
-                  />
-                )}
-              </For>
-            </Show>
-
-            <Show when={s().totalFiles === 0}>
-              <text
-                content="Working tree clean"
-                fg={props.theme.textMuted}
-                selectable={false}
-              />
-            </Show>
+      {staged.length > 0 ? (
+        <box flexDirection="column">
+          <box flexDirection="row" gap={1}>
+            <text content="Staged" fg={props.theme.text} attributes={1} selectable={false} />
+            <text content={`· ${staged.length}`} fg={props.theme.added} selectable={false} />
           </box>
-        )}
-      </Show>
+          {staged.map((file) => (
+            <FlatFileItem
+              key={`staged:${file.path}`}
+              file={file}
+              section="staged"
+              isSelected={props.focusedPath === file.path}
+              isActive={props.selectedFile === file.path}
+              onSelect={() => props.selectFile(file.path, "staged")}
+              theme={props.theme}
+            />
+          ))}
+        </box>
+      ) : null}
+
+      {changes.length > 0 ? (
+        <box flexDirection="column">
+          <box flexDirection="row" gap={1}>
+            <text content="Changes" fg={props.theme.text} attributes={1} selectable={false} />
+            <text
+              content={`· ${changes.length}`}
+              fg={props.theme.modified}
+              selectable={false}
+            />
+          </box>
+          {changes.map((file) => (
+            <FlatFileItem
+              key={`changes:${file.path}`}
+              file={file}
+              section="changes"
+              isSelected={props.focusedPath === file.path}
+              isActive={props.selectedFile === file.path}
+              onSelect={() => props.selectFile(file.path, "changes")}
+              theme={props.theme}
+            />
+          ))}
+        </box>
+      ) : null}
+
+      {props.status?.totalFiles === 0 ? (
+        <text content="Working tree clean" fg={props.theme.textMuted} selectable={false} />
+      ) : null}
     </box>
   );
 }

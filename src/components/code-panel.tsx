@@ -1,8 +1,94 @@
-import { createMemo, onCleanup, onMount, Show } from "solid-js";
+import type React from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import type { DiffViewMode } from "../state";
+import { useAppState } from "../state";
 import { createSyntaxStyle, detectFiletype, treeSitterClient } from "../styles/syntax";
 import type { Theme } from "../styles/theme";
+
+type FileDiffViewProps = {
+  fileKey: string;
+  diffContent: string;
+  viewMode: DiffViewMode;
+  theme: Theme;
+  filetype: string;
+  syntaxStyle: ReturnType<typeof createSyntaxStyle>;
+};
+
+type ScrollableRenderable = {
+  scrollY: number;
+};
+
+type DiffRenderableLike = {
+  scrollY?: number;
+  findDescendantById?: (id: string) => ScrollableRenderable | undefined;
+};
+
+function FileDiffView(props: FileDiffViewProps) {
+  const app = useAppState();
+  const diffRenderableRef = useRef<DiffRenderableLike | null>(null);
+
+  const getScrollTarget = () => {
+    const diffRenderable = diffRenderableRef.current;
+    if (!diffRenderable) return null;
+
+    if (typeof diffRenderable.scrollY === "number") {
+      return diffRenderable;
+    }
+
+    return (
+      diffRenderable.findDescendantById?.(`${props.fileKey}-left-code`) ??
+      diffRenderable.findDescendantById?.(`${props.fileKey}-right-code`) ??
+      null
+    );
+  };
+
+  useEffect(() => {
+    const target = getScrollTarget();
+    if (target) {
+      target.scrollY = app.getScrollPosition(props.fileKey);
+    }
+
+    return () => {
+      const currentTarget = getScrollTarget();
+      if (currentTarget) {
+        app.setScrollPosition(props.fileKey, currentTarget.scrollY ?? 0);
+      }
+    };
+  }, [app, props.fileKey, props.diffContent]);
+
+  return (
+    <diff
+      key={props.fileKey}
+      id={props.fileKey}
+      syncScroll={true}
+      ref={(el) => {
+        diffRenderableRef.current = el as DiffRenderableLike | null;
+      }}
+      diff={props.diffContent}
+      view={props.viewMode}
+      filetype={props.filetype}
+      syntaxStyle={props.syntaxStyle as never}
+      treeSitterClient={treeSitterClient as never}
+      showLineNumbers
+      wrapMode="word"
+      fg={props.theme.text}
+      selectionBg={`${props.theme.accent}16`}
+      addedBg={`${props.theme.added}12`}
+      removedBg={`${props.theme.removed}12`}
+      contextBg={props.theme.background}
+      lineNumberFg={props.theme.textMuted}
+      lineNumberBg={props.theme.surface}
+      addedContentBg={`${props.theme.added}12`}
+      removedContentBg={`${props.theme.removed}12`}
+      contextContentBg={props.theme.background}
+      addedSignColor={props.theme.added}
+      removedSignColor={props.theme.removed}
+      addedLineNumberBg={`${props.theme.added}16`}
+      removedLineNumberBg={`${props.theme.removed}16`}
+    />
+  );
+}
 
 export function CodePanel(props: {
   theme: Theme;
@@ -12,59 +98,8 @@ export function CodePanel(props: {
   diffViewMode: DiffViewMode;
   toggleDiffViewMode: () => void;
 }) {
-  const filetype = createMemo(() => detectFiletype(props.selectedFile));
-  const syntaxStyle = createMemo(() => createSyntaxStyle(props.theme));
-  const scrollPositions = new Map<string, number>();
-
-  function FileDiffView(viewProps: {
-    fileKey: string;
-    diffContent: string;
-    viewMode: DiffViewMode;
-    theme: Theme;
-    filetype: string;
-    syntaxStyle: ReturnType<typeof createSyntaxStyle>;
-  }) {
-    let viewer: any = null;
-
-    onMount(() => {
-      viewer.scrollY = scrollPositions.get(viewProps.fileKey) ?? 0;
-    });
-
-    onCleanup(() => {
-      if (viewer) {
-        scrollPositions.set(viewProps.fileKey, viewer.scrollY ?? 0);
-      }
-    });
-
-    return (
-      <diff
-        ref={(el: any) => {
-          viewer = el;
-        }}
-        diff={viewProps.diffContent}
-        view={viewProps.viewMode}
-        filetype={viewProps.filetype}
-        syntaxStyle={viewProps.syntaxStyle}
-        treeSitterClient={treeSitterClient}
-        showLineNumbers
-        wrapMode="word"
-        fg={viewProps.theme.text}
-        selectionBg={`${viewProps.theme.accent}16`}
-        addedBg={`${viewProps.theme.added}12`}
-        removedBg={`${viewProps.theme.removed}12`}
-        contextBg={viewProps.theme.background}
-        lineNumberFg={viewProps.theme.textMuted}
-        lineNumberBg={viewProps.theme.surface}
-        addedContentBg={`${viewProps.theme.added}12`}
-        removedContentBg={`${viewProps.theme.removed}12`}
-        contextContentBg={viewProps.theme.background}
-        addedSignColor={viewProps.theme.added}
-        removedSignColor={viewProps.theme.removed}
-        addedLineNumberBg={`${viewProps.theme.added}16`}
-        removedLineNumberBg={`${viewProps.theme.removed}16`}
-      />
-    );
-  }
+  const filetype = useMemo(() => detectFiletype(props.selectedFile), [props.selectedFile]);
+  const syntaxStyle = useMemo(() => createSyntaxStyle(props.theme), [props.theme]);
 
   return (
     <box
@@ -82,24 +117,22 @@ export function CodePanel(props: {
         </text>
       </box>
 
-      <Show when={props.selectedFileKey} keyed>
-        {(fileKey: string) =>
-          props.selectedFile && props.diffContent ? (
-            <box flexGrow={1} flexDirection="column">
-              <FileDiffView
-                fileKey={fileKey}
-                diffContent={props.diffContent}
-                viewMode={props.diffViewMode}
-                theme={props.theme}
-                filetype={filetype() ?? "text"}
-                syntaxStyle={syntaxStyle()}
-              />
-            </box>
-          ) : (
-            <text content="Loading..." fg={props.theme.textMuted} selectable={false} />
-          )
-        }
-      </Show>
+      {props.selectedFileKey ? (
+        props.selectedFile && props.diffContent ? (
+          <box flexGrow={1} flexDirection="column">
+            <FileDiffView
+              fileKey={props.selectedFileKey}
+              diffContent={props.diffContent}
+              viewMode={props.diffViewMode}
+              theme={props.theme}
+              filetype={filetype ?? "text"}
+              syntaxStyle={syntaxStyle}
+            />
+          </box>
+        ) : (
+          <text content="Loading..." fg={props.theme.textMuted} selectable={false} />
+        )
+      ) : null}
     </box>
   );
 }
