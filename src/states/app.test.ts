@@ -1,5 +1,4 @@
 import type { GitStatusFile } from "../git";
-import type { FileSection } from "./app";
 import {
   buildFileKey,
   clampFocusIndex,

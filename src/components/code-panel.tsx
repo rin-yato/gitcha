@@ -1,4 +1,3 @@
-import type React from "react";
 import { useEffect, useMemo, useRef } from "react";
 
 import type { DiffViewMode } from "../states/app";

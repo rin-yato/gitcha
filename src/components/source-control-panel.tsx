@@ -1,5 +1,3 @@
-import type React from "react";
-
 import type { GitRepoStatus, GitStatusFile } from "../git";
 import type { FileSection } from "../states/app";
 import type { Theme } from "../styles/theme";

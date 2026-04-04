@@ -17,11 +17,15 @@
               ":BLANK_LINE:",
               ["@/hooks/**"],
               ":BLANK_LINE:",
-              ["@/contants/**"],
+              ["@/states/**"],
+              ":BLANK_LINE:",
+              ["@/git/**"],
+              ":BLANK_LINE:",
+              ["@/themes/**"],
+              ":BLANK_LINE:",
+              ["@/styles/**"],
               ":BLANK_LINE:",
               ["@/components/**"],
-              ":BLANK_LINE:",
-              ["@/modules/**"],
               ":BLANK_LINE:",
               ":PACKAGE:",
               ":BLANK_LINE:",
@@ -90,7 +94,8 @@
       },
       "a11y": {
         "noPositiveTabindex": "off",
-        "noNoninteractiveTabindex": "off"
+        "noNoninteractiveTabindex": "off",
+        "noStaticElementInteractions": "off"
       },
       "nursery": {
         "useSortedClasses": {
