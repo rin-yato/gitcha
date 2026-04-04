@@ -1,9 +1,11 @@
 import { testRender } from "@opentui/react/test-utils";
 
+import { act } from "react";
+
 import type { Theme } from "../context/theme/provider";
 import type { GitRepoStatus } from "../git";
 import { Sidebar } from "./sidebar";
-import { expect, test } from "bun:test";
+import { afterEach, expect, test } from "bun:test";
 
 const theme: Theme = {
   background: "#000000",
@@ -44,8 +46,19 @@ const defaultCompareProps = {
   toggleViewMode: () => {},
 };
 
+let testSetup: Awaited<ReturnType<typeof testRender>> | null = null;
+
+afterEach(() => {
+  if (testSetup) {
+    act(() => {
+      testSetup?.renderer.destroy();
+    });
+    testSetup = null;
+  }
+});
+
 test("source control panel shows clean state", async () => {
-  const setup = await testRender(
+  testSetup = await testRender(
     <Sidebar
       theme={theme}
       status={cleanStatus}
@@ -63,14 +76,16 @@ test("source control panel shows clean state", async () => {
     { width: 80, height: 24 },
   );
 
-  await setup.renderOnce();
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
 
-  const spans = setup.captureSpans();
+  const spans = testSetup.captureSpans();
   expect(JSON.stringify(spans.lines)).toContain("Working tree clean");
 });
 
 test("source control panel lists staged and changed files", async () => {
-  const setup = await testRender(
+  testSetup = await testRender(
     <Sidebar
       theme={theme}
       status={{
@@ -100,14 +115,16 @@ test("source control panel lists staged and changed files", async () => {
     { width: 80, height: 24 },
   );
 
-  await setup.renderOnce();
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
 
-  expect(JSON.stringify(setup.captureSpans().lines)).toContain("Staged");
-  expect(JSON.stringify(setup.captureSpans().lines)).toContain("Changes");
+  expect(JSON.stringify(testSetup.captureSpans().lines)).toContain("Staged");
+  expect(JSON.stringify(testSetup.captureSpans().lines)).toContain("Changes");
 });
 
 test("source control panel shows compare mode header", async () => {
-  const setup = await testRender(
+  testSetup = await testRender(
     <Sidebar
       theme={theme}
       status={cleanStatus}
@@ -135,14 +152,16 @@ test("source control panel shows compare mode header", async () => {
     { width: 80, height: 24 },
   );
 
-  await setup.renderOnce();
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
 
-  expect(JSON.stringify(setup.captureSpans().lines)).toContain("Compare");
-  expect(JSON.stringify(setup.captureSpans().lines)).toContain("Changes");
+  expect(JSON.stringify(testSetup.captureSpans().lines)).toContain("Compare");
+  expect(JSON.stringify(testSetup.captureSpans().lines)).toContain("Changes");
 });
 
 test("branch picker shows when branchPickerOpen is true", async () => {
-  const setup = await testRender(
+  testSetup = await testRender(
     <Sidebar
       theme={theme}
       status={cleanStatus}
@@ -166,9 +185,11 @@ test("branch picker shows when branchPickerOpen is true", async () => {
     { width: 80, height: 24 },
   );
 
-  await setup.renderOnce();
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
 
-  const output = JSON.stringify(setup.captureSpans().lines);
+  const output = JSON.stringify(testSetup.captureSpans().lines);
   expect(output).toContain("Compare to:");
   expect(output).toContain("main");
   expect(output).toContain("develop");
@@ -176,7 +197,7 @@ test("branch picker shows when branchPickerOpen is true", async () => {
 });
 
 test("branch picker shows current branch indicator", async () => {
-  const setup = await testRender(
+  testSetup = await testRender(
     <Sidebar
       theme={theme}
       status={cleanStatus}
@@ -200,14 +221,16 @@ test("branch picker shows current branch indicator", async () => {
     { width: 80, height: 24 },
   );
 
-  await setup.renderOnce();
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
 
-  const output = JSON.stringify(setup.captureSpans().lines);
+  const output = JSON.stringify(testSetup.captureSpans().lines);
   expect(output).toContain("(current)");
 });
 
 test("branch picker shows empty state when no branches", async () => {
-  const setup = await testRender(
+  testSetup = await testRender(
     <Sidebar
       theme={theme}
       status={cleanStatus}
@@ -231,14 +254,16 @@ test("branch picker shows empty state when no branches", async () => {
     { width: 80, height: 24 },
   );
 
-  await setup.renderOnce();
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
 
-  const output = JSON.stringify(setup.captureSpans().lines);
+  const output = JSON.stringify(testSetup.captureSpans().lines);
   expect(output).toContain("No branches found");
 });
 
 test("compare mode shows 'no changes' message when file list is empty", async () => {
-  const setup = await testRender(
+  testSetup = await testRender(
     <Sidebar
       theme={theme}
       status={cleanStatus}
@@ -266,8 +291,10 @@ test("compare mode shows 'no changes' message when file list is empty", async ()
     { width: 80, height: 24 },
   );
 
-  await setup.renderOnce();
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
 
-  const output = JSON.stringify(setup.captureSpans().lines);
+  const output = JSON.stringify(testSetup.captureSpans().lines);
   expect(output).toContain("No changes vs");
 });

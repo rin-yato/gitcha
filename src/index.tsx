@@ -1,100 +1,134 @@
 import { createCliRenderer } from "@opentui/core";
 import { createRoot, useKeyboard, useRenderer } from "@opentui/react";
 
-import { CommandPrompt } from "./component/command-prompt";
+import { useCallback } from "react";
+
+import type { CommandOption } from "./component/dialog-command";
+import { DialogCommand } from "./component/dialog-command";
 import { DiffPane } from "./component/diff-pane";
 import { Sidebar } from "./component/sidebar";
 import { createFakeGitClient } from "./context/changes/fake-client";
 import { ReviewProvider, useReviewSession } from "./context/changes/session";
 import { ReviewStateProvider, useReviewState } from "./context/changes/state";
-import {
-  type CommandOption,
-  CommandPromptProvider,
-  useCommandPrompt,
-} from "./context/command/prompt";
 import { ThemeProvider, useTheme } from "./context/theme/provider";
+import { DialogProvider, useDialog } from "./ui/dialog";
 import { Overlay } from "./ui/overlay";
+import { Toast, ToastProvider } from "./ui/toast";
 
 function App() {
   const renderer = useRenderer();
   const theme = useTheme();
   const git = useReviewSession();
   const app = useReviewState();
-  const prompt = useCommandPrompt();
+  const dialog = useDialog();
 
-  const commands: CommandOption[] = [
-    {
-      id: "toggle-compare",
-      label: "Toggle Compare Mode",
-      description: "Switch between staging and compare views",
-      run: () => app.toggleViewMode(),
-    },
-    {
-      id: "refresh",
-      label: "Refresh",
-      description: "Reload git status or compare diff",
-      run: () => {
-        if (app.viewMode === "compare") git.refreshCompare();
-        else git.refreshStatus();
+  const showCommandPalette = useCallback(() => {
+    const commands: CommandOption[] = [
+      {
+        id: "toggle-compare",
+        label: "Toggle Compare Mode",
+        description: "Switch between staging and compare views",
+        category: "View",
+        keybind: "v",
+        run: () => app.toggleViewMode(),
       },
-    },
-    {
-      id: "toggle-diff-view",
-      label: "Toggle Diff View",
-      description: "Switch between unified and split diff",
-      run: () => app.toggleDiffViewMode(),
-    },
-    {
-      id: "exit-compare",
-      label: "Exit Compare Mode",
-      description: "Return to staging view",
-      run: () => app.exitCompareMode(),
-    },
-  ];
+      {
+        id: "refresh",
+        label: "Refresh",
+        description: "Reload git status or compare diff",
+        category: "Action",
+        keybind: "r",
+        run: () => {
+          if (app.viewMode === "compare") git.refreshCompare();
+          else git.refreshStatus();
+        },
+      },
+      {
+        id: "toggle-diff-view",
+        label: "Toggle Diff View",
+        description: "Switch between unified and split diff",
+        category: "View",
+        keybind: "space",
+        run: () => app.toggleDiffViewMode(),
+      },
+      {
+        id: "exit-compare",
+        label: "Exit Compare Mode",
+        description: "Return to staging view",
+        category: "View",
+        run: () => app.exitCompareMode(),
+      },
+      {
+        id: "stage-file",
+        label: "Stage File",
+        description: "Stage the currently selected file",
+        category: "Action",
+        keybind: "s",
+        run: () => app.stageSelectedFile(),
+      },
+      {
+        id: "unstage-file",
+        label: "Unstage File",
+        description: "Unstage the currently selected file",
+        category: "Action",
+        keybind: "u",
+        run: () => app.unstageSelectedFile(),
+      },
+      {
+        id: "discard-file",
+        label: "Discard Changes",
+        description: "Discard changes in the currently selected file",
+        category: "Action",
+        keybind: "x",
+        run: () => app.discardSelectedFile(),
+      },
+      {
+        id: "shrink-sidebar",
+        label: "Shrink Sidebar",
+        description: "Make the sidebar narrower",
+        category: "Layout",
+        keybind: "[",
+        run: () => app.shrinkSidebar(),
+      },
+      {
+        id: "grow-sidebar",
+        label: "Grow Sidebar",
+        description: "Make the sidebar wider",
+        category: "Layout",
+        keybind: "]",
+        run: () => app.growSidebar(),
+      },
+    ];
+
+    const suggested = commands.filter((cmd) =>
+      ["refresh", "toggle-compare", "toggle-diff-view"].includes(cmd.id),
+    );
+
+    dialog.replace(
+      <Overlay backgroundColor={`${theme.background}cc`}>
+        <DialogCommand theme={theme} options={commands} suggested={suggested} />
+      </Overlay>,
+    );
+  }, [app, git, theme, dialog]);
 
   useKeyboard((event) => {
-    if (prompt.isOpen) {
-      const filteredCommands = commands.filter((option) => {
-        const query = prompt.query.trim().toLowerCase();
-        if (!query) return true;
-        return (
-          option.label.toLowerCase().includes(query) ||
-          option.description?.toLowerCase().includes(query)
-        );
-      });
+    // Don't handle if dialog is open
+    if (dialog.stack.length > 0) return;
 
-      if (event.name === "escape") {
-        prompt.close();
-        return;
-      }
-      if (event.name === "up" || event.name === "k") {
-        prompt.setSelectedIndex(Math.max(0, prompt.selectedIndex - 1));
-        return;
-      }
-      if (event.name === "down" || event.name === "j") {
-        prompt.setSelectedIndex(
-          Math.min(filteredCommands.length - 1, prompt.selectedIndex + 1),
-        );
-        return;
-      }
-      if (
-        (event.name === "enter" || event.name === "return") &&
-        filteredCommands[prompt.selectedIndex]
-      ) {
-        filteredCommands[prompt.selectedIndex]?.run();
-        prompt.close();
-        return;
-      }
-      return;
-    }
-
+    // Open command palette
     if (event.name === "/") {
-      prompt.open();
+      showCommandPalette();
       return;
     }
+
+    // Navigation
     if (event.name === "up" || event.name === "k") app.focusPreviousRow();
     if (event.name === "down" || event.name === "j") app.focusNextRow();
+
+    // Diff view
     if (event.name === "space") app.toggleDiffViewMode();
+
+    // Refresh
     if (event.name === "r") {
       if (app.viewMode === "compare") {
         git.refreshCompare();
@@ -102,12 +136,20 @@ function App() {
         git.refreshStatus();
       }
     }
+
+    // View mode
     if (event.name === "v") app.toggleViewMode();
+
+    // File actions
     if (event.name === "s") app.stageSelectedFile();
     if (event.name === "u") app.unstageSelectedFile();
     if (event.name === "x") app.discardSelectedFile();
+
+    // Layout
     if (event.name === "[") app.shrinkSidebar();
     if (event.name === "]") app.growSidebar();
+
+    // Exit
     if (event.name === "escape") {
       if (app.viewMode === "compare") {
         app.exitCompareMode();
@@ -155,18 +197,7 @@ function App() {
         toggleDiffViewMode={app.toggleDiffViewMode}
       />
 
-      {prompt.isOpen ? (
-        <Overlay backgroundColor={`${theme.background}cc`}>
-          <CommandPrompt
-            theme={theme}
-            options={commands}
-            onSubmit={(option) => {
-              option.run();
-              prompt.close();
-            }}
-          />
-        </Overlay>
-      ) : null}
+      <Toast theme={theme} />
     </box>
   );
 }
@@ -179,9 +210,11 @@ createRoot(renderer as never).render(
   <ThemeProvider>
     <ReviewProvider client={client}>
       <ReviewStateProvider>
-        <CommandPromptProvider>
-          <App />
-        </CommandPromptProvider>
+        <DialogProvider>
+          <ToastProvider>
+            <App />
+          </ToastProvider>
+        </DialogProvider>
       </ReviewStateProvider>
     </ReviewProvider>
   </ThemeProvider>,

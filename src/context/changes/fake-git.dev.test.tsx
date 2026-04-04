@@ -1,11 +1,11 @@
 import { testRender } from "@opentui/react/test-utils";
 
-import { useEffect, useRef } from "react";
+import { act, useEffect, useRef } from "react";
 
 import { createFakeGitClient } from "./fake-client";
 import { ReviewProvider, useReviewSession } from "./session";
 import { ReviewStateProvider, useReviewState } from "./state";
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 
 function Probe() {
   const app = useReviewState();
@@ -32,9 +32,20 @@ function Probe() {
 }
 
 describe("fake git dev project", () => {
+  let testSetup: Awaited<ReturnType<typeof testRender>> | null = null;
+
+  afterEach(() => {
+    if (testSetup) {
+      act(() => {
+        testSetup?.renderer.destroy();
+      });
+      testSetup = null;
+    }
+  });
+
   test("boots with the fake compare target and files", async () => {
     const backend = createFakeGitClient();
-    const setup = await testRender(
+    testSetup = await testRender(
       <ReviewProvider client={backend}>
         <ReviewStateProvider>
           <Probe />
@@ -43,11 +54,13 @@ describe("fake git dev project", () => {
       { width: 80, height: 24 },
     );
 
-    await setup.renderOnce();
-    await setup.renderOnce();
-    await setup.renderOnce();
+    await act(async () => {
+      await testSetup?.renderOnce();
+      await testSetup?.renderOnce();
+      await testSetup?.renderOnce();
+    });
 
-    const output = JSON.stringify(setup.captureSpans().lines);
+    const output = JSON.stringify(testSetup.captureSpans().lines);
     expect(output).toContain("branches=feat/a,feat/b,master");
     expect(output).toContain("base=feat/a");
     expect(output).toContain("file=src/app.ts");

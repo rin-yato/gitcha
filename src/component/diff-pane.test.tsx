@@ -1,11 +1,13 @@
 import { testRender } from "@opentui/react/test-utils";
 
+import { act } from "react";
+
 import { createFakeGitClient } from "../context/changes/fake-client";
 import { ReviewProvider } from "../context/changes/session";
 import { ReviewStateProvider } from "../context/changes/state";
 import type { Theme } from "../context/theme/provider";
 import { DiffPane } from "./diff-pane";
-import { expect, test } from "bun:test";
+import { afterEach, expect, test } from "bun:test";
 
 const theme: Theme = {
   background: "#000000",
@@ -22,8 +24,19 @@ const theme: Theme = {
   error: "#ff0000",
 };
 
+let testSetup: Awaited<ReturnType<typeof testRender>> | null = null;
+
+afterEach(() => {
+  if (testSetup) {
+    act(() => {
+      testSetup?.renderer.destroy();
+    });
+    testSetup = null;
+  }
+});
+
 test("code panel shows an empty state", async () => {
-  const setup = await testRender(
+  testSetup = await testRender(
     <DiffPane
       theme={theme}
       selectedFile={null}
@@ -35,13 +48,15 @@ test("code panel shows an empty state", async () => {
     { width: 80, height: 24 },
   );
 
-  await setup.renderOnce();
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
 
-  expect(JSON.stringify(setup.captureSpans().lines)).toContain("no file selected");
+  expect(JSON.stringify(testSetup.captureSpans().lines)).toContain("no file selected");
 });
 
 test("code panel shows loading state when a file is selected", async () => {
-  const setup = await testRender(
+  testSetup = await testRender(
     <DiffPane
       theme={theme}
       selectedFile="src/app.ts"
@@ -53,14 +68,16 @@ test("code panel shows loading state when a file is selected", async () => {
     { width: 80, height: 24 },
   );
 
-  await setup.renderOnce();
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
 
-  expect(JSON.stringify(setup.captureSpans().lines)).toContain("Loading...");
+  expect(JSON.stringify(testSetup.captureSpans().lines)).toContain("Loading...");
 });
 
 test("code panel renders diff content when provided", async () => {
   const backend = createFakeGitClient();
-  const setup = await testRender(
+  testSetup = await testRender(
     <ReviewProvider client={backend}>
       <ReviewStateProvider>
         <DiffPane
@@ -82,9 +99,11 @@ index 1111111..2222222 100644
     { width: 120, height: 40 },
   );
 
-  await setup.renderOnce();
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
 
-  const output = JSON.stringify(setup.captureSpans().lines);
+  const output = JSON.stringify(testSetup.captureSpans().lines);
   expect(output).toContain("console.log");
   expect(output).toContain("feat/b");
 });
