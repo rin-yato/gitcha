@@ -3,7 +3,8 @@ import { createRoot, useKeyboard } from "@opentui/react";
 
 import { CodePanel } from "./components/code-panel";
 import { SourceControlPanel } from "./components/source-control-panel";
-import { AppStateProvider, GitProvider, useAppState, useGit } from "./state";
+import { AppStateProvider, useAppState } from "./states/app";
+import { GitProvider, useGit } from "./states/git";
 import { ThemeProvider, useTheme } from "./styles/theme";
 
 function App() {

@@ -1,8 +1,8 @@
 import type React from "react";
 import { useEffect, useMemo, useRef } from "react";
 
-import type { DiffViewMode } from "../state";
-import { useAppState } from "../state";
+import type { DiffViewMode } from "../states/app";
+import { useAppState } from "../states/app";
 import { createSyntaxStyle, detectFiletype, treeSitterClient } from "../styles/syntax";
 import type { Theme } from "../styles/theme";
 
