@@ -34,6 +34,16 @@ const cleanStatus: GitRepoStatus = {
   isRepo: true,
 };
 
+const defaultCompareProps = {
+  viewMode: "staging" as const,
+  branchPickerOpen: false,
+  branches: [] as string[],
+  currentBranch: null as string | null,
+  compareState: null,
+  selectCompareBranch: () => {},
+  toggleViewMode: () => {},
+};
+
 test("source control panel shows clean state", async () => {
   const setup = await testRender(
     <SourceControlPanel
@@ -47,6 +57,7 @@ test("source control panel shows clean state", async () => {
       unstageSelectedFile={() => {}}
       discardSelectedFile={() => {}}
       refreshStatus={() => {}}
+      {...defaultCompareProps}
     />,
     { width: 80, height: 24 },
   );
@@ -82,6 +93,7 @@ test("source control panel lists staged and changed files", async () => {
       unstageSelectedFile={() => {}}
       discardSelectedFile={() => {}}
       refreshStatus={() => {}}
+      {...defaultCompareProps}
     />,
     { width: 80, height: 24 },
   );
@@ -90,4 +102,165 @@ test("source control panel lists staged and changed files", async () => {
 
   expect(JSON.stringify(setup.captureSpans().lines)).toContain("Staged");
   expect(JSON.stringify(setup.captureSpans().lines)).toContain("Changes");
+});
+
+test("source control panel shows compare mode header", async () => {
+  const setup = await testRender(
+    <SourceControlPanel
+      theme={theme}
+      status={cleanStatus}
+      error={null}
+      selectedFile={null}
+      focusedPath={null}
+      selectFile={() => {}}
+      stageSelectedFile={() => {}}
+      unstageSelectedFile={() => {}}
+      discardSelectedFile={() => {}}
+      refreshStatus={() => {}}
+      viewMode="compare"
+      branchPickerOpen={false}
+      branches={["main", "feature"]}
+      currentBranch="feature"
+      compareState={{
+        baseRef: "main",
+        baseLabel: "main",
+        files: [{ path: "src/app.ts", indexStatus: " ", workingTreeStatus: "M" }],
+      }}
+      selectCompareBranch={() => {}}
+      toggleViewMode={() => {}}
+    />,
+    { width: 80, height: 24 },
+  );
+
+  await setup.renderOnce();
+
+  expect(JSON.stringify(setup.captureSpans().lines)).toContain("Compare");
+  expect(JSON.stringify(setup.captureSpans().lines)).toContain("Changes");
+});
+
+test("branch picker shows when branchPickerOpen is true", async () => {
+  const setup = await testRender(
+    <SourceControlPanel
+      theme={theme}
+      status={cleanStatus}
+      error={null}
+      selectedFile={null}
+      focusedPath={null}
+      selectFile={() => {}}
+      stageSelectedFile={() => {}}
+      unstageSelectedFile={() => {}}
+      discardSelectedFile={() => {}}
+      refreshStatus={() => {}}
+      viewMode="compare"
+      branchPickerOpen={true}
+      branches={["main", "develop", "feature"]}
+      currentBranch="feature"
+      compareState={null}
+      selectCompareBranch={() => {}}
+      toggleViewMode={() => {}}
+    />,
+    { width: 80, height: 24 },
+  );
+
+  await setup.renderOnce();
+
+  const output = JSON.stringify(setup.captureSpans().lines);
+  expect(output).toContain("Compare to:");
+  expect(output).toContain("main");
+  expect(output).toContain("develop");
+  expect(output).toContain("feature");
+});
+
+test("branch picker shows current branch indicator", async () => {
+  const setup = await testRender(
+    <SourceControlPanel
+      theme={theme}
+      status={cleanStatus}
+      error={null}
+      selectedFile={null}
+      focusedPath={null}
+      selectFile={() => {}}
+      stageSelectedFile={() => {}}
+      unstageSelectedFile={() => {}}
+      discardSelectedFile={() => {}}
+      refreshStatus={() => {}}
+      viewMode="compare"
+      branchPickerOpen={true}
+      branches={["main", "feature"]}
+      currentBranch="feature"
+      compareState={null}
+      selectCompareBranch={() => {}}
+      toggleViewMode={() => {}}
+    />,
+    { width: 80, height: 24 },
+  );
+
+  await setup.renderOnce();
+
+  const output = JSON.stringify(setup.captureSpans().lines);
+  expect(output).toContain("(current)");
+});
+
+test("branch picker shows empty state when no branches", async () => {
+  const setup = await testRender(
+    <SourceControlPanel
+      theme={theme}
+      status={cleanStatus}
+      error={null}
+      selectedFile={null}
+      focusedPath={null}
+      selectFile={() => {}}
+      stageSelectedFile={() => {}}
+      unstageSelectedFile={() => {}}
+      discardSelectedFile={() => {}}
+      refreshStatus={() => {}}
+      viewMode="compare"
+      branchPickerOpen={true}
+      branches={[]}
+      currentBranch={null}
+      compareState={null}
+      selectCompareBranch={() => {}}
+      toggleViewMode={() => {}}
+    />,
+    { width: 80, height: 24 },
+  );
+
+  await setup.renderOnce();
+
+  const output = JSON.stringify(setup.captureSpans().lines);
+  expect(output).toContain("No branches found");
+});
+
+test("compare mode shows 'no changes' message when file list is empty", async () => {
+  const setup = await testRender(
+    <SourceControlPanel
+      theme={theme}
+      status={cleanStatus}
+      error={null}
+      selectedFile={null}
+      focusedPath={null}
+      selectFile={() => {}}
+      stageSelectedFile={() => {}}
+      unstageSelectedFile={() => {}}
+      discardSelectedFile={() => {}}
+      refreshStatus={() => {}}
+      viewMode="compare"
+      branchPickerOpen={false}
+      branches={["main"]}
+      currentBranch="main"
+      compareState={{
+        baseRef: "main",
+        baseLabel: "main",
+        files: [],
+      }}
+      selectCompareBranch={() => {}}
+      toggleViewMode={() => {}}
+    />,
+    { width: 80, height: 24 },
+  );
+
+  await setup.renderOnce();
+
+  const output = JSON.stringify(setup.captureSpans().lines);
+  expect(output).toContain("No changes vs");
 });

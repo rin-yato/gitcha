@@ -16,11 +16,24 @@ function App() {
     if (event.name === "up" || event.name === "k") app.focusPreviousRow();
     if (event.name === "down" || event.name === "j") app.focusNextRow();
     if (event.name === "space") app.toggleDiffViewMode();
-    if (event.name === "r") git.refreshStatus();
+    if (event.name === "r") {
+      if (app.viewMode === "compare") {
+        git.refreshCompare();
+      } else {
+        git.refreshStatus();
+      }
+    }
+    if (event.name === "v") app.toggleViewMode();
     if (event.name === "s") app.stageSelectedFile();
     if (event.name === "u") app.unstageSelectedFile();
     if (event.name === "x") app.discardSelectedFile();
-    if (event.name === "escape") process.exit(0);
+    if (event.name === "escape") {
+      if (app.viewMode === "compare") {
+        app.exitCompareMode();
+      } else {
+        process.exit(0);
+      }
+    }
   });
 
   return (
@@ -42,6 +55,13 @@ function App() {
         unstageSelectedFile={app.unstageSelectedFile}
         discardSelectedFile={app.discardSelectedFile}
         refreshStatus={git.refreshStatus}
+        viewMode={app.viewMode}
+        branchPickerOpen={app.branchPickerOpen}
+        branches={git.branches}
+        currentBranch={git.status?.branch ?? null}
+        compareState={git.compareState}
+        selectCompareBranch={app.selectCompareBranch}
+        toggleViewMode={app.toggleViewMode}
       />
 
       <CodePanel

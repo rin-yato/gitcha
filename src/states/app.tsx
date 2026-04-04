@@ -9,14 +9,14 @@ import {
   useState,
 } from "react";
 
-import type { GitStatusFile } from "../git";
-import { getFileDiffWithContext } from "../git";
+import type { CompareTarget, GitStatusFile } from "../git";
+import { getBranchFileDiff, getFileDiffWithContext } from "../git";
 import {
   firstAvailableFile,
   sectionForIndex,
   stagedFileCount,
+  visibleFiles as stagingVisibleFiles,
   useGit,
-  visibleFiles,
 } from "./git";
 
 // ---------------------------------------------------------------------------
@@ -24,7 +24,8 @@ import {
 // ---------------------------------------------------------------------------
 
 export type DiffViewMode = "unified" | "split";
-export type FileSection = "staged" | "changes";
+export type FileSection = "staged" | "changes" | "compare";
+export type ViewMode = "staging" | "compare";
 export type FileKey = `${FileSection}:${string}`;
 
 // ---------------------------------------------------------------------------
@@ -46,9 +47,11 @@ export function focusedFileKey(
   files: GitStatusFile[],
   focusedRowIndex: number,
   stagedCount: number,
+  viewMode: ViewMode,
 ): FileKey | null {
   const file = focusedFileFromIndex(files, focusedRowIndex);
   if (!file) return null;
+  if (viewMode === "compare") return buildFileKey("compare", file.path);
   return buildFileKey(sectionForIndex(focusedRowIndex, stagedCount), file.path);
 }
 
@@ -79,22 +82,34 @@ export function indexOfFile(files: GitStatusFile[], filePath: string): number {
 }
 
 // ---------------------------------------------------------------------------
-// Types
+// Context
 // ---------------------------------------------------------------------------
 
 export type AppStateContextValue = {
+  // Selection
   selectedFile: string | null;
   selectedFileKey: string | null;
   selectedFileSection: FileSection | null;
   diffContent: string | null;
+  // Scroll
   getScrollPosition: (key: string) => number;
   setScrollPosition: (key: string, value: number) => void;
+  // Focus / navigation
   focusedRowIndex: number;
   focusedFileKey: string | null;
   visibleFiles: GitStatusFile[];
   focusedFile: GitStatusFile | null;
+  // Diff view
   diffViewMode: DiffViewMode;
   toggleDiffViewMode: () => void;
+  // View mode (staging vs compare)
+  viewMode: ViewMode;
+  branchPickerOpen: boolean;
+  toggleViewMode: () => void;
+  enterCompareMode: () => void;
+  exitCompareMode: () => void;
+  selectCompareBranch: (target: CompareTarget) => void;
+  // File actions
   selectFile: (filePath: string, section?: FileSection) => void;
   focusPreviousRow: () => void;
   focusNextRow: () => void;
@@ -102,10 +117,6 @@ export type AppStateContextValue = {
   unstageSelectedFile: () => void;
   discardSelectedFile: () => void;
 };
-
-// ---------------------------------------------------------------------------
-// Context
-// ---------------------------------------------------------------------------
 
 const AppStateContext = createContext<AppStateContextValue | null>(null);
 
@@ -121,17 +132,35 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [diffContent, setDiffContent] = useState<string | null>(null);
   const [focusedRowIndex, setFocusedRowIndex] = useState(0);
   const [diffViewMode, setDiffViewMode] = useState<DiffViewMode>("unified");
+  const [viewMode, setViewMode] = useState<ViewMode>("staging");
+  const [branchPickerOpen, setBranchPickerOpen] = useState(false);
   const scrollPositionsRef = useRef(new Map<string, number>());
 
   // Derived state
   const status = git.status;
-  const files = useMemo(() => visibleFiles(status), [status]);
-  const stagedCount = useMemo(() => stagedFileCount(status), [status]);
+  const compareState = git.compareState;
+
+  // Visible files depends on view mode
+  const files = useMemo(() => {
+    if (viewMode === "compare" && compareState) return compareState.files;
+    return stagingVisibleFiles(status);
+  }, [viewMode, compareState, status]);
+
+  const stagedCount = useMemo(
+    () => (viewMode === "compare" ? 0 : stagedFileCount(status)),
+    [viewMode, status],
+  );
 
   // -- file loading --
   const loadDiff = useCallback(
     (filePath: string, section: FileSection | null) => {
       try {
+        if (viewMode === "compare" && compareState) {
+          const diff = getBranchFileDiff(filePath, compareState.baseRef);
+          setDiffContent(diff || "No changes to display");
+          return;
+        }
+
         if (!status) {
           setDiffContent(null);
           return;
@@ -145,7 +174,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         );
       }
     },
-    [status],
+    [status, viewMode, compareState],
   );
 
   const selectFile = useCallback(
@@ -160,19 +189,76 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const focusRow = useCallback(
     (nextIndex: number) => {
       const file = files[nextIndex];
-      const section = sectionForIndex(nextIndex, stagedCount);
+      const section =
+        viewMode === "compare" ? "compare" : sectionForIndex(nextIndex, stagedCount);
       setFocusedRowIndex(nextIndex);
       if (file) selectFile(file.path, section);
     },
-    [files, stagedCount, selectFile],
+    [files, stagedCount, selectFile, viewMode],
   );
 
   const toggleDiffViewMode = useCallback(() => {
     setDiffViewMode((current) => (current === "unified" ? "split" : "unified"));
   }, []);
 
-  // Auto-select first file when status changes
+  const toggleViewMode = useCallback(() => {
+    if (viewMode === "staging") {
+      const target = git.defaultCompareTarget;
+      if (target) {
+        git.startCompare(target);
+      }
+      setViewMode("compare");
+      setBranchPickerOpen(false);
+    } else {
+      setBranchPickerOpen((open) => !open);
+    }
+  }, [viewMode, git]);
+
+  const enterCompareMode = useCallback(() => {
+    setViewMode("compare");
+    setBranchPickerOpen(false);
+  }, []);
+
+  const exitCompareMode = useCallback(() => {
+    git.stopCompare();
+    setViewMode("staging");
+    setBranchPickerOpen(false);
+    setSelectedFile(null);
+    setSelectedFileSection(null);
+    setDiffContent(null);
+  }, [git]);
+
+  const selectCompareBranch = useCallback(
+    (target: CompareTarget) => {
+      git.startCompare(target);
+      setBranchPickerOpen(false);
+      // Reset selection for new file list
+      setSelectedFile(null);
+      setSelectedFileSection(null);
+      setDiffContent(null);
+    },
+    [git],
+  );
+
+  // Auto-select first file when files change
   useEffect(() => {
+    if (viewMode === "compare") {
+      if (files.length > 0 && !selectedFile) {
+        const first = files[0];
+        if (first) {
+          setSelectedFile(first.path);
+          setSelectedFileSection("compare");
+          loadDiff(first.path, "compare");
+        }
+      } else if (files.length === 0 && selectedFile) {
+        setSelectedFile(null);
+        setSelectedFileSection(null);
+        setDiffContent(null);
+      }
+      return;
+    }
+
+    // Staging mode
     if (files.length > 0 && !selectedFile) {
       const first = firstAvailableFile(status);
       if (first) {
@@ -185,7 +271,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setSelectedFileSection(null);
       setDiffContent(null);
     }
-  }, [selectedFile, status, files, loadDiff]);
+  }, [selectedFile, status, files, loadDiff, viewMode]);
 
   // Clamp focus index when files change
   useEffect(() => {
@@ -213,22 +299,28 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         scrollPositionsRef.current.set(key, value);
       },
       focusedRowIndex,
-      focusedFileKey: focusedFileKey(files, focusedRowIndex, stagedCount),
+      focusedFileKey: focusedFileKey(files, focusedRowIndex, stagedCount, viewMode),
       visibleFiles: files,
       focusedFile: focusedFileFromIndex(files, focusedRowIndex),
       diffViewMode,
       toggleDiffViewMode,
+      viewMode,
+      branchPickerOpen,
+      toggleViewMode,
+      enterCompareMode,
+      exitCompareMode,
+      selectCompareBranch,
       selectFile,
       focusPreviousRow: () => focusRow(nextFocusIndex(focusedRowIndex, -1, files.length)),
       focusNextRow: () => focusRow(nextFocusIndex(focusedRowIndex, 1, files.length)),
       stageSelectedFile: () => {
-        if (selectedFile) git.stageFile(selectedFile);
+        if (selectedFile && viewMode === "staging") git.stageFile(selectedFile);
       },
       unstageSelectedFile: () => {
-        if (selectedFile) git.unstageFile(selectedFile);
+        if (selectedFile && viewMode === "staging") git.unstageFile(selectedFile);
       },
       discardSelectedFile: () => {
-        if (selectedFile) git.discardChanges(selectedFile);
+        if (selectedFile && viewMode === "staging") git.discardChanges(selectedFile);
       },
     }),
     [
@@ -243,6 +335,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       selectedFileSection,
       stagedCount,
       toggleDiffViewMode,
+      viewMode,
+      branchPickerOpen,
+      toggleViewMode,
+      enterCompareMode,
+      exitCompareMode,
+      selectCompareBranch,
     ],
   );
 

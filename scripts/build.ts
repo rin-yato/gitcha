@@ -5,7 +5,6 @@ const compileTarget = process.arch === "x64" ? "bun-darwin-x64" : "bun-darwin-ar
 await Bun.build({
   entrypoints: ["./src/index.tsx"],
   target: "bun",
-  outdir: outDir,
   compile: {
     target: compileTarget,
     outfile: outFile,

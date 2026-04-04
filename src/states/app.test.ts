@@ -37,18 +37,24 @@ describe("selectedFileKey", () => {
 
 describe("focusedFileKey", () => {
   test("returns null when no files", () => {
-    expect(focusedFileKey([], 0, 0)).toBeNull();
+    expect(focusedFileKey([], 0, 0, "staging")).toBeNull();
   });
 
   test("returns a key for a valid index", () => {
     const files = [file("a.ts"), file("b.ts")];
     // stagedCount=1 means index 0 is staged, index 1 is changes
-    expect(focusedFileKey(files, 1, 1)).toBe("changes:b.ts");
+    expect(focusedFileKey(files, 1, 1, "staging")).toBe("changes:b.ts");
   });
 
   test("returns staged key when in staged range", () => {
     const files = [file("a.ts"), file("b.ts")];
-    expect(focusedFileKey(files, 0, 2)).toBe("staged:a.ts");
+    expect(focusedFileKey(files, 0, 2, "staging")).toBe("staged:a.ts");
+  });
+
+  test("returns compare key in compare mode", () => {
+    const files = [file("a.ts"), file("b.ts")];
+    expect(focusedFileKey(files, 0, 0, "compare")).toBe("compare:a.ts");
+    expect(focusedFileKey(files, 1, 0, "compare")).toBe("compare:b.ts");
   });
 });
 
@@ -112,5 +118,30 @@ describe("indexOfFile", () => {
   test("returns -1 for missing file", () => {
     expect(indexOfFile([], "missing.ts")).toBe(-1);
     expect(indexOfFile([file("a.ts")], "missing.ts")).toBe(-1);
+  });
+});
+
+describe("focusedFileKey in compare mode", () => {
+  test("all files get 'compare:' prefix regardless of index", () => {
+    const files = [file("a.ts"), file("b.ts"), file("c.ts")];
+    expect(focusedFileKey(files, 0, 0, "compare")).toBe("compare:a.ts");
+    expect(focusedFileKey(files, 1, 0, "compare")).toBe("compare:b.ts");
+    expect(focusedFileKey(files, 2, 0, "compare")).toBe("compare:c.ts");
+  });
+
+  test("stagedCount is ignored in compare mode", () => {
+    const files = [file("a.ts"), file("b.ts")];
+    // Even with stagedCount=2, compare mode ignores section logic
+    expect(focusedFileKey(files, 0, 2, "compare")).toBe("compare:a.ts");
+    expect(focusedFileKey(files, 1, 2, "compare")).toBe("compare:b.ts");
+  });
+
+  test("returns null for empty files in compare mode", () => {
+    expect(focusedFileKey([], 0, 0, "compare")).toBeNull();
+  });
+
+  test("returns null for out-of-range index in compare mode", () => {
+    const files = [file("a.ts")];
+    expect(focusedFileKey(files, 5, 0, "compare")).toBeNull();
   });
 });

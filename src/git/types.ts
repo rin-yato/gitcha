@@ -77,3 +77,25 @@ export interface GitRepoStatus {
   /** Whether we're in a git repository */
   isRepo: boolean;
 }
+
+/**
+ * A comparison target used by compare mode.
+ */
+export interface CompareTarget {
+  /** Git ref used for the diff base. */
+  ref: string;
+  /** Human-readable label shown in the UI. */
+  label: string;
+}
+
+/**
+ * Branch compare state
+ */
+export interface CompareState {
+  /** The base ref being compared against */
+  baseRef: string;
+  /** Human-readable label for the base */
+  baseLabel: string;
+  /** Files changed between baseBranch and HEAD */
+  files: GitStatusFile[];
+}
