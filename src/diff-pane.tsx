@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef } from "react";
 
-import type { DiffViewMode } from "../states/app";
-import { useAppState } from "../states/app";
-import { createSyntaxStyle, detectFiletype, treeSitterClient } from "../styles/syntax";
-import type { Theme } from "../styles/theme";
+import type { DiffViewMode } from "./state";
+import { useReviewState } from "./state";
+import { createSyntaxStyle, detectFiletype, treeSitterClient } from "./styles/syntax";
+import type { Theme } from "./styles/theme";
 
 type FileDiffViewProps = {
   fileKey: string;
@@ -23,8 +23,8 @@ type DiffRenderableLike = {
   findDescendantById?: (id: string) => ScrollableRenderable | undefined;
 };
 
-function FileDiffView(props: FileDiffViewProps) {
-  const app = useAppState();
+function DiffRenderablePane(props: FileDiffViewProps) {
+  const app = useReviewState();
   const diffRenderableRef = useRef<DiffRenderableLike | null>(null);
 
   const getScrollTarget = () => {
@@ -89,7 +89,7 @@ function FileDiffView(props: FileDiffViewProps) {
   );
 }
 
-export function CodePanel(props: {
+export function DiffPane(props: {
   theme: Theme;
   selectedFile: string | null;
   selectedFileKey: string | null;
@@ -119,7 +119,7 @@ export function CodePanel(props: {
       {props.selectedFileKey ? (
         props.selectedFile && props.diffContent ? (
           <box flexGrow={1} flexDirection="column">
-            <FileDiffView
+            <DiffRenderablePane
               fileKey={props.selectedFileKey}
               diffContent={props.diffContent}
               viewMode={props.diffViewMode}

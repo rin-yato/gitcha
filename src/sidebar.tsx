@@ -1,6 +1,6 @@
-import type { CompareState, GitRepoStatus, GitStatusFile } from "../git";
-import type { FileSection, ViewMode } from "../states/app";
-import type { Theme } from "../styles/theme";
+import type { CompareState, GitRepoStatus, GitStatusFile } from "./git";
+import type { FileSection, ViewMode } from "./state";
+import type { Theme } from "./styles/theme";
 
 const STATUS_SYMBOLS: Record<string, string> = {
   A: "+",
@@ -114,7 +114,7 @@ function BranchPickerItem(props: {
   );
 }
 
-export function SourceControlPanel(props: {
+export function ReviewSidebar(props: {
   theme: Theme;
   status: GitRepoStatus | null;
   error: string | null;

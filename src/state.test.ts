@@ -1,4 +1,4 @@
-import type { GitStatusFile } from "../git";
+import type { GitStatusFile } from "./git";
 import {
   buildFileKey,
   clampFocusIndex,
@@ -7,7 +7,7 @@ import {
   indexOfFile,
   nextFocusIndex,
   selectedFileKey,
-} from "./app";
+} from "./state";
 import { describe, expect, test } from "bun:test";
 
 const file = (path: string): GitStatusFile => ({

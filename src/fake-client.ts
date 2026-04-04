@@ -1,5 +1,5 @@
-import type { CompareTarget, GitRepoStatus, GitStatusFile } from "../git";
-import type { GitBackend } from "./git";
+import type { CompareTarget, GitRepoStatus, GitStatusFile } from "./git";
+import type { GitClient } from "./session";
 
 type FakeBranch = {
   name: string;
@@ -175,7 +175,7 @@ index 0000000..3333333
   };
 }
 
-export function createFakeGitBackend(project = createFakeProject()): GitBackend {
+export function createFakeGitClient(project = createFakeProject()): GitClient {
   const status = cloneStatus(project.status);
 
   const persist = () => {

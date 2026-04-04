@@ -1,7 +1,7 @@
 import type React from "react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
-import type { CompareState, CompareTarget, GitRepoStatus, GitStatusFile } from "../git";
+import type { CompareState, CompareTarget, GitRepoStatus, GitStatusFile } from "./git";
 import {
   commitChanges as commitGitChanges,
   discardChanges as discardGitChanges,
@@ -16,20 +16,16 @@ import {
   pushChanges as pushGitChanges,
   stageFile as stageGitFile,
   unstageFile as unstageGitFile,
-} from "../git";
+} from "./git";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-export type GitContextValue = {
+export type ReviewSession = {
   status: GitRepoStatus | null;
   error: string | null;
   commits: string[];
   branches: string[];
   compareState: CompareState | null;
   defaultCompareTarget: CompareTarget | null;
-  backend: GitBackend;
+  client: GitClient;
   refreshStatus: () => void;
   refreshCommits: () => void;
   stageFile: (filePath: string) => void;
@@ -43,7 +39,7 @@ export type GitContextValue = {
   refreshCompare: () => void;
 };
 
-export type GitBackend = {
+export type GitClient = {
   getRepoStatus: typeof getRepoStatus;
   getRecentCommits: typeof getRecentCommits;
   getLocalBranches: typeof getLocalBranches;
@@ -59,7 +55,7 @@ export type GitBackend = {
   pullChanges: typeof pullGitChanges;
 };
 
-export function createDefaultGitBackend(): GitBackend {
+export function createGitClient(): GitClient {
   return {
     getRepoStatus,
     getRecentCommits,
@@ -76,10 +72,6 @@ export function createDefaultGitBackend(): GitBackend {
     pullChanges: pullGitChanges,
   };
 }
-
-// ---------------------------------------------------------------------------
-// Pure helpers (git scope)
-// ---------------------------------------------------------------------------
 
 export function visibleFiles(status: GitRepoStatus | null): GitStatusFile[] {
   if (!status) return [];
@@ -108,32 +100,24 @@ export function firstAvailableFile(
   return null;
 }
 
-// ---------------------------------------------------------------------------
-// Context
-// ---------------------------------------------------------------------------
+const ReviewSessionContext = createContext<ReviewSession | null>(null);
 
-const GitContext = createContext<GitContextValue | null>(null);
-
-// ---------------------------------------------------------------------------
-// Provider
-// ---------------------------------------------------------------------------
-
-export function GitProvider({
+export function ReviewProvider({
   children,
-  backend = createDefaultGitBackend(),
+  client = createGitClient(),
 }: {
   children: React.ReactNode;
-  backend?: GitBackend;
+  client?: GitClient;
 }) {
-  return <GitProviderBase children={children} backend={backend} />;
+  return <ReviewProviderBase children={children} client={client} />;
 }
 
-export function GitProviderBase({
+export function ReviewProviderBase({
   children,
-  backend,
+  client,
 }: {
   children: React.ReactNode;
-  backend: GitBackend;
+  client: GitClient;
 }) {
   const [status, setStatus] = useState<GitRepoStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -144,54 +128,54 @@ export function GitProviderBase({
 
   const refreshStatus = useCallback(() => {
     try {
-      const newStatus = backend.getRepoStatus();
+      const newStatus = client.getRepoStatus();
       setStatus(newStatus);
       setError(null);
 
       if (newStatus.isRepo) {
-        setDefaultCompareTarget(backend.getDefaultCompareTarget());
+        setDefaultCompareTarget(client.getDefaultCompareTarget());
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load git status");
       setStatus(null);
     }
-  }, [backend]);
+  }, [client]);
 
   const refreshCommits = useCallback(() => {
     try {
-      setCommits(backend.getRecentCommits());
+      setCommits(client.getRecentCommits());
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load git log");
       setCommits([]);
     }
-  }, [backend]);
+  }, [client]);
 
   const refreshBranches = useCallback(() => {
     try {
-      setBranches(backend.getLocalBranches());
+      setBranches(client.getLocalBranches());
     } catch {
       // ignore branch list errors
     }
-  }, [backend]);
+  }, [client]);
 
   const refreshCompare = useCallback(() => {
     setCompareState((prev) => {
       if (!prev) return prev;
       try {
-        const files = backend.getBranchDiffFiles(prev.baseRef);
+        const files = client.getBranchDiffFiles(prev.baseRef);
         return { ...prev, files };
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load branch diff");
         return prev;
       }
     });
-  }, [backend]);
+  }, [client]);
 
   const startCompare = useCallback(
     (target: CompareTarget) => {
       try {
-        const files = backend.getBranchDiffFiles(target.ref);
+        const files = client.getBranchDiffFiles(target.ref);
         const nextState = { baseRef: target.ref, baseLabel: target.label, files };
         setCompareState(nextState);
         setError(null);
@@ -201,7 +185,7 @@ export function GitProviderBase({
         return null;
       }
     },
-    [backend],
+    [client],
   );
 
   const stopCompare = useCallback(() => {
@@ -239,7 +223,7 @@ export function GitProviderBase({
     };
   }, [refreshStatus, refreshCommits, refreshBranches]);
 
-  const value = useMemo<GitContextValue>(
+  const value = useMemo<ReviewSession>(
     () => ({
       status,
       error,
@@ -247,15 +231,15 @@ export function GitProviderBase({
       branches,
       compareState,
       defaultCompareTarget,
-      backend,
+      client,
       refreshStatus,
       refreshCommits,
-      stageFile: (filePath) => runGitAction(() => backend.stageFile(filePath)),
-      unstageFile: (filePath) => runGitAction(() => backend.unstageFile(filePath)),
-      discardChanges: (filePath) => runGitAction(() => backend.discardChanges(filePath)),
-      commitChanges: (message) => runGitAction(() => backend.commitChanges(message)),
-      pushChanges: () => runGitAction(() => backend.pushChanges()),
-      pullChanges: () => runGitAction(() => backend.pullChanges()),
+      stageFile: (filePath: string) => runGitAction(() => client.stageFile(filePath)),
+      unstageFile: (filePath: string) => runGitAction(() => client.unstageFile(filePath)),
+      discardChanges: (filePath: string) => runGitAction(() => client.discardChanges(filePath)),
+      commitChanges: (message: string) => runGitAction(() => client.commitChanges(message)),
+      pushChanges: () => runGitAction(() => client.pushChanges()),
+      pullChanges: () => runGitAction(() => client.pullChanges()),
       startCompare,
       stopCompare,
       refreshCompare,
@@ -267,7 +251,7 @@ export function GitProviderBase({
       branches,
       compareState,
       defaultCompareTarget,
-      backend,
+      client,
       refreshStatus,
       refreshCommits,
       runGitAction,
@@ -277,17 +261,15 @@ export function GitProviderBase({
     ],
   );
 
-  return <GitContext.Provider value={value}>{children}</GitContext.Provider>;
+  return (
+    <ReviewSessionContext.Provider value={value}>{children}</ReviewSessionContext.Provider>
+  );
 }
 
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
-
-export function useGit() {
-  const context = useContext(GitContext);
+export function useReviewSession() {
+  const context = useContext(ReviewSessionContext);
   if (!context) {
-    throw new Error("useGit must be used within a GitProvider");
+    throw new Error("useReviewSession must be used within a ReviewProvider");
   }
   return context;
 }

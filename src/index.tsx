@@ -1,17 +1,17 @@
 import { createCliRenderer } from "@opentui/core";
 import { createRoot, useKeyboard } from "@opentui/react";
 
-import { CodePanel } from "./components/code-panel";
-import { SourceControlPanel } from "./components/source-control-panel";
-import { AppStateProvider, useAppState } from "./states/app";
-import { createFakeGitBackend } from "./states/fake-git";
-import { GitProvider, useGit } from "./states/git";
+import { DiffPane } from "./diff-pane";
+import { createFakeGitClient } from "./fake-client";
+import { ReviewProvider, useReviewSession } from "./session";
+import { ReviewSidebar } from "./sidebar";
+import { ReviewStateProvider, useReviewState } from "./state";
 import { ThemeProvider, useTheme } from "./styles/theme";
 
 function App() {
   const theme = useTheme();
-  const git = useGit();
-  const app = useAppState();
+  const git = useReviewSession();
+  const app = useReviewState();
 
   useKeyboard((event) => {
     if (event.name === "up" || event.name === "k") app.focusPreviousRow();
@@ -45,7 +45,7 @@ function App() {
       height="100%"
       backgroundColor={theme.background}
     >
-      <SourceControlPanel
+      <ReviewSidebar
         theme={theme}
         status={git.status}
         error={git.error}
@@ -65,7 +65,7 @@ function App() {
         toggleViewMode={app.toggleViewMode}
       />
 
-      <CodePanel
+      <DiffPane
         theme={theme}
         selectedFile={app.selectedFile}
         selectedFileKey={app.selectedFileKey}
@@ -79,14 +79,14 @@ function App() {
 
 const renderer = await createCliRenderer();
 
-const backend = process.env.USE_REAL_GIT === "1" ? undefined : createFakeGitBackend();
+const client = process.env.USE_REAL_GIT === "1" ? undefined : createFakeGitClient();
 
 createRoot(renderer as never).render(
   <ThemeProvider>
-    <GitProvider backend={backend}>
-      <AppStateProvider>
+    <ReviewProvider client={client}>
+      <ReviewStateProvider>
         <App />
-      </AppStateProvider>
-    </GitProvider>
+      </ReviewStateProvider>
+    </ReviewProvider>
   </ThemeProvider>,
 );

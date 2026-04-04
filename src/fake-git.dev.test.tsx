@@ -2,14 +2,14 @@ import { testRender } from "@opentui/react/test-utils";
 
 import { useEffect, useRef } from "react";
 
-import { AppStateProvider, useAppState } from "./app";
-import { createFakeGitBackend } from "./fake-git";
-import { GitProvider, useGit } from "./git";
+import { createFakeGitClient } from "./fake-client";
+import { ReviewProvider, useReviewSession } from "./session";
+import { ReviewStateProvider, useReviewState } from "./state";
 import { describe, expect, test } from "bun:test";
 
 function Probe() {
-  const app = useAppState();
-  const git = useGit();
+  const app = useReviewState();
+  const git = useReviewSession();
   const toggledRef = useRef(false);
 
   useEffect(() => {
@@ -33,13 +33,13 @@ function Probe() {
 
 describe("fake git dev project", () => {
   test("boots with the fake compare target and files", async () => {
-    const backend = createFakeGitBackend();
+    const backend = createFakeGitClient();
     const setup = await testRender(
-      <GitProvider backend={backend}>
-        <AppStateProvider>
+      <ReviewProvider client={backend}>
+        <ReviewStateProvider>
           <Probe />
-        </AppStateProvider>
-      </GitProvider>,
+        </ReviewStateProvider>
+      </ReviewProvider>,
       { width: 80, height: 24 },
     );
 

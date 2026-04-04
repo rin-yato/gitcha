@@ -9,14 +9,14 @@ import {
   useState,
 } from "react";
 
-import type { CompareTarget, GitStatusFile } from "../git";
+import type { CompareTarget, GitStatusFile } from "./git";
 import {
   firstAvailableFile,
   sectionForIndex,
   stagedFileCount,
   visibleFiles as stagingVisibleFiles,
-  useGit,
-} from "./git";
+  useReviewSession,
+} from "./session";
 
 // ---------------------------------------------------------------------------
 // Types (app scope)
@@ -84,7 +84,7 @@ export function indexOfFile(files: GitStatusFile[], filePath: string): number {
 // Context
 // ---------------------------------------------------------------------------
 
-export type AppStateContextValue = {
+export type ReviewState = {
   // Selection
   selectedFile: string | null;
   selectedFileKey: string | null;
@@ -117,14 +117,14 @@ export type AppStateContextValue = {
   discardSelectedFile: () => void;
 };
 
-const AppStateContext = createContext<AppStateContextValue | null>(null);
+const ReviewStateContext = createContext<ReviewState | null>(null);
 
 // ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------
 
-export function AppStateProvider({ children }: { children: React.ReactNode }) {
-  const git = useGit();
+export function ReviewStateProvider({ children }: { children: React.ReactNode }) {
+  const git = useReviewSession();
 
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [selectedFileSection, setSelectedFileSection] = useState<FileSection | null>(null);
@@ -155,7 +155,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     (filePath: string, section: FileSection | null) => {
       try {
         if (viewMode === "compare" && compareState) {
-          const diff = git.backend.getFileDiffWithContext(filePath, {
+          const diff = git.client.getFileDiffWithContext(filePath, {
             baseRef: compareState.baseRef,
           });
           setDiffContent(diff || "No changes to display");
@@ -167,7 +167,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         const isStaged = section === "staged";
-        const diff = git.backend.getFileDiffWithContext(filePath, { staged: isStaged });
+        const diff = git.client.getFileDiffWithContext(filePath, { staged: isStaged });
         setDiffContent(diff || "No content to display");
       } catch (e) {
         setDiffContent(
@@ -175,7 +175,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         );
       }
     },
-    [status, viewMode, compareState, git.backend],
+    [status, viewMode, compareState, git.client],
   );
 
   const selectFile = useCallback(
@@ -211,7 +211,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           setSelectedFile(nextState.files[0].path);
           setSelectedFileSection("compare");
           setDiffContent(
-            git.backend.getFileDiffWithContext(nextState.files[0].path, {
+            git.client.getFileDiffWithContext(nextState.files[0].path, {
               baseRef: nextState.baseRef,
             }),
           );
@@ -249,7 +249,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         setSelectedFile(nextState.files[0].path);
         setSelectedFileSection("compare");
         setDiffContent(
-          git.backend.getFileDiffWithContext(nextState.files[0].path, {
+          git.client.getFileDiffWithContext(nextState.files[0].path, {
             baseRef: nextState.baseRef,
           }),
         );
@@ -308,14 +308,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [focusedRowIndex, selectedFile, files]);
 
   // -- context value --
-  const value = useMemo<AppStateContextValue>(
+  const value = useMemo<ReviewState>(
     () => ({
       selectedFile,
       selectedFileKey: selectedFileKey(selectedFile, selectedFileSection),
       selectedFileSection,
       diffContent,
-      getScrollPosition: (key) => scrollPositionsRef.current.get(key) ?? 0,
-      setScrollPosition: (key, value) => {
+      getScrollPosition: (key: string) => scrollPositionsRef.current.get(key) ?? 0,
+      setScrollPosition: (key: string, value: number) => {
         scrollPositionsRef.current.set(key, value);
       },
       focusedRowIndex,
@@ -364,17 +364,17 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     ],
   );
 
-  return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
+  return <ReviewStateContext.Provider value={value}>{children}</ReviewStateContext.Provider>;
 }
 
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
 
-export function useAppState() {
-  const context = useContext(AppStateContext);
+export function useReviewState() {
+  const context = useContext(ReviewStateContext);
   if (!context) {
-    throw new Error("useAppState must be used within an AppStateProvider");
+    throw new Error("useReviewState must be used within a ReviewStateProvider");
   }
   return context;
 }

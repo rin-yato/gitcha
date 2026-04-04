@@ -1,10 +1,10 @@
 import { testRender } from "@opentui/react/test-utils";
 
-import { AppStateProvider } from "../states/app";
-import { createFakeGitBackend } from "../states/fake-git";
-import { GitProvider } from "../states/git";
-import type { Theme } from "../styles/theme";
-import { CodePanel } from "./code-panel";
+import { DiffPane } from "./diff-pane";
+import { createFakeGitClient } from "./fake-client";
+import { ReviewProvider } from "./session";
+import { ReviewStateProvider } from "./state";
+import type { Theme } from "./styles/theme";
 import { expect, test } from "bun:test";
 
 const theme: Theme = {
@@ -24,7 +24,7 @@ const theme: Theme = {
 
 test("code panel shows an empty state", async () => {
   const setup = await testRender(
-    <CodePanel
+    <DiffPane
       theme={theme}
       selectedFile={null}
       selectedFileKey={null}
@@ -42,7 +42,7 @@ test("code panel shows an empty state", async () => {
 
 test("code panel shows loading state when a file is selected", async () => {
   const setup = await testRender(
-    <CodePanel
+    <DiffPane
       theme={theme}
       selectedFile="src/app.ts"
       selectedFileKey="changes:src/app.ts"
@@ -59,11 +59,11 @@ test("code panel shows loading state when a file is selected", async () => {
 });
 
 test("code panel renders diff content when provided", async () => {
-  const backend = createFakeGitBackend();
+  const backend = createFakeGitClient();
   const setup = await testRender(
-    <GitProvider backend={backend}>
-      <AppStateProvider>
-        <CodePanel
+    <ReviewProvider client={backend}>
+      <ReviewStateProvider>
+        <DiffPane
           theme={theme}
           selectedFile="src/app.ts"
           selectedFileKey="compare:src/app.ts"
@@ -77,8 +77,8 @@ index 1111111..2222222 100644
           diffViewMode="unified"
           toggleDiffViewMode={() => {}}
         />
-      </AppStateProvider>
-    </GitProvider>,
+      </ReviewStateProvider>
+    </ReviewProvider>,
     { width: 120, height: 40 },
   );
 

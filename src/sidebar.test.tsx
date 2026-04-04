@@ -1,8 +1,8 @@
 import { testRender } from "@opentui/react/test-utils";
 
-import type { GitRepoStatus } from "../git";
-import type { Theme } from "../styles/theme";
-import { SourceControlPanel } from "./source-control-panel";
+import type { GitRepoStatus } from "./git";
+import { ReviewSidebar } from "./sidebar";
+import type { Theme } from "./styles/theme";
 import { expect, test } from "bun:test";
 
 const theme: Theme = {
@@ -46,7 +46,7 @@ const defaultCompareProps = {
 
 test("source control panel shows clean state", async () => {
   const setup = await testRender(
-    <SourceControlPanel
+    <ReviewSidebar
       theme={theme}
       status={cleanStatus}
       error={null}
@@ -70,7 +70,7 @@ test("source control panel shows clean state", async () => {
 
 test("source control panel lists staged and changed files", async () => {
   const setup = await testRender(
-    <SourceControlPanel
+    <ReviewSidebar
       theme={theme}
       status={{
         branch: "main",
@@ -106,7 +106,7 @@ test("source control panel lists staged and changed files", async () => {
 
 test("source control panel shows compare mode header", async () => {
   const setup = await testRender(
-    <SourceControlPanel
+    <ReviewSidebar
       theme={theme}
       status={cleanStatus}
       error={null}
@@ -140,7 +140,7 @@ test("source control panel shows compare mode header", async () => {
 
 test("branch picker shows when branchPickerOpen is true", async () => {
   const setup = await testRender(
-    <SourceControlPanel
+    <ReviewSidebar
       theme={theme}
       status={cleanStatus}
       error={null}
@@ -173,7 +173,7 @@ test("branch picker shows when branchPickerOpen is true", async () => {
 
 test("branch picker shows current branch indicator", async () => {
   const setup = await testRender(
-    <SourceControlPanel
+    <ReviewSidebar
       theme={theme}
       status={cleanStatus}
       error={null}
@@ -203,7 +203,7 @@ test("branch picker shows current branch indicator", async () => {
 
 test("branch picker shows empty state when no branches", async () => {
   const setup = await testRender(
-    <SourceControlPanel
+    <ReviewSidebar
       theme={theme}
       status={cleanStatus}
       error={null}
@@ -233,7 +233,7 @@ test("branch picker shows empty state when no branches", async () => {
 
 test("compare mode shows 'no changes' message when file list is empty", async () => {
   const setup = await testRender(
-    <SourceControlPanel
+    <ReviewSidebar
       theme={theme}
       status={cleanStatus}
       error={null}

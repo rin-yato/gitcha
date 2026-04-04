@@ -1,9 +1,9 @@
-import { createFakeGitBackend } from "./fake-git";
+import { createFakeGitClient } from "./fake-client";
 import { describe, expect, test } from "bun:test";
 
 describe("fake git project", () => {
   test("exposes realistic repo state", () => {
-    const backend = createFakeGitBackend();
+    const backend = createFakeGitClient();
     const status = backend.getRepoStatus();
 
     expect(status.branch).toBe("feat/b");
@@ -13,7 +13,7 @@ describe("fake git project", () => {
   });
 
   test("supports staging, unstaging, and discard semantics", () => {
-    const backend = createFakeGitBackend();
+    const backend = createFakeGitClient();
 
     backend.stageFile("src/app.ts");
     let status = backend.getRepoStatus();
@@ -30,7 +30,7 @@ describe("fake git project", () => {
   });
 
   test("keeps compare data for parent branches and renamed files", () => {
-    const backend = createFakeGitBackend();
+    const backend = createFakeGitClient();
 
     expect(backend.getDefaultCompareTarget()).toEqual({ ref: "feat/a", label: "feat/a" });
     expect(backend.getBranchDiffFiles("feat/a").map((file) => file.path)).toContain(
