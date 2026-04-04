@@ -18,8 +18,9 @@
   },
   "scripts": {
     "dev": "bun run --hot src/index.tsx",
-    "buildd": "bun run scripts/build.ts",
+    "build": "bun run scripts/build.ts",
     "install:local": "bun run scripts/install.ts",
+    "test": "bun test",
     "typecheck": "tsc --noEmit",
     "check": "biome check",
     "fix": "biome check --write --unsafe",
