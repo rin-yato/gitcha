@@ -1,4 +1,4 @@
-import type { CompareTarget, GitRepoStatus, GitStatusFile } from "./git";
+import type { CompareTarget, GitRepoStatus, GitStatusFile } from "../../git";
 import type { GitClient } from "./session";
 
 type FakeBranch = {

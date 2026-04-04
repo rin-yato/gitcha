@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef } from "react";
 
-import type { DiffViewMode } from "./state";
-import { useReviewState } from "./state";
-import { createSyntaxStyle, detectFiletype, treeSitterClient } from "./styles/syntax";
-import type { Theme } from "./styles/theme";
+import type { DiffViewMode } from "../context/changes/state";
+import { useReviewState } from "../context/changes/state";
+import type { Theme } from "../context/theme/provider";
+import { createSyntaxStyle, detectFiletype, treeSitterClient } from "../context/theme/syntax";
 
 type FileDiffViewProps = {
   fileKey: string;

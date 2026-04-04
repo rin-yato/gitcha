@@ -1,7 +1,7 @@
 import type React from "react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
-import type { CompareState, CompareTarget, GitRepoStatus, GitStatusFile } from "./git";
+import type { CompareState, CompareTarget, GitRepoStatus, GitStatusFile } from "../../git";
 import {
   commitChanges as commitGitChanges,
   discardChanges as discardGitChanges,
@@ -16,7 +16,7 @@ import {
   pushChanges as pushGitChanges,
   stageFile as stageGitFile,
   unstageFile as unstageGitFile,
-} from "./git";
+} from "../../git";
 
 export type ReviewSession = {
   status: GitRepoStatus | null;
@@ -75,7 +75,7 @@ export function createGitClient(): GitClient {
 
 export function visibleFiles(status: GitRepoStatus | null): GitStatusFile[] {
   if (!status) return [];
-  return [...status.files.staged, ...status.files.changes];
+  return [...status.files.staged, ...status.files.changes, ...status.files.untracked];
 }
 
 export function stagedFileCount(status: GitRepoStatus | null): number {

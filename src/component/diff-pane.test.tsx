@@ -1,10 +1,10 @@
 import { testRender } from "@opentui/react/test-utils";
 
+import { createFakeGitClient } from "../context/changes/fake-client";
+import { ReviewProvider } from "../context/changes/session";
+import { ReviewStateProvider } from "../context/changes/state";
+import type { Theme } from "../context/theme/provider";
 import { DiffPane } from "./diff-pane";
-import { createFakeGitClient } from "./fake-client";
-import { ReviewProvider } from "./session";
-import { ReviewStateProvider } from "./state";
-import type { Theme } from "./styles/theme";
 import { expect, test } from "bun:test";
 
 const theme: Theme = {

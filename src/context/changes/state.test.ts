@@ -1,4 +1,4 @@
-import type { GitStatusFile } from "./git";
+import type { GitStatusFile } from "../../git";
 import {
   buildFileKey,
   clampFocusIndex,

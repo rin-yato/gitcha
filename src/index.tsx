@@ -1,19 +1,97 @@
 import { createCliRenderer } from "@opentui/core";
-import { createRoot, useKeyboard } from "@opentui/react";
+import { createRoot, useKeyboard, useRenderer } from "@opentui/react";
 
-import { DiffPane } from "./diff-pane";
-import { createFakeGitClient } from "./fake-client";
-import { ReviewProvider, useReviewSession } from "./session";
-import { ReviewSidebar } from "./sidebar";
-import { ReviewStateProvider, useReviewState } from "./state";
-import { ThemeProvider, useTheme } from "./styles/theme";
+import { CommandPrompt } from "./component/command-prompt";
+import { DiffPane } from "./component/diff-pane";
+import { Sidebar } from "./component/sidebar";
+import { createFakeGitClient } from "./context/changes/fake-client";
+import { ReviewProvider, useReviewSession } from "./context/changes/session";
+import { ReviewStateProvider, useReviewState } from "./context/changes/state";
+import {
+  type CommandOption,
+  CommandPromptProvider,
+  useCommandPrompt,
+} from "./context/command/prompt";
+import { ThemeProvider, useTheme } from "./context/theme/provider";
+import { Overlay } from "./ui/overlay";
 
 function App() {
+  const renderer = useRenderer();
   const theme = useTheme();
   const git = useReviewSession();
   const app = useReviewState();
+  const prompt = useCommandPrompt();
+
+  const commands: CommandOption[] = [
+    {
+      id: "toggle-compare",
+      label: "Toggle Compare Mode",
+      description: "Switch between staging and compare views",
+      run: () => app.toggleViewMode(),
+    },
+    {
+      id: "refresh",
+      label: "Refresh",
+      description: "Reload git status or compare diff",
+      run: () => {
+        if (app.viewMode === "compare") git.refreshCompare();
+        else git.refreshStatus();
+      },
+    },
+    {
+      id: "toggle-diff-view",
+      label: "Toggle Diff View",
+      description: "Switch between unified and split diff",
+      run: () => app.toggleDiffViewMode(),
+    },
+    {
+      id: "exit-compare",
+      label: "Exit Compare Mode",
+      description: "Return to staging view",
+      run: () => app.exitCompareMode(),
+    },
+  ];
 
   useKeyboard((event) => {
+    if (prompt.isOpen) {
+      const filteredCommands = commands.filter((option) => {
+        const query = prompt.query.trim().toLowerCase();
+        if (!query) return true;
+        return (
+          option.label.toLowerCase().includes(query) ||
+          option.description?.toLowerCase().includes(query)
+        );
+      });
+
+      if (event.name === "escape") {
+        prompt.close();
+        return;
+      }
+      if (event.name === "up" || event.name === "k") {
+        prompt.setSelectedIndex(Math.max(0, prompt.selectedIndex - 1));
+        return;
+      }
+      if (event.name === "down" || event.name === "j") {
+        prompt.setSelectedIndex(
+          Math.min(filteredCommands.length - 1, prompt.selectedIndex + 1),
+        );
+        return;
+      }
+      if (
+        (event.name === "enter" || event.name === "return") &&
+        filteredCommands[prompt.selectedIndex]
+      ) {
+        filteredCommands[prompt.selectedIndex]?.run();
+        prompt.close();
+        return;
+      }
+      return;
+    }
+
+    if (event.name === "/") {
+      prompt.open();
+      return;
+    }
     if (event.name === "up" || event.name === "k") app.focusPreviousRow();
     if (event.name === "down" || event.name === "j") app.focusNextRow();
     if (event.name === "space") app.toggleDiffViewMode();
@@ -32,7 +110,7 @@ function App() {
       if (app.viewMode === "compare") {
         app.exitCompareMode();
       } else {
-        process.exit(0);
+        renderer.destroy();
       }
     }
   });
@@ -45,7 +123,7 @@ function App() {
       height="100%"
       backgroundColor={theme.background}
     >
-      <ReviewSidebar
+      <Sidebar
         theme={theme}
         status={git.status}
         error={git.error}
@@ -73,6 +151,19 @@ function App() {
         diffViewMode={app.diffViewMode}
         toggleDiffViewMode={app.toggleDiffViewMode}
       />
+
+      {prompt.isOpen ? (
+        <Overlay backgroundColor={`${theme.background}cc`}>
+          <CommandPrompt
+            theme={theme}
+            options={commands}
+            onSubmit={(option) => {
+              option.run();
+              prompt.close();
+            }}
+          />
+        </Overlay>
+      ) : null}
     </box>
   );
 }
@@ -85,7 +176,9 @@ createRoot(renderer as never).render(
   <ThemeProvider>
     <ReviewProvider client={client}>
       <ReviewStateProvider>
-        <App />
+        <CommandPromptProvider>
+          <App />
+        </CommandPromptProvider>
       </ReviewStateProvider>
     </ReviewProvider>
   </ThemeProvider>,

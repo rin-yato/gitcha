@@ -1,6 +1,6 @@
-import type { CompareState, GitRepoStatus, GitStatusFile } from "./git";
-import type { FileSection, ViewMode } from "./state";
-import type { Theme } from "./styles/theme";
+import type { FileSection, ViewMode } from "../context/changes/state";
+import type { Theme } from "../context/theme/provider";
+import type { CompareState, GitRepoStatus, GitStatusFile } from "../git";
 
 const STATUS_SYMBOLS: Record<string, string> = {
   A: "+",
@@ -114,7 +114,7 @@ function BranchPickerItem(props: {
   );
 }
 
-export function ReviewSidebar(props: {
+export function Sidebar(props: {
   theme: Theme;
   status: GitRepoStatus | null;
   error: string | null;
@@ -135,7 +135,10 @@ export function ReviewSidebar(props: {
   toggleViewMode: () => void;
 }) {
   const staged = props.status?.files.staged ?? [];
-  const changes = props.status?.files.changes ?? [];
+  const changes = [
+    ...(props.status?.files.changes ?? []),
+    ...(props.status?.files.untracked ?? []),
+  ];
   const compareFiles = props.compareState?.files ?? [];
 
   return (

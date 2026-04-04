@@ -1,4 +1,4 @@
-import type { GitRepoStatus, GitStatusFile } from "./git";
+import type { GitRepoStatus, GitStatusFile } from "../../git";
 import { firstAvailableFile, sectionForIndex, stagedFileCount, visibleFiles } from "./session";
 import { describe, expect, test } from "bun:test";
 

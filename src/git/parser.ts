@@ -199,8 +199,8 @@ export function getRepoStatus(cwd?: string): GitRepoStatus {
     };
   }
 
-  // Get status output
-  const statusOutput = execGit(["status", "--porcelain=v1"], { cwd });
+  // Get status output with all untracked files (not just directories)
+  const statusOutput = execGit(["status", "--porcelain=v1", "--untracked-files=all"], { cwd });
   const files: GitStatusFile[] = [];
 
   if (statusOutput) {

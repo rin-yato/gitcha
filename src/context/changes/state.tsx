@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 
-import type { CompareTarget, GitStatusFile } from "./git";
+import type { CompareTarget, GitStatusFile } from "../../git";
 import {
   firstAvailableFile,
   sectionForIndex,

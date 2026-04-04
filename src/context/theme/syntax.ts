@@ -1,6 +1,6 @@
 import { getTreeSitterClient, parseColor, pathToFiletype, SyntaxStyle } from "@opentui/core";
 
-import type { Theme } from "./theme";
+import type { Theme } from "./provider";
 
 export function detectFiletype(filePath: string | null): string | undefined {
   if (!filePath) return undefined;
