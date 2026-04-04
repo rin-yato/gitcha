@@ -200,12 +200,11 @@ export function getRepoStatus(cwd?: string): GitRepoStatus {
   }
 
   // Get status output
-  const statusOutput = execGit(["status", "--porcelain=v1", "-z"], { cwd });
+  const statusOutput = execGit(["status", "--porcelain=v1"], { cwd });
   const files: GitStatusFile[] = [];
 
   if (statusOutput) {
-    // -z flag uses null separator, handle both null and newline
-    const lines = statusOutput.split(/\0|\n/).filter(Boolean);
+    const lines = statusOutput.split(/\r?\n/).filter(Boolean);
     for (const line of lines) {
       const parsed = parseStatusLine(line);
       if (parsed) {

@@ -21,6 +21,16 @@ describe("parseStatusLine", () => {
   });
 });
 
+describe("parseStatusLine with status output", () => {
+  test("parses a staged file line", () => {
+    expect(parseStatusLine("A  src/new.ts")).toEqual({
+      path: "src/new.ts",
+      indexStatus: "A",
+      workingTreeStatus: " ",
+    });
+  });
+});
+
 describe("categorizeFiles", () => {
   test("splits files into status buckets", () => {
     const staged: GitStatusFile = {
