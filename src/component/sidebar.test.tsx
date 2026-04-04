@@ -58,6 +58,7 @@ test("source control panel shows clean state", async () => {
       discardSelectedFile={() => {}}
       refreshStatus={() => {}}
       {...defaultCompareProps}
+      width={40}
     />,
     { width: 80, height: 24 },
   );
@@ -94,6 +95,7 @@ test("source control panel lists staged and changed files", async () => {
       discardSelectedFile={() => {}}
       refreshStatus={() => {}}
       {...defaultCompareProps}
+      width={40}
     />,
     { width: 80, height: 24 },
   );
@@ -128,6 +130,7 @@ test("source control panel shows compare mode header", async () => {
       }}
       selectCompareBranch={() => {}}
       toggleViewMode={() => {}}
+      width={40}
     />,
     { width: 80, height: 24 },
   );
@@ -158,6 +161,7 @@ test("branch picker shows when branchPickerOpen is true", async () => {
       compareState={null}
       selectCompareBranch={() => {}}
       toggleViewMode={() => {}}
+      width={40}
     />,
     { width: 80, height: 24 },
   );
@@ -191,6 +195,7 @@ test("branch picker shows current branch indicator", async () => {
       compareState={null}
       selectCompareBranch={() => {}}
       toggleViewMode={() => {}}
+      width={40}
     />,
     { width: 80, height: 24 },
   );
@@ -221,6 +226,7 @@ test("branch picker shows empty state when no branches", async () => {
       compareState={null}
       selectCompareBranch={() => {}}
       toggleViewMode={() => {}}
+      width={40}
     />,
     { width: 80, height: 24 },
   );
@@ -255,6 +261,7 @@ test("compare mode shows 'no changes' message when file list is empty", async ()
       }}
       selectCompareBranch={() => {}}
       toggleViewMode={() => {}}
+      width={40}
     />,
     { width: 80, height: 24 },
   );

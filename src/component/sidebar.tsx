@@ -133,6 +133,8 @@ export function Sidebar(props: {
   compareState: CompareState | null;
   selectCompareBranch: (target: { ref: string; label: string }) => void;
   toggleViewMode: () => void;
+  /** Width in characters */
+  width: number;
 }) {
   const staged = props.status?.files.staged ?? [];
   const changes = [
@@ -142,7 +144,7 @@ export function Sidebar(props: {
   const compareFiles = props.compareState?.files ?? [];
 
   return (
-    <box backgroundColor={props.theme.surface} width="30%" flexDirection="column">
+    <box backgroundColor={props.theme.surface} width={props.width} flexDirection="column">
       {/* Mode header */}
       <box flexDirection="row" justifyContent="space-between" paddingBottom={1}>
         {props.viewMode === "staging" ? (

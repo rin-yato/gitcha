@@ -27,6 +27,9 @@ export type FileSection = "staged" | "changes" | "compare";
 export type ViewMode = "staging" | "compare";
 export type FileKey = `${FileSection}:${string}`;
 
+const MIN_SIDEBAR_WIDTH = 20;
+const MAX_SIDEBAR_WIDTH = 80;
+
 // ---------------------------------------------------------------------------
 // Pure helpers (app scope)
 // ---------------------------------------------------------------------------
@@ -115,6 +118,10 @@ export type ReviewState = {
   stageSelectedFile: () => void;
   unstageSelectedFile: () => void;
   discardSelectedFile: () => void;
+  // Layout
+  sidebarWidth: number;
+  shrinkSidebar: () => void;
+  growSidebar: () => void;
 };
 
 const ReviewStateContext = createContext<ReviewState | null>(null);
@@ -133,6 +140,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
   const [diffViewMode, setDiffViewMode] = useState<DiffViewMode>("unified");
   const [viewMode, setViewMode] = useState<ViewMode>("staging");
   const [branchPickerOpen, setBranchPickerOpen] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(40);
   const scrollPositionsRef = useRef(new Map<string, number>());
 
   // Derived state
@@ -258,6 +266,14 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
     [git],
   );
 
+  const shrinkSidebar = useCallback(() => {
+    setSidebarWidth((w) => Math.max(MIN_SIDEBAR_WIDTH, w - 5));
+  }, []);
+
+  const growSidebar = useCallback(() => {
+    setSidebarWidth((w) => Math.min(MAX_SIDEBAR_WIDTH, w + 5));
+  }, []);
+
   // Auto-select first file when files change
   useEffect(() => {
     if (viewMode === "compare") {
@@ -342,6 +358,9 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
       discardSelectedFile: () => {
         if (selectedFile && viewMode === "staging") git.discardChanges(selectedFile);
       },
+      sidebarWidth,
+      shrinkSidebar,
+      growSidebar,
     }),
     [
       diffContent,
@@ -361,6 +380,9 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
       enterCompareMode,
       exitCompareMode,
       selectCompareBranch,
+      sidebarWidth,
+      shrinkSidebar,
+      growSidebar,
     ],
   );
 

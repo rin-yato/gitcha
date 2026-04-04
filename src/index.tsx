@@ -106,6 +106,8 @@ function App() {
     if (event.name === "s") app.stageSelectedFile();
     if (event.name === "u") app.unstageSelectedFile();
     if (event.name === "x") app.discardSelectedFile();
+    if (event.name === "[") app.shrinkSidebar();
+    if (event.name === "]") app.growSidebar();
     if (event.name === "escape") {
       if (app.viewMode === "compare") {
         app.exitCompareMode();
@@ -141,6 +143,7 @@ function App() {
         compareState={git.compareState}
         selectCompareBranch={app.selectCompareBranch}
         toggleViewMode={app.toggleViewMode}
+        width={app.sidebarWidth}
       />
 
       <DiffPane
