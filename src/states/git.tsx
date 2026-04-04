@@ -7,6 +7,8 @@ import {
   discardChanges as discardGitChanges,
   getBranchDiffFiles,
   getDefaultCompareTarget,
+  getFileDiff,
+  getFileDiffWithContext,
   getLocalBranches,
   getRecentCommits,
   getRepoStatus,
@@ -27,6 +29,7 @@ export type GitContextValue = {
   branches: string[];
   compareState: CompareState | null;
   defaultCompareTarget: CompareTarget | null;
+  backend: GitBackend;
   refreshStatus: () => void;
   refreshCommits: () => void;
   stageFile: (filePath: string) => void;
@@ -35,10 +38,44 @@ export type GitContextValue = {
   commitChanges: (message: string) => void;
   pushChanges: () => void;
   pullChanges: () => void;
-  startCompare: (target: CompareTarget) => void;
+  startCompare: (target: CompareTarget) => CompareState | null;
   stopCompare: () => void;
   refreshCompare: () => void;
 };
+
+export type GitBackend = {
+  getRepoStatus: typeof getRepoStatus;
+  getRecentCommits: typeof getRecentCommits;
+  getLocalBranches: typeof getLocalBranches;
+  getDefaultCompareTarget: typeof getDefaultCompareTarget;
+  getBranchDiffFiles: typeof getBranchDiffFiles;
+  getFileDiffWithContext: typeof getFileDiffWithContext;
+  getFileDiff: typeof getFileDiff;
+  stageFile: typeof stageGitFile;
+  unstageFile: typeof unstageGitFile;
+  discardChanges: typeof discardGitChanges;
+  commitChanges: typeof commitGitChanges;
+  pushChanges: typeof pushGitChanges;
+  pullChanges: typeof pullGitChanges;
+};
+
+export function createDefaultGitBackend(): GitBackend {
+  return {
+    getRepoStatus,
+    getRecentCommits,
+    getLocalBranches,
+    getDefaultCompareTarget,
+    getBranchDiffFiles,
+    getFileDiffWithContext,
+    getFileDiff,
+    stageFile: stageGitFile,
+    unstageFile: unstageGitFile,
+    discardChanges: discardGitChanges,
+    commitChanges: commitGitChanges,
+    pushChanges: pushGitChanges,
+    pullChanges: pullGitChanges,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Pure helpers (git scope)
@@ -81,7 +118,23 @@ const GitContext = createContext<GitContextValue | null>(null);
 // Provider
 // ---------------------------------------------------------------------------
 
-export function GitProvider({ children }: { children: React.ReactNode }) {
+export function GitProvider({
+  children,
+  backend = createDefaultGitBackend(),
+}: {
+  children: React.ReactNode;
+  backend?: GitBackend;
+}) {
+  return <GitProviderBase children={children} backend={backend} />;
+}
+
+export function GitProviderBase({
+  children,
+  backend,
+}: {
+  children: React.ReactNode;
+  backend: GitBackend;
+}) {
   const [status, setStatus] = useState<GitRepoStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [commits, setCommits] = useState<string[]>([]);
@@ -91,59 +144,65 @@ export function GitProvider({ children }: { children: React.ReactNode }) {
 
   const refreshStatus = useCallback(() => {
     try {
-      const newStatus = getRepoStatus();
+      const newStatus = backend.getRepoStatus();
       setStatus(newStatus);
       setError(null);
 
       if (newStatus.isRepo) {
-        setDefaultCompareTarget(getDefaultCompareTarget());
+        setDefaultCompareTarget(backend.getDefaultCompareTarget());
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load git status");
       setStatus(null);
     }
-  }, []);
+  }, [backend]);
 
   const refreshCommits = useCallback(() => {
     try {
-      setCommits(getRecentCommits());
+      setCommits(backend.getRecentCommits());
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load git log");
       setCommits([]);
     }
-  }, []);
+  }, [backend]);
 
   const refreshBranches = useCallback(() => {
     try {
-      setBranches(getLocalBranches());
+      setBranches(backend.getLocalBranches());
     } catch {
       // ignore branch list errors
     }
-  }, []);
+  }, [backend]);
 
   const refreshCompare = useCallback(() => {
     setCompareState((prev) => {
       if (!prev) return prev;
       try {
-        const files = getBranchDiffFiles(prev.baseRef);
+        const files = backend.getBranchDiffFiles(prev.baseRef);
         return { ...prev, files };
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load branch diff");
         return prev;
       }
     });
-  }, []);
+  }, [backend]);
 
-  const startCompare = useCallback((target: CompareTarget) => {
-    try {
-      const files = getBranchDiffFiles(target.ref);
-      setCompareState({ baseRef: target.ref, baseLabel: target.label, files });
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to start compare");
-    }
-  }, []);
+  const startCompare = useCallback(
+    (target: CompareTarget) => {
+      try {
+        const files = backend.getBranchDiffFiles(target.ref);
+        const nextState = { baseRef: target.ref, baseLabel: target.label, files };
+        setCompareState(nextState);
+        setError(null);
+        return nextState;
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to start compare");
+        return null;
+      }
+    },
+    [backend],
+  );
 
   const stopCompare = useCallback(() => {
     setCompareState(null);
@@ -188,14 +247,15 @@ export function GitProvider({ children }: { children: React.ReactNode }) {
       branches,
       compareState,
       defaultCompareTarget,
+      backend,
       refreshStatus,
       refreshCommits,
-      stageFile: (filePath) => runGitAction(() => stageGitFile(filePath)),
-      unstageFile: (filePath) => runGitAction(() => unstageGitFile(filePath)),
-      discardChanges: (filePath) => runGitAction(() => discardGitChanges(filePath)),
-      commitChanges: (message) => runGitAction(() => commitGitChanges(message)),
-      pushChanges: () => runGitAction(() => pushGitChanges()),
-      pullChanges: () => runGitAction(() => pullGitChanges()),
+      stageFile: (filePath) => runGitAction(() => backend.stageFile(filePath)),
+      unstageFile: (filePath) => runGitAction(() => backend.unstageFile(filePath)),
+      discardChanges: (filePath) => runGitAction(() => backend.discardChanges(filePath)),
+      commitChanges: (message) => runGitAction(() => backend.commitChanges(message)),
+      pushChanges: () => runGitAction(() => backend.pushChanges()),
+      pullChanges: () => runGitAction(() => backend.pullChanges()),
       startCompare,
       stopCompare,
       refreshCompare,
@@ -207,6 +267,7 @@ export function GitProvider({ children }: { children: React.ReactNode }) {
       branches,
       compareState,
       defaultCompareTarget,
+      backend,
       refreshStatus,
       refreshCommits,
       runGitAction,

@@ -10,7 +10,6 @@ import {
 } from "react";
 
 import type { CompareTarget, GitStatusFile } from "../git";
-import { getBranchFileDiff, getFileDiffWithContext } from "../git";
 import {
   firstAvailableFile,
   sectionForIndex,
@@ -156,7 +155,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     (filePath: string, section: FileSection | null) => {
       try {
         if (viewMode === "compare" && compareState) {
-          const diff = getBranchFileDiff(filePath, compareState.baseRef);
+          const diff = git.backend.getFileDiffWithContext(filePath, {
+            baseRef: compareState.baseRef,
+          });
           setDiffContent(diff || "No changes to display");
           return;
         }
@@ -166,7 +167,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         const isStaged = section === "staged";
-        const diff = getFileDiffWithContext(filePath, { staged: isStaged });
+        const diff = git.backend.getFileDiffWithContext(filePath, { staged: isStaged });
         setDiffContent(diff || "No content to display");
       } catch (e) {
         setDiffContent(
@@ -174,7 +175,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         );
       }
     },
-    [status, viewMode, compareState],
+    [status, viewMode, compareState, git.backend],
   );
 
   const selectFile = useCallback(
@@ -205,7 +206,16 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     if (viewMode === "staging") {
       const target = git.defaultCompareTarget;
       if (target) {
-        git.startCompare(target);
+        const nextState = git.startCompare(target);
+        if (nextState?.files[0]) {
+          setSelectedFile(nextState.files[0].path);
+          setSelectedFileSection("compare");
+          setDiffContent(
+            git.backend.getFileDiffWithContext(nextState.files[0].path, {
+              baseRef: nextState.baseRef,
+            }),
+          );
+        }
       }
       setViewMode("compare");
       setBranchPickerOpen(false);
@@ -217,6 +227,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const enterCompareMode = useCallback(() => {
     setViewMode("compare");
     setBranchPickerOpen(false);
+    setSelectedFile(null);
+    setSelectedFileSection(null);
+    setDiffContent(null);
   }, []);
 
   const exitCompareMode = useCallback(() => {
@@ -230,12 +243,17 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const selectCompareBranch = useCallback(
     (target: CompareTarget) => {
-      git.startCompare(target);
+      const nextState = git.startCompare(target);
       setBranchPickerOpen(false);
-      // Reset selection for new file list
-      setSelectedFile(null);
-      setSelectedFileSection(null);
-      setDiffContent(null);
+      if (nextState?.files[0]) {
+        setSelectedFile(nextState.files[0].path);
+        setSelectedFileSection("compare");
+        setDiffContent(
+          git.backend.getFileDiffWithContext(nextState.files[0].path, {
+            baseRef: nextState.baseRef,
+          }),
+        );
+      }
     },
     [git],
   );
@@ -243,18 +261,20 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   // Auto-select first file when files change
   useEffect(() => {
     if (viewMode === "compare") {
-      if (files.length > 0 && !selectedFile) {
-        const first = files[0];
-        if (first) {
-          setSelectedFile(first.path);
-          setSelectedFileSection("compare");
-          loadDiff(first.path, "compare");
-        }
-      } else if (files.length === 0 && selectedFile) {
+      const first = files[0];
+      if (!first) {
         setSelectedFile(null);
         setSelectedFileSection(null);
         setDiffContent(null);
+        return;
       }
+
+      if (selectedFile !== first.path || selectedFileSection !== "compare") {
+        setSelectedFile(first.path);
+        setSelectedFileSection("compare");
+        loadDiff(first.path, "compare");
+      }
+
       return;
     }
 
@@ -271,7 +291,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setSelectedFileSection(null);
       setDiffContent(null);
     }
-  }, [selectedFile, status, files, loadDiff, viewMode]);
+  }, [selectedFile, selectedFileSection, status, files, loadDiff, viewMode]);
 
   // Clamp focus index when files change
   useEffect(() => {

@@ -4,6 +4,7 @@ import { createRoot, useKeyboard } from "@opentui/react";
 import { CodePanel } from "./components/code-panel";
 import { SourceControlPanel } from "./components/source-control-panel";
 import { AppStateProvider, useAppState } from "./states/app";
+import { createFakeGitBackend } from "./states/fake-git";
 import { GitProvider, useGit } from "./states/git";
 import { ThemeProvider, useTheme } from "./styles/theme";
 
@@ -78,9 +79,11 @@ function App() {
 
 const renderer = await createCliRenderer();
 
+const backend = process.env.USE_REAL_GIT === "1" ? undefined : createFakeGitBackend();
+
 createRoot(renderer as never).render(
   <ThemeProvider>
-    <GitProvider>
+    <GitProvider backend={backend}>
       <AppStateProvider>
         <App />
       </AppStateProvider>
