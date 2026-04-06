@@ -195,7 +195,7 @@ function App() {
 
 const renderer = await createCliRenderer();
 
-const client = process.env.USE_REAL_GIT === "1" ? undefined : createFakeGitClient();
+const client = process.env.USE_FAKE_GIT === "1" ? createFakeGitClient() : undefined;
 
 createRoot(renderer as never).render(
   <ThemeProvider>

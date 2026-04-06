@@ -17,8 +17,8 @@
     "react": "^19.0.0"
   },
   "scripts": {
-    "dev": "bun run --watch src/index.tsx",
-    "dev:git": "USE_REAL_GIT=1 bun run dev",
+    "dev": "USE_FAKE_GIT=1 bun run --watch src/index.tsx",
+    "dev:git": "bun run --watch src/index.tsx",
     "build": "bun run scripts/build.ts",
     "install:local": "bun run scripts/install.ts",
     "test": "bun test",
