@@ -54,6 +54,9 @@ describe("fake git dev project", () => {
       { width: 80, height: 24 },
     );
 
+    // Yield to let async state updates (getLocalBranches, getRepoStatus, etc.) complete
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
     await act(async () => {
       await testSetup?.renderOnce();
       await testSetup?.renderOnce();
@@ -64,6 +67,6 @@ describe("fake git dev project", () => {
     expect(output).toContain("branches=feat/a,feat/b,master");
     expect(output).toContain("base=feat/a");
     expect(output).toContain("file=src/app.ts");
-    expect(output).toContain("diff=diff --git a/src/app.ts b/src/app.ts");
+    expect(output).toContain("diff=Index: src/app.ts");
   });
 });

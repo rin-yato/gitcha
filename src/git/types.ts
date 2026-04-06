@@ -99,3 +99,15 @@ export interface CompareState {
   /** Files changed between baseBranch and HEAD */
   files: GitStatusFile[];
 }
+
+/**
+ * Raw file versions used to generate a diff locally.
+ * Base and current content are fetched independently, then a unified diff
+ * is generated client-side via createTwoFilesPatch with context: Infinity.
+ */
+export interface FileDiffSource {
+  /** Content at the base version (null = new file, no base exists) */
+  baseContent: string | null;
+  /** Content at the current version (null = deleted file, no current exists) */
+  currentContent: string | null;
+}

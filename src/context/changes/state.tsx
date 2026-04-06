@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import type { CompareTarget, GitStatusFile } from "../../git";
+import { generateDiff } from "../../git";
 import {
   firstAvailableFile,
   sectionForIndex,
@@ -161,29 +162,27 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
   // -- file loading --
   const loadDiff = useCallback(
     (filePath: string, section: FileSection | null) => {
-      try {
-        if (viewMode === "compare" && compareState) {
-          const diff = git.client.getFileDiffWithContext(filePath, {
-            baseRef: compareState.baseRef,
-          });
-          setDiffContent(diff || "No changes to display");
-          return;
-        }
-
-        if (!status) {
-          setDiffContent(null);
-          return;
-        }
-        const isStaged = section === "staged";
-        const diff = git.client.getFileDiffWithContext(filePath, { staged: isStaged });
-        setDiffContent(diff || "No content to display");
-      } catch (e) {
-        setDiffContent(
-          `Error loading file: ${e instanceof Error ? e.message : "Unknown error"}`,
-        );
+      if (!section) {
+        setDiffContent(null);
+        return;
       }
+
+      const compareBaseRef =
+        viewMode === "compare" && compareState ? compareState.baseRef : undefined;
+
+      git.client
+        .loadDiffSource(filePath, section, compareBaseRef)
+        .then((source) => {
+          const diff = generateDiff(source, filePath);
+          setDiffContent(diff || "No changes to display");
+        })
+        .catch((e) => {
+          setDiffContent(
+            `Error loading file: ${e instanceof Error ? e.message : "Unknown error"}`,
+          );
+        });
     },
-    [status, viewMode, compareState, git.client],
+    [viewMode, compareState, git.client],
   );
 
   const selectFile = useCallback(
@@ -214,16 +213,20 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
     if (viewMode === "staging") {
       const target = git.defaultCompareTarget;
       if (target) {
-        const nextState = git.startCompare(target);
-        if (nextState?.files[0]) {
-          setSelectedFile(nextState.files[0].path);
-          setSelectedFileSection("compare");
-          setDiffContent(
-            git.client.getFileDiffWithContext(nextState.files[0].path, {
-              baseRef: nextState.baseRef,
-            }),
-          );
-        }
+        git.startCompare(target).then((nextState) => {
+          if (nextState?.files[0]) {
+            const firstFile = nextState.files[0];
+            if (firstFile) {
+              setSelectedFile(firstFile.path);
+              setSelectedFileSection("compare");
+              git.client
+                .loadDiffSource(firstFile.path, "compare", nextState.baseRef)
+                .then((source) => {
+                  setDiffContent(generateDiff(source, firstFile.path));
+                });
+            }
+          }
+        });
       }
       setViewMode("compare");
       setBranchPickerOpen(false);
@@ -251,17 +254,19 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
 
   const selectCompareBranch = useCallback(
     (target: CompareTarget) => {
-      const nextState = git.startCompare(target);
-      setBranchPickerOpen(false);
-      if (nextState?.files[0]) {
-        setSelectedFile(nextState.files[0].path);
-        setSelectedFileSection("compare");
-        setDiffContent(
-          git.client.getFileDiffWithContext(nextState.files[0].path, {
-            baseRef: nextState.baseRef,
-          }),
-        );
-      }
+      git.startCompare(target).then((nextState) => {
+        setBranchPickerOpen(false);
+        const firstFile = nextState?.files[0];
+        if (firstFile) {
+          setSelectedFile(firstFile.path);
+          setSelectedFileSection("compare");
+          git.client
+            .loadDiffSource(firstFile.path, "compare", nextState!.baseRef)
+            .then((source) => {
+              setDiffContent(generateDiff(source, firstFile.path));
+            });
+        }
+      });
     },
     [git],
   );
@@ -274,6 +279,9 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
     setSidebarWidth((w) => Math.min(MAX_SIDEBAR_WIDTH, w + 5));
   }, []);
 
+  // Track the last file we auto-selected to avoid re-triggering on every poll
+  const lastAutoSelectedRef = useRef<string | null>(null);
+
   // Auto-select first file when files change
   useEffect(() => {
     if (viewMode === "compare") {
@@ -282,13 +290,17 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
         setSelectedFile(null);
         setSelectedFileSection(null);
         setDiffContent(null);
+        lastAutoSelectedRef.current = null;
         return;
       }
 
       if (selectedFile !== first.path || selectedFileSection !== "compare") {
         setSelectedFile(first.path);
         setSelectedFileSection("compare");
-        loadDiff(first.path, "compare");
+        if (lastAutoSelectedRef.current !== `compare:${first.path}`) {
+          lastAutoSelectedRef.current = `compare:${first.path}`;
+          loadDiff(first.path, "compare");
+        }
       }
 
       return;
@@ -300,14 +312,16 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
       if (first) {
         setSelectedFile(first.path);
         setSelectedFileSection(first.section);
+        lastAutoSelectedRef.current = `${first.section}:${first.path}`;
         loadDiff(first.path, first.section);
       }
     } else if (files.length === 0 && selectedFile) {
       setSelectedFile(null);
       setSelectedFileSection(null);
       setDiffContent(null);
+      lastAutoSelectedRef.current = null;
     }
-  }, [selectedFile, selectedFileSection, status, files, loadDiff, viewMode]);
+  }, [status, files, loadDiff, viewMode, selectedFile, selectedFileSection]);
 
   // Clamp focus index when files change
   useEffect(() => {

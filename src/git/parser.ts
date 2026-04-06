@@ -145,31 +145,27 @@ export function buildFileTree(files: GitStatusFile[]): FileTreeNode {
 /**
  * Get current branch and upstream info
  */
-export function getBranchInfo(cwd?: string): {
+export async function getBranchInfo(cwd?: string): Promise<{
   branch: string;
   upstream?: string;
   ahead: number;
   behind: number;
-} {
+}> {
   try {
-    // Get current branch name
-    const branch = execGit(["rev-parse", "--abbrev-ref", "HEAD"], { cwd }).trim();
+    const branch = (await execGit(["rev-parse", "--abbrev-ref", "HEAD"], { cwd })).trim();
 
-    // Try to get upstream info
     let upstream: string | undefined;
     let ahead = 0;
     let behind = 0;
 
     try {
-      const upstreamOutput = execGit(["rev-parse", "--abbrev-ref", "@{upstream}"], {
-        cwd,
-      }).trim();
+      const upstreamOutput = (
+        await execGit(["rev-parse", "--abbrev-ref", "@{upstream}"], { cwd })
+      ).trim();
       upstream = upstreamOutput;
 
-      // Get ahead/behind count
-      const countOutput = execGit(
-        ["rev-list", "--left-right", "--count", "HEAD...@{upstream}"],
-        { cwd },
+      const countOutput = (
+        await execGit(["rev-list", "--left-right", "--count", "HEAD...@{upstream}"], { cwd })
       ).trim();
       const [aheadStr, behindStr] = countOutput.split("\t") as [string, string];
       ahead = parseInt(aheadStr, 10) || 0;
@@ -187,8 +183,8 @@ export function getBranchInfo(cwd?: string): {
 /**
  * Get complete repository status
  */
-export function getRepoStatus(cwd?: string): GitRepoStatus {
-  if (!isGitRepo(cwd)) {
+export async function getRepoStatus(cwd?: string): Promise<GitRepoStatus> {
+  if (!(await isGitRepo(cwd))) {
     return {
       branch: "",
       aheadCount: 0,
@@ -199,8 +195,9 @@ export function getRepoStatus(cwd?: string): GitRepoStatus {
     };
   }
 
-  // Get status output with all untracked files (not just directories)
-  const statusOutput = execGit(["status", "--porcelain=v1", "--untracked-files=all"], { cwd });
+  const statusOutput = await execGit(["status", "--porcelain=v1", "--untracked-files=all"], {
+    cwd,
+  });
   const files: GitStatusFile[] = [];
 
   if (statusOutput) {
@@ -214,7 +211,7 @@ export function getRepoStatus(cwd?: string): GitRepoStatus {
   }
 
   const categorized = categorizeFiles(files);
-  const branchInfo = getBranchInfo(cwd);
+  const branchInfo = await getBranchInfo(cwd);
 
   return {
     branch: branchInfo.branch,
