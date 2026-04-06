@@ -26,18 +26,16 @@ function App() {
     const commands: CommandOption[] = [
       {
         id: "toggle-compare",
-        label: "Toggle Compare Mode",
-        description: "Switch between staging and compare views",
+        label: "Compare",
         category: "View",
-        keybind: "v",
+        slash: "v",
         run: () => app.toggleViewMode(),
       },
       {
         id: "refresh",
         label: "Refresh",
-        description: "Reload git status or compare diff",
         category: "Action",
-        keybind: "r",
+        slash: "r",
         run: () => {
           if (app.viewMode === "compare") git.refreshCompare();
           else git.refreshStatus();
@@ -45,57 +43,50 @@ function App() {
       },
       {
         id: "toggle-diff-view",
-        label: "Toggle Diff View",
-        description: "Switch between unified and split diff",
+        label: "Diff View",
         category: "View",
-        keybind: "space",
+        slash: "space",
         run: () => app.toggleDiffViewMode(),
       },
       {
         id: "exit-compare",
-        label: "Exit Compare Mode",
-        description: "Return to staging view",
+        label: "Exit Compare",
         category: "View",
         run: () => app.exitCompareMode(),
       },
       {
         id: "stage-file",
-        label: "Stage File",
-        description: "Stage the currently selected file",
+        label: "Stage",
         category: "Action",
-        keybind: "s",
+        slash: "s",
         run: () => app.stageSelectedFile(),
       },
       {
         id: "unstage-file",
-        label: "Unstage File",
-        description: "Unstage the currently selected file",
+        label: "Unstage",
         category: "Action",
-        keybind: "u",
+        slash: "u",
         run: () => app.unstageSelectedFile(),
       },
       {
         id: "discard-file",
-        label: "Discard Changes",
-        description: "Discard changes in the currently selected file",
+        label: "Discard",
         category: "Action",
-        keybind: "x",
+        slash: "x",
         run: () => app.discardSelectedFile(),
       },
       {
         id: "shrink-sidebar",
-        label: "Shrink Sidebar",
-        description: "Make the sidebar narrower",
+        label: "Narrow Sidebar",
         category: "Layout",
-        keybind: "[",
+        slash: "[",
         run: () => app.shrinkSidebar(),
       },
       {
         id: "grow-sidebar",
-        label: "Grow Sidebar",
-        description: "Make the sidebar wider",
+        label: "Wider Sidebar",
         category: "Layout",
-        keybind: "]",
+        slash: "]",
         run: () => app.growSidebar(),
       },
     ];
@@ -105,7 +96,7 @@ function App() {
     );
 
     dialog.replace(
-      <Overlay backgroundColor={`${theme.background}cc`}>
+      <Overlay backgroundColor="#00000088">
         <DialogCommand theme={theme} options={commands} suggested={suggested} />
       </Overlay>,
     );

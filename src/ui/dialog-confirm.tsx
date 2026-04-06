@@ -15,7 +15,7 @@ export type DialogConfirmProps = {
 
 export function DialogConfirm(props: DialogConfirmProps) {
   const dialog = useDialog();
-  const [active, setActive] = useState<"confirm" | "cancel">("confirm");
+  const [active, _setActive] = useState<"confirm" | "cancel">("confirm");
 
   function handleConfirm() {
     props.onConfirm?.();

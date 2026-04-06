@@ -27,31 +27,27 @@ const testCommands: CommandOption[] = [
   {
     id: "refresh",
     label: "Refresh",
-    description: "Reload status",
     category: "Action",
-    keybind: "r",
+    slash: "r",
     run: () => {},
   },
   {
     id: "toggle-view",
-    label: "Toggle View",
-    description: "Switch views",
+    label: "Compare",
     category: "View",
-    keybind: "v",
+    slash: "v",
     run: () => {},
   },
   {
     id: "stage-file",
-    label: "Stage File",
-    description: "Stage current file",
+    label: "Stage",
     category: "Action",
-    keybind: "s",
+    slash: "s",
     run: () => {},
   },
   {
     id: "compare",
-    label: "Compare Mode",
-    description: "Enter compare mode",
+    label: "Diff View",
     category: "View",
     run: () => {},
   },
@@ -114,9 +110,9 @@ describe("DialogCommand", () => {
 
     const output = JSON.stringify(getSetup().captureSpans().lines);
     expect(output).toContain("Refresh");
-    expect(output).toContain("Toggle View");
-    expect(output).toContain("Stage File");
-    expect(output).toContain("Compare Mode");
+    expect(output).toContain("Compare");
+    expect(output).toContain("Stage");
+    expect(output).toContain("Diff View");
   });
 
   test("renders command categories", async () => {
@@ -127,10 +123,13 @@ describe("DialogCommand", () => {
     expect(output).toContain("View");
   });
 
-  test("renders command keybinds", async () => {
+  test("renders commands as labels", async () => {
     await renderDialog();
 
     const output = JSON.stringify(getSetup().captureSpans().lines);
+    expect(output).toContain("Refresh");
+    expect(output).toContain("Compare");
+    expect(output).toContain("Stage");
     expect(output).toContain("r");
     expect(output).toContain("v");
     expect(output).toContain("s");
@@ -152,9 +151,7 @@ describe("DialogCommand", () => {
   });
 
   test("single command is displayed", async () => {
-    await renderDialog([
-      { id: "only-one", label: "OnlyOne", description: "test", run: () => {} },
-    ]);
+    await renderDialog([{ id: "only-one", label: "OnlyOne", run: () => {} }]);
 
     const output = JSON.stringify(getSetup().captureSpans().lines);
     expect(output).toContain("OnlyOne");
@@ -162,9 +159,9 @@ describe("DialogCommand", () => {
 
   test("filters commands immediately while typing", async () => {
     const commands: CommandOption[] = [
-      { id: "apple", label: "Apple Command", description: "red fruit", run: () => {} },
-      { id: "banana", label: "Banana Command", description: "yellow fruit", run: () => {} },
-      { id: "cherry", label: "Cherry Command", description: "red fruit", run: () => {} },
+      { id: "apple", label: "Apple", run: () => {} },
+      { id: "banana", label: "Banana", run: () => {} },
+      { id: "cherry", label: "Cherry", run: () => {} },
     ];
 
     await renderDialogForInput(commands);
@@ -173,25 +170,9 @@ describe("DialogCommand", () => {
     await flushInput();
 
     const output = testSetup?.captureCharFrame() ?? "";
-    expect(output).toContain("Banana Command");
-    expect(output).not.toContain("Apple Command");
-    expect(output).not.toContain("Cherry Command");
-  });
-
-  test("filters by description immediately while typing", async () => {
-    const commands: CommandOption[] = [
-      { id: "fruit", label: "Fruit", description: "apple", run: () => {} },
-      { id: "veggie", label: "Vegetable", description: "carrot", run: () => {} },
-    ];
-
-    await renderDialogForInput(commands);
-
-    await testSetup?.mockInput.typeText("carrot");
-    await flushInput();
-
-    const output = testSetup?.captureCharFrame() ?? "";
-    expect(output).toContain("Vegetable");
-    expect(output).not.toContain("Fruit");
+    expect(output).toContain("Banana");
+    expect(output).not.toContain("Apple");
+    expect(output).not.toContain("Cherry");
   });
 
   test("arrow keys navigate and enter runs selected command", async () => {
@@ -240,5 +221,215 @@ describe("DialogCommand", () => {
     expect(first.callCount()).toBe(1);
     expect(second.callCount()).toBe(0);
     expect(third.callCount()).toBe(0);
+  });
+
+  test("continuous navigation through categorized commands", async () => {
+    const cmd1 = createSpy();
+    const cmd2 = createSpy();
+    const cmd3 = createSpy();
+    const cmd4 = createSpy();
+    const cmd5 = createSpy();
+    const cmd6 = createSpy();
+    const cmd7 = createSpy();
+    const cmd8 = createSpy();
+    const cmd9 = createSpy();
+
+    const commands: CommandOption[] = [
+      { id: "toggle-compare", label: "Compare", category: "View", slash: "v", run: cmd1 },
+      { id: "refresh", label: "Refresh", category: "Action", slash: "r", run: cmd2 },
+      {
+        id: "toggle-diff-view",
+        label: "Diff View",
+        category: "View",
+        slash: "space",
+        run: cmd3,
+      },
+      { id: "exit-compare", label: "Exit Compare", category: "View", run: cmd4 },
+      { id: "stage-file", label: "Stage", category: "Action", slash: "s", run: cmd5 },
+      { id: "unstage-file", label: "Unstage", category: "Action", slash: "u", run: cmd6 },
+      { id: "discard-file", label: "Discard", category: "Action", slash: "x", run: cmd7 },
+      {
+        id: "shrink-sidebar",
+        label: "Narrow Sidebar",
+        category: "Layout",
+        slash: "[",
+        run: cmd8,
+      },
+      { id: "grow-sidebar", label: "Wider Sidebar", category: "Layout", slash: "]", run: cmd9 },
+    ];
+
+    await renderDialogForInput(commands);
+
+    // Flat list order after grouping: View(toggle-compare,toggle-diff-view,exit-compare),
+    // Action(refresh,stage-file,unstage-file,discard-file), Layout(shrink-sidebar,grow-sidebar)
+    // Initial selection is index 0 (toggle-compare, View)
+    testSetup?.mockInput.pressEnter();
+    await flushInput();
+    expect(cmd1.callCount()).toBe(1); // Compare
+
+    // Navigate down to index 1 (toggle-diff-view, View)
+    testSetup?.mockInput.pressArrow("down");
+    await flushInput();
+    testSetup?.mockInput.pressEnter();
+    await flushInput();
+    expect(cmd3.callCount()).toBe(1); // Diff View
+
+    // Navigate down to index 2 (exit-compare, View)
+    testSetup?.mockInput.pressArrow("down");
+    await flushInput();
+    testSetup?.mockInput.pressEnter();
+    await flushInput();
+    expect(cmd4.callCount()).toBe(1); // Exit Compare
+
+    // Navigate down to index 3 (refresh, Action)
+    testSetup?.mockInput.pressArrow("down");
+    await flushInput();
+    testSetup?.mockInput.pressEnter();
+    await flushInput();
+    expect(cmd2.callCount()).toBe(1); // Refresh
+    expect(cmd4.callCount()).toBe(1);
+
+    // Navigate down to index 4 (stage-file, Action)
+    testSetup?.mockInput.pressArrow("down");
+    await flushInput();
+    testSetup?.mockInput.pressEnter();
+    await flushInput();
+    expect(cmd5.callCount()).toBe(1); // Stage
+
+    // Navigate down to index 5 (unstage-file, Action)
+    testSetup?.mockInput.pressArrow("down");
+    await flushInput();
+    testSetup?.mockInput.pressEnter();
+    await flushInput();
+    expect(cmd6.callCount()).toBe(1); // Unstage
+
+    // Navigate down to index 6 (discard-file, Action)
+    testSetup?.mockInput.pressArrow("down");
+    await flushInput();
+    testSetup?.mockInput.pressEnter();
+    await flushInput();
+    expect(cmd7.callCount()).toBe(1); // Discard
+
+    // Navigate down to index 7 (shrink-sidebar, Layout)
+    testSetup?.mockInput.pressArrow("down");
+    await flushInput();
+    testSetup?.mockInput.pressEnter();
+    await flushInput();
+    expect(cmd8.callCount()).toBe(1); // Narrow Sidebar
+
+    // Navigate down to index 8 (grow-sidebar, Layout)
+    testSetup?.mockInput.pressArrow("down");
+    await flushInput();
+    testSetup?.mockInput.pressEnter();
+    await flushInput();
+    expect(cmd9.callCount()).toBe(1); // Wider Sidebar
+  });
+
+  test("navigation with suggested commands and categories", async () => {
+    const refresh = createSpy();
+    const exitCompare = createSpy();
+
+    const commands: CommandOption[] = [
+      { id: "refresh", label: "Refresh", category: "Action", run: refresh },
+      { id: "exit-compare", label: "Exit Compare", category: "View", run: exitCompare },
+    ];
+
+    const suggested = commands.filter((c) => c.id === "refresh");
+
+    await renderDialogForInput(commands, suggested);
+
+    // Initial on Refresh (index 0)
+    // Suggested: Refresh (index 0), then: Refresh (index 1), Exit Compare (index 2)
+
+    // Navigate to Exit Compare (index 2)
+    testSetup?.mockInput.pressArrow("down");
+    await flushInput();
+    testSetup?.mockInput.pressArrow("down");
+    await flushInput();
+
+    // Press Enter on Exit Compare
+    testSetup?.mockInput.pressEnter();
+    await flushInput();
+    expect(exitCompare.callCount()).toBe(1);
+  });
+
+  test("navigation after selection - selection should move", async () => {
+    const cmd1 = createSpy();
+    const cmd2 = createSpy();
+
+    const commands: CommandOption[] = [
+      { id: "first", label: "First", run: cmd1 },
+      { id: "second", label: "Second", run: cmd2 },
+    ];
+
+    await renderDialogForInput(commands);
+
+    // Select first item
+    testSetup?.mockInput.pressEnter();
+    await flushInput();
+    expect(cmd1.callCount()).toBe(1);
+
+    // Navigate to second
+    testSetup?.mockInput.pressArrow("down");
+    await flushInput();
+
+    // Verify selection moved by pressing Enter
+    testSetup?.mockInput.pressEnter();
+    await flushInput();
+
+    // cmd1 should not have been called again, cmd2 should be called once
+    expect(cmd1.callCount()).toBe(1);
+    expect(cmd2.callCount()).toBe(1);
+  });
+
+  test("navigation without closing dialog", async () => {
+    const refresh = createSpy();
+    const exitCompare = createSpy();
+
+    const commands: CommandOption[] = [
+      { id: "refresh", label: "Refresh", category: "Action", run: refresh },
+      { id: "exit-compare", label: "Exit Compare", category: "View", run: exitCompare },
+    ];
+
+    await renderDialogForInput(commands);
+
+    // Initial at index 0 (refresh)
+    testSetup?.mockInput.pressArrow("down");
+    await flushInput();
+
+    // Should be at index 1 (exit-compare)
+    testSetup?.mockInput.pressEnter();
+    await flushInput();
+
+    expect(refresh.callCount()).toBe(0);
+    expect(exitCompare.callCount()).toBe(1);
+  });
+
+  test("navigation wraps around from last to first", async () => {
+    const cmd1 = createSpy();
+    const cmd2 = createSpy();
+
+    const commands: CommandOption[] = [
+      { id: "first", label: "First", run: cmd1 },
+      { id: "second", label: "Second", run: cmd2 },
+    ];
+
+    await renderDialogForInput(commands);
+
+    // Go down from index 0 to 1
+    testSetup?.mockInput.pressArrow("down");
+    await flushInput();
+    testSetup?.mockInput.pressEnter();
+    await flushInput();
+    expect(cmd1.callCount()).toBe(0);
+    expect(cmd2.callCount()).toBe(1);
+
+    // Go down from index 1 to 0 (wrap)
+    testSetup?.mockInput.pressArrow("down");
+    await flushInput();
+    testSetup?.mockInput.pressEnter();
+    await flushInput();
+    expect(cmd1.callCount()).toBe(1);
+    expect(cmd2.callCount()).toBe(1);
   });
 });

@@ -10,7 +10,7 @@
     "step7": "#b8b8b8",
     "step8": "#a0a0a0",
     "step9": "#3b7dd8",
-    "step10": "#2968c3",
+    "step10": "#0C3EFF",
     "step11": "#8a8a8a",
     "step12": "#1a1a1a",
     "secondary": "#7b5bb6",
@@ -22,7 +22,7 @@
     "yellow": "#b0851f"
   },
   "theme": {
-    "primary": "step9",
+    "primary": "step10",
     "secondary": "secondary",
     "accent": "accent",
     "error": "red",
