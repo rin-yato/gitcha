@@ -1,7 +1,11 @@
 {
   "name": "sourcery",
+  "version": "0.1.0",
   "module": "src/index.tsx",
   "type": "module",
+  "bin": {
+    "sourcery": "src/index.tsx"
+  },
   "private": true,
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
@@ -12,15 +16,14 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@opentui/core": "^0.1.96",
-    "@opentui/react": "^0.1.96",
+    "@opentui/core": "^0.1.97",
+    "@opentui/react": "^0.1.97",
+    "diff": "^8.0.2",
     "react": "^19.0.0"
   },
   "scripts": {
     "dev": "USE_FAKE_GIT=1 bun run --watch src/index.tsx",
     "dev:git": "bun run --watch src/index.tsx",
-    "build": "bun run scripts/build.ts",
-    "install:local": "bun run scripts/install.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "check": "biome check",

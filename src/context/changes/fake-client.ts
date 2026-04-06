@@ -13,6 +13,7 @@ type FakeProject = {
   compareFiles: Record<string, GitStatusFile[]>;
   stagingDiffs: Record<string, string>;
   fileDiffs: Record<string, string>;
+  fileVersions: Record<string, string>;
   status: GitRepoStatus;
   defaultTarget: CompareTarget;
   commits: string[];
@@ -165,6 +166,14 @@ index 0000000..3333333
 @@ -0,0 +1 @@
 +export const feature = "feat/b";`,
     },
+    fileVersions: {
+      "HEAD:src/app.ts": 'console.log("hello from feat/a")',
+      ":0:src/app.ts": 'console.log("hello from feat/b")',
+      "HEAD:src/ui/panel.renamed.tsx": "export function Panel() { return <box>feat/a</box>; }",
+      ":0:src/ui/panel.renamed.tsx": "export function Panel() { return <box>feat/b</box>; }",
+      "HEAD:src/new-feature.ts": "",
+      ":0:src/new-feature.ts": 'export const feature = "feat/b";',
+    },
     status: buildStatus(
       "feat/b",
       [file("docs/README.md", "A", " ")],
@@ -195,19 +204,40 @@ export function createFakeGitClient(project = createFakeProject()): GitClient {
   };
 
   return {
-    getRepoStatus: () => cloneStatus(status),
-    getRecentCommits: () => project.commits,
-    getLocalBranches: () => Object.keys(project.branches).sort(),
-    getDefaultCompareTarget: () => project.defaultTarget,
-    getBranchDiffFiles: (ref) => project.compareFiles[ref] ?? [],
-    getFileDiffWithContext: (path, options) => {
-      if (options?.baseRef) {
-        return project.fileDiffs[`${options.baseRef}::${path}`] ?? "";
-      }
-      return project.stagingDiffs[path] ?? `diff for ${path}`;
+    getRepoStatus: async () => cloneStatus(status),
+    getRecentCommits: async () => project.commits,
+    getLocalBranches: async () => Object.keys(project.branches).sort(),
+    getCompareTarget: async () => project.defaultTarget,
+    getBranchDiffFiles: async (ref) => project.compareFiles[ref] ?? [],
+    getFileVersion: async (ref, path) => {
+      return project.fileVersions[`${ref}:${path}`] ?? null;
     },
-    getFileDiff: (path) => project.stagingDiffs[path] ?? `diff for ${path}`,
-    stageFile: (filePath) => {
+    getMergeBase: async (baseRef) => {
+      return project.branches[project.currentBranch]?.base ?? baseRef;
+    },
+    loadDiffSource: async (filePath, section, compareBaseRef) => {
+      if (section === "compare" && compareBaseRef) {
+        const diffKey = `${compareBaseRef}::${filePath}`;
+        const diff = project.fileDiffs[diffKey];
+        return {
+          baseContent: diff ? `base content of ${filePath}` : null,
+          currentContent: diff ? `current content of ${filePath}` : null,
+        };
+      }
+
+      if (section === "staged") {
+        return {
+          baseContent: project.fileVersions[`HEAD:${filePath}`] ?? null,
+          currentContent: project.fileVersions[`:0:${filePath}`] ?? null,
+        };
+      }
+
+      return {
+        baseContent: project.fileVersions[`:0:${filePath}`] ?? null,
+        currentContent: `working tree content of ${filePath}`,
+      };
+    },
+    stageFile: async (filePath) => {
       if (
         moveFile(status.files.changes, status.files.staged, filePath) ||
         moveFile(status.files.untracked, status.files.staged, filePath)
@@ -215,12 +245,12 @@ export function createFakeGitClient(project = createFakeProject()): GitClient {
         persist();
       }
     },
-    unstageFile: (filePath) => {
+    unstageFile: async (filePath) => {
       if (moveFile(status.files.staged, status.files.changes, filePath)) {
         persist();
       }
     },
-    discardChanges: (filePath) => {
+    discardChanges: async (filePath) => {
       if (
         moveFile(status.files.staged, status.files.changes, filePath) ||
         moveFile(status.files.changes, status.files.untracked, filePath) ||
@@ -229,12 +259,12 @@ export function createFakeGitClient(project = createFakeProject()): GitClient {
         persist();
       }
     },
-    commitChanges: () => {
+    commitChanges: async () => {
       status.files.staged = [];
       status.aheadCount += 1;
       persist();
     },
-    pushChanges: () => {},
-    pullChanges: () => {},
+    pushChanges: async () => {},
+    pullChanges: async () => {},
   };
 }
