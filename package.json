@@ -1,12 +1,29 @@
 {
   "name": "sourcery",
   "version": "0.1.0",
-  "module": "src/index.tsx",
+  "description": "A terminal UI for reviewing code changes with syntax highlighting",
   "type": "module",
   "bin": {
-    "sourcery": "src/index.tsx"
+    "sourcery": "dist/sourcery"
   },
-  "private": true,
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "USE_FAKE_GIT=1 bun run --watch src/index.tsx",
+    "dev:git": "bun run --watch src/index.tsx",
+    "build": "bun run scripts/build.ts",
+    "install": "bun run scripts/install.ts",
+    "prepublishOnly": "bun run build",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "check": "biome check",
+    "fix": "biome check --write --unsafe",
+    "ci": "bun run check && bun run typecheck"
+  },
+  "engines": {
+    "bun": ">=1.0"
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
     "@types/bun": "latest",
@@ -21,13 +38,13 @@
     "diff": "^8.0.2",
     "react": "^19.0.0"
   },
-  "scripts": {
-    "dev": "USE_FAKE_GIT=1 bun run --watch src/index.tsx",
-    "dev:git": "bun run --watch src/index.tsx",
-    "test": "bun test",
-    "typecheck": "tsc --noEmit",
-    "check": "biome check",
-    "fix": "biome check --write --unsafe",
-    "ci": "bun run check && bun run typecheck"
-  }
+  "keywords": [
+    "git",
+    "review",
+    "cli",
+    "terminal",
+    "diff",
+    "tui"
+  ],
+  "license": "MIT"
 }
