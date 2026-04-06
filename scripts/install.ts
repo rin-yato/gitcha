@@ -1,21 +1,22 @@
-import { execFile } from "node:child_process";
-import { access, chmod, copyFile, mkdir } from "node:fs/promises";
-import { promisify } from "node:util";
+import { chmod, copyFile, mkdir } from "node:fs/promises";
 
-const execFileAsync = promisify(execFile);
 const binName = "sourcery";
 const repoRoot = new URL("..", import.meta.url).pathname;
-const sourceBin = `${repoRoot}/dist/${binName}`;
-const prefix = process.env.PREFIX ?? `${process.env.HOME ?? "/Users/yato"}/.local`;
+const sourceBin = `${repoRoot}dist/${binName}`;
+const prefix = process.env.PREFIX ?? `${process.env.HOME}/.local`;
 const installDir = `${prefix}/bin`;
 const targetBin = `${installDir}/${binName}`;
 
 await mkdir(installDir, { recursive: true });
 
-try {
-  await access(sourceBin);
-} catch {
-  await execFileAsync("bun", ["run", "scripts/build.ts"], { cwd: repoRoot });
+if (!(await Bun.file(sourceBin).exists())) {
+  console.log("Binary not found, building...");
+  const result = Bun.spawnSync(["bun", "run", "scripts/build.ts"], {
+    cwd: repoRoot,
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  if (!result.success) process.exit(1);
 }
 
 await copyFile(sourceBin, targetBin);
