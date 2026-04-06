@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useKeyboard } from "@opentui/react";
+
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import type { Theme } from "../context/theme/provider";
 
@@ -6,7 +8,6 @@ export interface DialogSelectOption<T = unknown> {
   title: string;
   value: T;
   description?: string;
-  footer?: string;
   category?: string;
 }
 
@@ -17,74 +18,120 @@ export interface DialogSelectProps<T> {
   options: DialogSelectOption<T>[];
   onSelect: (option: DialogSelectOption<T>) => void;
   onClose?: () => void;
-  current?: T;
-  keybinds?: { label: string; keybind: string }[];
-  /** External control: pass filter from parent */
-  filter?: string;
-  onFilterChange?: (value: string) => void;
-  /** External control: pass selected index from parent */
-  selectedIndex?: number;
 }
 
-/**
- * Pure presentation component for selecting from a list of options.
- * Does NOT handle keyboard - parent component should handle that.
- */
+type GroupedOption<T> = DialogSelectOption<T> & { flatIndex: number };
+
 export function DialogSelect<T>(props: DialogSelectProps<T>) {
-  const [internalFilter, setInternalFilter] = useState("");
+  const [filter, setFilter] = useState("");
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // Use external filter if provided, otherwise internal
-  const filter = props.filter ?? internalFilter;
-  const setFilter = props.onFilterChange ?? setInternalFilter;
+  const onSelectRef = useRef(props.onSelect);
+  const onCloseRef = useRef(props.onClose);
 
-  const filtered = useMemo(() => {
+  onSelectRef.current = props.onSelect;
+  onCloseRef.current = props.onClose;
+
+  const groupedOptions = useMemo(() => {
     const needle = filter.trim().toLowerCase();
-    if (!needle) return props.options;
-    return props.options.filter(
-      (opt) =>
-        opt.title.toLowerCase().includes(needle) ||
-        opt.description?.toLowerCase().includes(needle) ||
-        opt.category?.toLowerCase().includes(needle),
-    );
-  }, [props.options, filter]);
 
-  const grouped = useMemo<[string, DialogSelectOption<T>[]][]>(() => {
+    const filtered = needle
+      ? props.options.filter(
+          (opt) =>
+            opt.title.toLowerCase().includes(needle) ||
+            opt.description?.toLowerCase().includes(needle) ||
+            opt.category?.toLowerCase().includes(needle),
+        )
+      : props.options;
+
     const groups = new Map<string, DialogSelectOption<T>[]>();
+
     for (const opt of filtered) {
       const cat = opt.category ?? "";
       if (!groups.has(cat)) groups.set(cat, []);
       groups.get(cat)!.push(opt);
     }
-    return Array.from(groups.entries());
-  }, [filtered]);
 
-  const flat = useMemo(() => grouped.flatMap(([, opts]) => opts), [grouped]);
+    const result: { category: string; options: GroupedOption<T>[] }[] = [];
+    let flatIndex = 0;
 
-  // Use external selected index if provided, otherwise default to 0
-  const selectedIndex = props.selectedIndex ?? 0;
+    for (const [category, options] of groups) {
+      const withIndices: GroupedOption<T>[] = options.map((opt, idx) => ({
+        ...opt,
+        flatIndex: flatIndex + idx,
+      }));
+      result.push({ category, options: withIndices });
+      flatIndex += options.length;
+    }
 
-  const handleSelect = useCallback(
-    (option: DialogSelectOption<T>) => {
-      props.onSelect(option);
-    },
-    [props.onSelect],
+    return result;
+  }, [props.options, filter]);
+
+  const flatLength = useMemo(
+    () => groupedOptions.reduce((sum, g) => sum + g.options.length, 0),
+    [groupedOptions],
   );
 
+  const flatOptions = useMemo(() => groupedOptions.flatMap((g) => g.options), [groupedOptions]);
+
+  const moveSelection = useCallback(
+    (delta: number) => {
+      setSelectedIndex((prev) => {
+        if (flatLength === 0) return 0;
+        return (prev + delta + flatLength) % flatLength;
+      });
+    },
+    [flatLength],
+  );
+
+  const confirmSelection = useCallback(() => {
+    const option = flatOptions[selectedIndex];
+    if (option) {
+      onSelectRef.current(option);
+    }
+  }, [flatOptions, selectedIndex]);
+
+  useKeyboard((event) => {
+    if (event.name === "up" || (event.ctrl && event.name === "p")) {
+      event.preventDefault();
+      moveSelection(-1);
+    } else if (event.name === "down" || (event.ctrl && event.name === "n")) {
+      event.preventDefault();
+      moveSelection(1);
+    } else if (event.name === "return") {
+      event.preventDefault();
+      confirmSelection();
+    } else if (event.name === "escape") {
+      event.preventDefault();
+      onCloseRef.current?.();
+    }
+  });
+
+  const handleInput = useCallback((value: string) => {
+    setFilter(value);
+    setSelectedIndex(0);
+  }, []);
+
+  const handleOptionClick = useCallback((option: GroupedOption<T>) => {
+    setSelectedIndex(option.flatIndex);
+    onSelectRef.current(option);
+  }, []);
+
   return (
-    <box gap={1} paddingBottom={1}>
+    <box gap={0} paddingBottom={1} paddingTop={1} height="100%" width="100%">
       <box paddingLeft={4} paddingRight={4}>
-        <box flexDirection="row" justifyContent="space-between">
+        <box flexDirection="row" justifyContent="space-between" paddingBottom={1}>
           <text fg={props.theme.text} attributes={1} selectable={false}>
-            {props.title}
+            {props.title} - selectedIndex: {selectedIndex}
           </text>
-          <text fg={props.theme.textMuted} selectable={false} onMouseUp={props.onClose}>
+          <text fg={props.theme.textMuted} selectable={false} onMouseUp={onCloseRef.current}>
             esc
           </text>
         </box>
-        <box paddingTop={1}>
+        <box paddingTop={0}>
           <input
             value={filter}
-            onInput={setFilter}
+            onInput={handleInput}
             placeholder={props.placeholder ?? "Search..."}
             focused
             backgroundColor={props.theme.surface}
@@ -94,65 +141,53 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
         </box>
       </box>
 
-      {grouped.length > 0 ? (
-        <box flexDirection="column" maxHeight={20}>
-          {grouped.map(([category, options], catIdx) => (
-            <box key={category || "_"} flexDirection="column">
-              {category ? (
-                <box paddingTop={catIdx > 0 ? 1 : 0} paddingLeft={4}>
-                  <text fg={props.theme.accent} attributes={1} selectable={false}>
-                    {category}
+      {flatLength > 0 ? (
+        <box flexDirection="column" maxHeight={16}>
+          {groupedOptions.map((group, catIdx) => (
+            <box key={group.category || `cat_${catIdx}`} flexDirection="column">
+              {group.category ? (
+                <box paddingTop={catIdx > 0 ? 1 : 0} paddingLeft={4} paddingBottom={1}>
+                  <text fg={props.theme.textMuted} attributes={1} selectable={false}>
+                    {group.category}
                   </text>
                 </box>
               ) : null}
-              {options.map((option) => {
-                const idx = flat.indexOf(option);
-                const isActive = idx === selectedIndex;
-                const isCurrent = option.value === props.current;
+              {group.options.map((option) => {
+                const isActive = option.flatIndex === selectedIndex;
                 return (
                   <box
-                    key={`${category}-${option.title}`}
+                    key={option.flatIndex}
                     flexDirection="row"
                     justifyContent="space-between"
-                    backgroundColor={isActive ? `${props.theme.accent}12` : undefined}
-                    paddingLeft={3}
-                    paddingRight={3}
-                    onMouseUp={() => handleSelect(option)}
+                    backgroundColor={isActive ? props.theme.accent : undefined}
+                    paddingLeft={4}
+                    paddingRight={4}
+                    paddingTop={0}
+                    paddingBottom={0}
+                    onMouseUp={() => handleOptionClick(option)}
                   >
-                    <box flexDirection="row" gap={1}>
-                      {isCurrent ? (
+                    <box flexDirection="row" justifyContent="space-between" flexGrow={1}>
+                      <box flexDirection="row" flexGrow={1}>
                         <text
-                          fg={isActive ? props.theme.text : props.theme.accent}
+                          fg={isActive ? props.theme.background : props.theme.text}
+                          attributes={1}
                           selectable={false}
+                          overflow="hidden"
                         >
-                          \u25cf
+                          {option.title} - index: {option.flatIndex}
                         </text>
-                      ) : (
-                        <text selectable={false}> </text>
-                      )}
-                      <text
-                        fg={isActive ? props.theme.text : props.theme.textMuted}
-                        attributes={isActive ? 1 : 0}
-                        selectable={false}
-                        overflow="hidden"
-                      >
-                        {option.title}
-                        {option.description ? (
-                          <span fg={isActive ? props.theme.text : props.theme.textMuted}>
-                            {" "}
-                            {option.description}
-                          </span>
-                        ) : null}
-                      </text>
+                      </box>
+
+                      {option.description ? (
+                        <text
+                          fg={isActive ? props.theme.background : props.theme.textMuted}
+                          selectable={false}
+                          overflow="hidden"
+                        >
+                          {option.description}
+                        </text>
+                      ) : null}
                     </box>
-                    {option.footer ? (
-                      <text
-                        fg={isActive ? props.theme.text : props.theme.textMuted}
-                        selectable={false}
-                      >
-                        {option.footer}
-                      </text>
-                    ) : null}
                   </box>
                 );
               })}
@@ -166,28 +201,6 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
           </text>
         </box>
       )}
-
-      {props.keybinds && props.keybinds.length > 0 ? (
-        <box
-          paddingLeft={4}
-          paddingRight={4}
-          flexDirection="row"
-          gap={2}
-          flexShrink={0}
-          paddingTop={1}
-        >
-          {props.keybinds.map((kb) => (
-            <box key={kb.label} flexDirection="row" gap={1}>
-              <text fg={props.theme.text} attributes={1} selectable={false}>
-                {kb.label}
-              </text>
-              <text fg={props.theme.textMuted} selectable={false}>
-                {kb.keybind}
-              </text>
-            </box>
-          ))}
-        </box>
-      ) : null}
     </box>
   );
 }

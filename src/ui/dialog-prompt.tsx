@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import type { Theme } from "../context/theme/provider";
 import { useDialog } from "./dialog";
@@ -17,12 +17,12 @@ export function DialogPrompt(props: DialogPromptProps) {
   const dialog = useDialog();
   const [value, setValue] = useState(props.value ?? "");
 
-  function handleSubmit() {
+  function _handleSubmit() {
     props.onConfirm?.(value);
     dialog.clear();
   }
 
-  function handleCancel() {
+  function _handleCancel() {
     props.onCancel?.();
     dialog.clear();
   }
