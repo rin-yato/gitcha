@@ -7,7 +7,7 @@ import { useCallback } from "react";
 import type { CommandOption } from "./component/dialog-command";
 import { DialogCommand } from "./component/dialog-command";
 import { DiffPane } from "./component/diff-pane";
-import { Sidebar } from "./component/sidebar";
+import { Sidebar } from "./component/sidebar/index";
 import { createFakeGitClient } from "./context/changes/fake-client";
 import { ReviewProvider, useReviewSession } from "./context/changes/session";
 import { ReviewStateProvider, useReviewState } from "./context/changes/state";
@@ -163,20 +163,15 @@ function App() {
         theme={theme}
         status={git.status}
         error={git.error}
-        selectedFile={app.selectedFile}
-        focusedPath={app.focusedFile?.path ?? null}
+        selectedFileKey={app.selectedFileKey}
+        focusedFileKey={app.focusedFileKey}
         selectFile={app.selectFile}
-        stageSelectedFile={app.stageSelectedFile}
-        unstageSelectedFile={app.unstageSelectedFile}
-        discardSelectedFile={app.discardSelectedFile}
-        refreshStatus={git.refreshStatus}
         viewMode={app.viewMode}
         branchPickerOpen={app.branchPickerOpen}
         branches={git.branches}
         currentBranch={git.status?.branch ?? null}
         compareState={git.compareState}
         selectCompareBranch={app.selectCompareBranch}
-        toggleViewMode={app.toggleViewMode}
         width={app.sidebarWidth}
       />
 
