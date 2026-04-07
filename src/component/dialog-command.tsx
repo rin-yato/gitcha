@@ -30,7 +30,7 @@ export function DialogCommand(props: DialogCommandProps) {
           title: cmd.label,
           value: cmd.id,
           description: cmd.slash,
-          category: "Suggested",
+          group: "Suggested",
         });
       }
     }
@@ -40,7 +40,7 @@ export function DialogCommand(props: DialogCommandProps) {
         title: cmd.label,
         value: cmd.id,
         description: cmd.slash,
-        category: cmd.category,
+        group: cmd.category,
       });
     }
 

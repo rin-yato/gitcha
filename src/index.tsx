@@ -92,13 +92,13 @@ function App() {
       },
     ];
 
-    const suggested = commands.filter((cmd) =>
-      ["refresh", "toggle-compare", "toggle-diff-view"].includes(cmd.id),
-    );
+    // const suggested = commands.filter((cmd) =>
+    //   ["refresh", "toggle-compare", "toggle-diff-view"].includes(cmd.id),
+    // );
 
     dialog.replace(
       <Overlay backgroundColor="#00000088">
-        <DialogCommand theme={theme} options={commands} suggested={suggested} />
+        <DialogCommand theme={theme} options={commands} />
       </Overlay>,
     );
   }, [app, git, theme, dialog]);
