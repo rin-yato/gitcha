@@ -1,3 +1,5 @@
+import "../test-setup";
+
 import { testRender } from "@opentui/react/test-utils";
 
 import { act } from "react";

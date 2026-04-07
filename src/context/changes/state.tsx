@@ -113,7 +113,7 @@ export type ReviewState = {
   exitCompareMode: () => void;
   selectCompareBranch: (target: CompareTarget) => void;
   // File actions
-  selectFile: (filePath: string, section?: FileSection) => void;
+  selectFile: (path: string, section?: FileSection) => void;
   focusPreviousRow: () => void;
   focusNextRow: () => void;
   stageSelectedFile: () => void;
@@ -161,7 +161,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
 
   // -- file loading --
   const loadDiff = useCallback(
-    (filePath: string, section: FileSection | null) => {
+    (file: GitStatusFile, section: FileSection | null) => {
       if (!section) {
         setDiffContent(null);
         return;
@@ -171,9 +171,9 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
         viewMode === "compare" && compareState ? compareState.baseRef : undefined;
 
       git.client
-        .loadDiffSource(filePath, section, compareBaseRef)
+        .loadDiffSource(file, section, compareBaseRef)
         .then((source) => {
-          const diff = generateDiff(source, filePath);
+          const diff = generateDiff(source, file.path);
           setDiffContent(diff || "No changes to display");
         })
         .catch((e) => {
@@ -186,12 +186,13 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
   );
 
   const selectFile = useCallback(
-    (filePath: string, section: FileSection = "changes") => {
-      setSelectedFile(filePath);
+    (path: string, section: FileSection = "changes") => {
+      setSelectedFile(path);
       setSelectedFileSection(section);
-      loadDiff(filePath, section);
+      const file = files.find((f) => f.path === path);
+      if (file) loadDiff(file, section);
     },
-    [loadDiff],
+    [files, loadDiff],
   );
 
   const focusRow = useCallback(
@@ -200,9 +201,13 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
       const section =
         viewMode === "compare" ? "compare" : sectionForIndex(nextIndex, stagedCount);
       setFocusedRowIndex(nextIndex);
-      if (file) selectFile(file.path, section);
+      if (file) {
+        setSelectedFile(file.path);
+        setSelectedFileSection(section);
+        loadDiff(file, section);
+      }
     },
-    [files, stagedCount, selectFile, viewMode],
+    [files, stagedCount, loadDiff, viewMode],
   );
 
   const toggleDiffViewMode = useCallback(() => {
@@ -220,7 +225,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
               setSelectedFile(firstFile.path);
               setSelectedFileSection("compare");
               git.client
-                .loadDiffSource(firstFile.path, "compare", nextState.baseRef)
+                .loadDiffSource(firstFile, "compare", nextState.baseRef)
                 .then((source) => {
                   setDiffContent(generateDiff(source, firstFile.path));
                 });
@@ -260,11 +265,9 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
         if (firstFile) {
           setSelectedFile(firstFile.path);
           setSelectedFileSection("compare");
-          git.client
-            .loadDiffSource(firstFile.path, "compare", nextState!.baseRef)
-            .then((source) => {
-              setDiffContent(generateDiff(source, firstFile.path));
-            });
+          git.client.loadDiffSource(firstFile, "compare", nextState!.baseRef).then((source) => {
+            setDiffContent(generateDiff(source, firstFile.path));
+          });
         }
       });
     },
@@ -299,7 +302,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
         setSelectedFileSection("compare");
         if (lastAutoSelectedRef.current !== `compare:${first.path}`) {
           lastAutoSelectedRef.current = `compare:${first.path}`;
-          loadDiff(first.path, "compare");
+          loadDiff(first, "compare");
         }
       }
 
@@ -313,7 +316,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
         setSelectedFile(first.path);
         setSelectedFileSection(first.section);
         lastAutoSelectedRef.current = `${first.section}:${first.path}`;
-        loadDiff(first.path, first.section);
+        loadDiff({ path: first.path } as GitStatusFile, first.section);
       }
     } else if (files.length === 0 && selectedFile) {
       setSelectedFile(null);

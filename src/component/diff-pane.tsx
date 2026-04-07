@@ -108,12 +108,13 @@ export function DiffPane(props: {
       flexDirection="column"
     >
       <box flexDirection="row" justifyContent="space-between" paddingBottom={1}>
-        <text fg={props.theme.text} attributes={1} selectable={false}>
-          {props.selectedFile || "no file selected"}
-        </text>
-        <text fg={props.theme.textMuted} selectable={false}>
-          {props.diffViewMode}
-        </text>
+        <text
+          content={props.selectedFile || "no file selected"}
+          fg={props.theme.text}
+          attributes={1}
+          selectable={false}
+        />
+        <text content={props.diffViewMode} fg={props.theme.textMuted} selectable={false} />
       </box>
 
       {props.selectedFileKey ? (

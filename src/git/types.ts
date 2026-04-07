@@ -111,3 +111,5 @@ export interface FileDiffSource {
   /** Content at the current version (null = deleted file, no current exists) */
   currentContent: string | null;
 }
+
+export type { RepoContext } from "./repo";

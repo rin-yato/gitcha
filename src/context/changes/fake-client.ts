@@ -1,6 +1,28 @@
 import type { CompareTarget, GitRepoStatus, GitStatusFile } from "../../git";
 import type { GitClient } from "./session";
 
+type FakeRepoContext = {
+  root: string;
+  cwd: string;
+  backend: {
+    readFile: (path: string) => Promise<string | null>;
+    exists: (path: string) => Promise<boolean>;
+  };
+  toRootPath: (path: string) => string;
+  toRelativePath: (path: string) => string;
+};
+
+const fakeCtx: FakeRepoContext = {
+  root: process.cwd(),
+  cwd: process.cwd(),
+  backend: {
+    readFile: async () => null,
+    exists: async () => false,
+  },
+  toRootPath: (p) => p,
+  toRelativePath: (p) => p,
+};
+
 type FakeBranch = {
   name: string;
   base?: string;
@@ -204,6 +226,7 @@ export function createFakeGitClient(project = createFakeProject()): GitClient {
   };
 
   return {
+    ctx: fakeCtx,
     getRepoStatus: async () => cloneStatus(status),
     getRecentCommits: async () => project.commits,
     getLocalBranches: async () => Object.keys(project.branches).sort(),
@@ -215,7 +238,8 @@ export function createFakeGitClient(project = createFakeProject()): GitClient {
     getMergeBase: async (baseRef) => {
       return project.branches[project.currentBranch]?.base ?? baseRef;
     },
-    loadDiffSource: async (filePath, section, compareBaseRef) => {
+    loadDiffSource: async (file, section, compareBaseRef) => {
+      const filePath = file.path;
       if (section === "compare" && compareBaseRef) {
         const diffKey = `${compareBaseRef}::${filePath}`;
         const diff = project.fileDiffs[diffKey];

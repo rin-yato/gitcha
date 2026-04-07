@@ -7,9 +7,11 @@ import type {
   FileDiffSource,
   GitRepoStatus,
   GitStatusFile,
+  RepoContext,
 } from "../../git";
 import {
   commitChanges as commitGitChanges,
+  detectRepoContext,
   discardChanges as discardGitChanges,
   getBranchDiffFiles,
   getCompareTarget,
@@ -18,6 +20,9 @@ import {
   getMergeBase,
   getRecentCommits,
   getRepoStatus,
+  loadChangesDiffSource,
+  loadCompareDiffSource,
+  loadStagedDiffSource,
   pullChanges as pullGitChanges,
   pushChanges as pushGitChanges,
   stageFile as stageGitFile,
@@ -46,6 +51,7 @@ export type ReviewSession = {
 };
 
 export type GitClient = {
+  ctx: RepoContext;
   getRepoStatus: () => Promise<GitRepoStatus>;
   getRecentCommits: () => Promise<string[]>;
   getLocalBranches: () => Promise<string[]>;
@@ -54,7 +60,7 @@ export type GitClient = {
   getFileVersion: (ref: string, path: string) => Promise<string | null>;
   getMergeBase: (baseRef: string) => Promise<string>;
   loadDiffSource: (
-    filePath: string,
+    file: GitStatusFile,
     section: "staged" | "changes" | "compare",
     compareBaseRef?: string,
   ) => Promise<FileDiffSource>;
@@ -66,52 +72,32 @@ export type GitClient = {
   pullChanges: () => Promise<void>;
 };
 
-export function createGitClient(): GitClient {
+export function createGitClient(ctx: RepoContext): GitClient {
   return {
-    getRepoStatus,
-    getRecentCommits,
-    getLocalBranches,
-    getCompareTarget,
-    getBranchDiffFiles,
-    getFileVersion,
-    getMergeBase,
-    loadDiffSource: async (filePath, section, compareBaseRef) => {
+    ctx,
+    getRepoStatus: () => getRepoStatus(ctx.cwd),
+    getRecentCommits: () => getRecentCommits(12, ctx.cwd),
+    getLocalBranches: () => getLocalBranches(ctx.cwd),
+    getCompareTarget: () => getCompareTarget(ctx.cwd),
+    getBranchDiffFiles: (baseRef: string) => getBranchDiffFiles(baseRef, ctx.cwd),
+    getFileVersion: (ref: string, path: string) => getFileVersion(ref, path, ctx.cwd),
+    getMergeBase: (baseRef: string) => getMergeBase(baseRef, ctx.cwd),
+    loadDiffSource: async (file, section, compareBaseRef) => {
       if (section === "compare" && compareBaseRef) {
-        // Branch mode: base = file at merge-base, current = working tree
-        const baseRef = await getMergeBase(compareBaseRef);
-        const [baseContent, currentContent] = await Promise.all([
-          getFileVersion(baseRef, filePath),
-          Bun.file(filePath)
-            .text()
-            .catch(() => null),
-        ]);
-        return { baseContent, currentContent };
+        const baseRef = await getMergeBase(compareBaseRef, ctx.cwd);
+        return loadCompareDiffSource(ctx, file, baseRef);
       }
-
       if (section === "staged") {
-        // Staged: base = HEAD, current = index
-        const [baseContent, indexContent] = await Promise.all([
-          getFileVersion("HEAD", filePath),
-          getFileVersion(":0", filePath),
-        ]);
-        return { baseContent, currentContent: indexContent };
+        return loadStagedDiffSource(ctx, file);
       }
-
-      // Unstaged changes: base = index, current = working tree
-      const [indexContent, workingContent] = await Promise.all([
-        getFileVersion(":0", filePath),
-        Bun.file(filePath)
-          .text()
-          .catch(() => null),
-      ]);
-      return { baseContent: indexContent, currentContent: workingContent };
+      return loadChangesDiffSource(ctx, file);
     },
-    stageFile: stageGitFile,
-    unstageFile: unstageGitFile,
-    discardChanges: discardGitChanges,
-    commitChanges: commitGitChanges,
-    pushChanges: pushGitChanges,
-    pullChanges: pullGitChanges,
+    stageFile: (filePath: string) => stageGitFile(filePath, ctx.cwd),
+    unstageFile: (filePath: string) => unstageGitFile(filePath, ctx.cwd),
+    discardChanges: (filePath: string) => discardGitChanges(filePath, ctx.cwd),
+    commitChanges: (message: string) => commitGitChanges(message, ctx.cwd),
+    pushChanges: () => pushGitChanges(ctx.cwd),
+    pullChanges: () => pullGitChanges(ctx.cwd),
   };
 }
 
@@ -146,21 +132,15 @@ const ReviewSessionContext = createContext<ReviewSession | null>(null);
 
 export function ReviewProvider({
   children,
-  client = createGitClient(),
+  repoCwd,
+  client: providedClient,
 }: {
   children: React.ReactNode;
+  repoCwd?: string;
   client?: GitClient;
 }) {
-  return <ReviewProviderBase children={children} client={client} />;
-}
-
-export function ReviewProviderBase({
-  children,
-  client,
-}: {
-  children: React.ReactNode;
-  client: GitClient;
-}) {
+  const [ctx, setCtx] = useState<RepoContext | null>(null);
+  const [client, setClient] = useState<GitClient | null>(null);
   const [status, setStatus] = useState<GitRepoStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [commits, setCommits] = useState<string[]>([]);
@@ -168,104 +148,92 @@ export function ReviewProviderBase({
   const [compareState, setCompareState] = useState<CompareState | null>(null);
   const [defaultCompareTarget, setDefaultCompareTarget] = useState<CompareTarget | null>(null);
 
+  useEffect(() => {
+    if (providedClient) {
+      setClient(providedClient);
+      setCtx(providedClient.ctx);
+      return;
+    }
+    detectRepoContext(repoCwd).then((newCtx) => {
+      if (newCtx) {
+        setCtx(newCtx);
+        setClient(createGitClient(newCtx));
+      } else {
+        setError("Not a git repository");
+      }
+    });
+  }, [repoCwd, providedClient]);
+
   const refreshStatus = useCallback(() => {
+    if (!client) return;
     client
       .getRepoStatus()
-      .then((newStatus) => {
-        setStatus(newStatus);
-        setError(null);
-      })
-      .catch((e) => {
-        setError(e instanceof Error ? e.message : "Failed to load git status");
-        setStatus(null);
-      });
+      .then(setStatus)
+      .catch(() => setStatus(null));
   }, [client]);
 
   const refreshCommits = useCallback(() => {
+    if (!client) return;
     client
       .getRecentCommits()
-      .then((result) => {
-        setCommits(result);
-        setError(null);
-      })
-      .catch((e) => {
-        setError(e instanceof Error ? e.message : "Failed to load git log");
-        setCommits([]);
-      });
+      .then(setCommits)
+      .catch(() => setCommits([]));
   }, [client]);
 
   const refreshBranches = useCallback(() => {
+    if (!client) return;
     client
       .getLocalBranches()
       .then(setBranches)
-      .catch(() => {
-        // ignore branch list errors
-      });
+      .catch(() => {});
   }, [client]);
 
   const refreshCompare = useCallback(() => {
-    setCompareState((prev) => {
-      if (!prev) return prev;
-      client
-        .getBranchDiffFiles(prev.baseRef)
-        .then((files) => {
-          setCompareState((s) => (s ? { ...s, files } : s));
-        })
-        .catch((e) => {
-          setError(e instanceof Error ? e.message : "Failed to load branch diff");
-        });
-      return prev;
-    });
-  }, [client]);
+    if (!client || !compareState) return;
+    client
+      .getBranchDiffFiles(compareState.baseRef)
+      .then((files) => {
+        setCompareState((s) => (s ? { ...s, files } : s));
+      })
+      .catch(() => {});
+  }, [client, compareState]);
 
   const startCompare = useCallback(
     async (target: CompareTarget): Promise<CompareState | null> => {
+      if (!client) return null;
       try {
         const files = await client.getBranchDiffFiles(target.ref);
         const nextState = { baseRef: target.ref, baseLabel: target.label, files };
         setCompareState(nextState);
-        setError(null);
         return nextState;
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to start compare");
+      } catch {
         return null;
       }
     },
     [client],
   );
 
-  const stopCompare = useCallback(() => {
-    setCompareState(null);
-  }, []);
+  const stopCompare = useCallback(() => setCompareState(null), []);
 
   const runGitAction = useCallback(
     (action: () => Promise<void>) => {
+      if (!client) return;
       action()
-        .then(() => {
-          refreshStatus();
-          refreshCommits();
-          setError(null);
-        })
-        .catch((e) => {
-          setError(e instanceof Error ? e.message : "Git action failed");
-        });
+        .then(refreshStatus)
+        .catch(() => {});
     },
-    [refreshStatus, refreshCommits],
+    [client, refreshStatus],
   );
 
-  // Initial fetch + polling
   useEffect(() => {
+    if (!client) return;
     refreshStatus();
     refreshCommits();
     refreshBranches();
-
-    // Compute compare target once on startup
     client
       .getCompareTarget()
       .then(setDefaultCompareTarget)
-      .catch(() => {
-        // ignore compare target errors
-      });
+      .catch(() => {});
 
     const statusTimer = setInterval(refreshStatus, 5000);
     const commitsTimer = setInterval(refreshCommits, 10000);
@@ -276,37 +244,40 @@ export function ReviewProviderBase({
       clearInterval(commitsTimer);
       clearInterval(branchesTimer);
     };
-  }, [refreshStatus, refreshCommits, refreshBranches, client]);
+  }, [client, refreshStatus, refreshCommits, refreshBranches]);
 
-  const value = useMemo<ReviewSession>(
-    () => ({
-      status,
-      error,
-      commits,
-      branches,
-      compareState,
-      defaultCompareTarget,
-      client,
-      refreshStatus,
-      refreshCommits,
-      stageFile: (filePath: string) => runGitAction(() => client.stageFile(filePath)),
-      unstageFile: (filePath: string) => runGitAction(() => client.unstageFile(filePath)),
-      discardChanges: (filePath: string) => runGitAction(() => client.discardChanges(filePath)),
-      commitChanges: (message: string) => runGitAction(() => client.commitChanges(message)),
-      pushChanges: () => runGitAction(() => client.pushChanges()),
-      pullChanges: () => runGitAction(() => client.pullChanges()),
-      startCompare,
-      stopCompare,
-      refreshCompare,
-    }),
+  const value = useMemo<ReviewSession | null>(
+    () =>
+      client
+        ? {
+            status,
+            error,
+            commits,
+            branches,
+            compareState,
+            defaultCompareTarget,
+            client,
+            refreshStatus,
+            refreshCommits,
+            stageFile: (filePath) => runGitAction(() => client.stageFile(filePath)),
+            unstageFile: (filePath) => runGitAction(() => client.unstageFile(filePath)),
+            discardChanges: (filePath) => runGitAction(() => client.discardChanges(filePath)),
+            commitChanges: (message) => runGitAction(() => client.commitChanges(message)),
+            pushChanges: () => runGitAction(() => client.pushChanges()),
+            pullChanges: () => runGitAction(() => client.pullChanges()),
+            startCompare,
+            stopCompare,
+            refreshCompare,
+          }
+        : null,
     [
+      client,
       status,
       error,
       commits,
       branches,
       compareState,
       defaultCompareTarget,
-      client,
       refreshStatus,
       refreshCommits,
       runGitAction,
@@ -315,6 +286,14 @@ export function ReviewProviderBase({
       refreshCompare,
     ],
   );
+
+  if (!value) {
+    return (
+      <box>
+        <text content={error ?? "Loading..."} />
+      </box>
+    );
+  }
 
   return (
     <ReviewSessionContext.Provider value={value}>{children}</ReviewSessionContext.Provider>
