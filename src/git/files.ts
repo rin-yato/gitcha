@@ -1,6 +1,6 @@
+import { getFileVersion } from "./commands";
 import type { RepoContext } from "./repo";
 import type { FileDiffSource, GitStatusFile } from "./types";
-import { getFileVersion } from "./commands";
 
 export async function readWorkingFile(
   ctx: RepoContext,

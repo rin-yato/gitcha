@@ -2,10 +2,10 @@ import { testRender } from "@opentui/react/test-utils";
 
 import { act } from "react";
 
-import { afterEach, expect, test } from "bun:test";
 import type { Theme } from "../../context/theme/provider";
 import type { GitRepoStatus } from "../../git";
 import { Sidebar } from "./index";
+import { afterEach, expect, test } from "bun:test";
 
 const theme: Theme = {
   background: "#000000",

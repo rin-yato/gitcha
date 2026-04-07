@@ -92,13 +92,36 @@ function App() {
       },
     ];
 
-    // const suggested = commands.filter((cmd) =>
-    //   ["refresh", "toggle-compare", "toggle-diff-view"].includes(cmd.id),
-    // );
+    const commandsMap = Object.fromEntries(commands.map((cmd) => [cmd.id, cmd]));
+
+    const suggestedCmds = commands.filter((cmd) =>
+      ["refresh", "toggle-compare", "toggle-diff-view"].includes(cmd.id),
+    );
+
+    const selectOptions = [
+      {
+        group: "Suggested",
+        options: suggestedCmds.map((cmd) => ({
+          id: cmd.id,
+          title: cmd.label,
+          description: cmd.slash,
+        })),
+      },
+      ...(["View", "Action", "Layout"] as const).map((cat) => ({
+        group: cat,
+        options: commands
+          .filter((cmd) => cmd.category === cat)
+          .map((cmd) => ({
+            id: cmd.id,
+            title: cmd.label,
+            description: cmd.slash,
+          })),
+      })),
+    ];
 
     dialog.replace(
       <Overlay backgroundColor="#00000088">
-        <DialogCommand theme={theme} options={commands} />
+        <DialogCommand theme={theme} options={selectOptions} commands={commandsMap} />
       </Overlay>,
     );
   }, [app, git, theme, dialog]);
@@ -190,6 +213,23 @@ function App() {
 }
 
 const renderer = await createCliRenderer();
+
+renderer.keyInput.on("keypress", (key) => {
+  // Toggle with backtick key
+  if (key.name === "`") {
+    renderer.console.toggle();
+  }
+
+  // Or with a modifier
+  if (key.ctrl && key.name === "l") {
+    renderer.console.toggle();
+  }
+
+  // handle copy selection
+  if (key.name === "y" && key.ctrl) {
+    renderer.copyToClipboardOSC52(renderer.getSelection()?.getSelectedText() ?? "");
+  }
+});
 
 const client = process.env.USE_FAKE_GIT === "1" ? createFakeGitClient() : undefined;
 

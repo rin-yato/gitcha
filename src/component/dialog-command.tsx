@@ -1,8 +1,12 @@
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 
 import type { Theme } from "../context/theme/provider";
 import { useDialog } from "../ui/dialog";
-import { DialogSelect, type DialogSelectOption } from "../ui/dialog-select";
+import {
+  DialogSelect,
+  type DialogSelectOption,
+  type DialogSelectOptionGroup,
+} from "../ui/dialog-select";
 
 export type CommandOption = {
   id: string;
@@ -14,46 +18,20 @@ export type CommandOption = {
 
 export type DialogCommandProps = {
   theme: Theme;
-  options: CommandOption[];
-  suggested?: CommandOption[];
+  options: DialogSelectOptionGroup[];
+  commands: Record<string, CommandOption>;
 };
 
 export function DialogCommand(props: DialogCommandProps) {
   const dialog = useDialog();
 
-  const selectOptions = useMemo<DialogSelectOption<string>[]>(() => {
-    const all: DialogSelectOption<string>[] = [];
-
-    if (props.suggested && props.suggested.length > 0) {
-      for (const cmd of props.suggested) {
-        all.push({
-          title: cmd.label,
-          value: cmd.id,
-          description: cmd.slash,
-          group: "Suggested",
-        });
-      }
-    }
-
-    for (const cmd of props.options) {
-      all.push({
-        title: cmd.label,
-        value: cmd.id,
-        description: cmd.slash,
-        group: cmd.category,
-      });
-    }
-
-    return all;
-  }, [props.options, props.suggested]);
-
   const handleSelect = useCallback(
-    (option: DialogSelectOption<string>) => {
-      const cmd = props.options.find((c) => c.id === option.value);
+    (option: DialogSelectOption) => {
+      const cmd = props.commands[option.id];
       cmd?.run();
       dialog.closeTop();
     },
-    [props.options, dialog],
+    [props.commands, dialog],
   );
 
   return (
@@ -63,7 +41,7 @@ export function DialogCommand(props: DialogCommandProps) {
           theme={props.theme}
           title="Commands"
           placeholder="Search commands..."
-          options={selectOptions}
+          options={props.options}
           onSelect={handleSelect}
           onClose={() => dialog.closeTop()}
         />

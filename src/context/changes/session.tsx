@@ -139,7 +139,7 @@ export function ReviewProvider({
   repoCwd?: string;
   client?: GitClient;
 }) {
-  const [ctx, setCtx] = useState<RepoContext | null>(null);
+  const [_ctx, setCtx] = useState<RepoContext | null>(null);
   const [client, setClient] = useState<GitClient | null>(null);
   const [status, setStatus] = useState<GitRepoStatus | null>(null);
   const [error, setError] = useState<string | null>(null);

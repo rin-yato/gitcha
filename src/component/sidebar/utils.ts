@@ -1,5 +1,5 @@
-import type { GitStatusFile } from "../../git";
 import type { Theme } from "../../context/theme/provider";
+import type { GitStatusFile } from "../../git";
 import type { FileSection } from "./types";
 
 // Status icons - minimal, single character

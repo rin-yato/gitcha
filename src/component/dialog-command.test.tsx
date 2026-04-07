@@ -5,6 +5,8 @@ import { act } from "react";
 
 import type { Theme } from "../context/theme/provider";
 import { DialogProvider } from "../ui/dialog";
+import type { DialogSelectOptionGroup } from "../ui/dialog-select";
+import { buildDialogSelectRows } from "../ui/dialog-select";
 import { type CommandOption, DialogCommand } from "./dialog-command";
 import { afterEach, describe, expect, test } from "bun:test";
 
@@ -53,6 +55,37 @@ const testCommands: CommandOption[] = [
   },
 ];
 
+function buildTestSelectOptions(
+  commands: CommandOption[],
+  suggestedIds: string[] = [],
+): DialogSelectOptionGroup[] {
+  const groups = new Map<string, CommandOption[]>();
+
+  const suggested = commands.filter((cmd) => suggestedIds.includes(cmd.id));
+  if (suggested.length > 0) {
+    groups.set("Suggested", suggested);
+  }
+
+  for (const cmd of commands) {
+    const cat = cmd.category ?? "";
+    const list = groups.get(cat);
+    if (list) {
+      list.push(cmd);
+    } else {
+      groups.set(cat, [cmd]);
+    }
+  }
+
+  return Array.from(groups.entries()).map(([group, cmds]) => ({
+    group,
+    options: cmds.map((cmd) => ({
+      id: cmd.id,
+      title: cmd.label,
+      description: cmd.slash,
+    })),
+  }));
+}
+
 describe("DialogCommand", () => {
   let testSetup: Awaited<ReturnType<typeof testRender>> | null = null;
 
@@ -66,10 +99,16 @@ describe("DialogCommand", () => {
     }
   });
 
-  async function renderDialog(options = testCommands, suggested?: CommandOption[]) {
+  async function renderDialog(
+    commands: CommandOption[] = testCommands,
+    suggestedIds: string[] = [],
+  ) {
+    const commandsMap = Object.fromEntries(commands.map((cmd) => [cmd.id, cmd]));
+    const options = buildTestSelectOptions(commands, suggestedIds);
+
     testSetup = await testRender(
       <DialogProvider>
-        <DialogCommand theme={theme} options={options} suggested={suggested} />
+        <DialogCommand theme={theme} options={options} commands={commandsMap} />
       </DialogProvider>,
       { width: 80, height: 40 },
     );
@@ -81,10 +120,16 @@ describe("DialogCommand", () => {
     return testSetup;
   }
 
-  async function renderDialogForInput(options = testCommands, suggested?: CommandOption[]) {
+  async function renderDialogForInput(
+    commands: CommandOption[] = testCommands,
+    suggestedIds: string[] = [],
+  ) {
+    const commandsMap = Object.fromEntries(commands.map((cmd) => [cmd.id, cmd]));
+    const options = buildTestSelectOptions(commands, suggestedIds);
+
     testSetup = await testRender(
       <DialogProvider>
-        <DialogCommand theme={theme} options={options} suggested={suggested} />
+        <DialogCommand theme={theme} options={options} commands={commandsMap} />
       </DialogProvider>,
       { width: 80, height: 40 },
     );
@@ -136,22 +181,33 @@ describe("DialogCommand", () => {
   });
 
   test("renders suggested section", async () => {
-    const suggested = testCommands.filter((c) => c.id === "refresh");
-    await renderDialog(testCommands, suggested);
+    await renderDialog(testCommands, ["refresh"]);
 
     const output = JSON.stringify(getSetup().captureSpans().lines);
     expect(output).toContain("Suggested");
   });
 
   test("shows empty state when no commands", async () => {
-    await renderDialog([]);
+    const commandsMap = {};
+    const options: DialogSelectOptionGroup[] = [];
+    testSetup = await testRender(
+      <DialogProvider>
+        <DialogCommand theme={theme} options={options} commands={commandsMap} />
+      </DialogProvider>,
+      { width: 80, height: 40 },
+    );
+
+    await act(async () => {
+      await testSetup?.renderOnce();
+    });
 
     const output = JSON.stringify(getSetup().captureSpans().lines);
     expect(output).toContain("No results found");
   });
 
   test("single command is displayed", async () => {
-    await renderDialog([{ id: "only-one", label: "OnlyOne", run: () => {} }]);
+    const commands: CommandOption[] = [{ id: "only-one", label: "OnlyOne", run: () => {} }];
+    await renderDialog(commands, []);
 
     const output = JSON.stringify(getSetup().captureSpans().lines);
     expect(output).toContain("OnlyOne");
@@ -164,15 +220,30 @@ describe("DialogCommand", () => {
       { id: "cherry", label: "Cherry", run: () => {} },
     ];
 
-    await renderDialogForInput(commands);
+    const rows = buildDialogSelectRows(
+      [
+        {
+          group: "",
+          options: commands.map((cmd) => ({
+            id: cmd.id,
+            title: cmd.label,
+          })),
+        },
+      ],
+      "ban",
+    );
 
-    await testSetup?.mockInput.typeText("ban");
-    await flushInput();
-
-    const output = testSetup?.captureCharFrame() ?? "";
-    expect(output).toContain("Banana");
-    expect(output).not.toContain("Apple");
-    expect(output).not.toContain("Cherry");
+    expect(rows).toEqual([
+      {
+        kind: "option",
+        key: "option::Banana:banana",
+        group: "",
+        option: {
+          id: "banana",
+          title: "Banana",
+        },
+      },
+    ]);
   });
 
   test("arrow keys navigate and enter runs selected command", async () => {
@@ -260,69 +331,58 @@ describe("DialogCommand", () => {
 
     await renderDialogForInput(commands);
 
-    // Flat list order after grouping: View(toggle-compare,toggle-diff-view,exit-compare),
-    // Action(refresh,stage-file,unstage-file,discard-file), Layout(shrink-sidebar,grow-sidebar)
-    // Initial selection is index 0 (toggle-compare, View)
     testSetup?.mockInput.pressEnter();
     await flushInput();
-    expect(cmd1.callCount()).toBe(1); // Compare
+    expect(cmd1.callCount()).toBe(1);
 
-    // Navigate down to index 1 (toggle-diff-view, View)
     testSetup?.mockInput.pressArrow("down");
     await flushInput();
     testSetup?.mockInput.pressEnter();
     await flushInput();
-    expect(cmd3.callCount()).toBe(1); // Diff View
+    expect(cmd3.callCount()).toBe(1);
 
-    // Navigate down to index 2 (exit-compare, View)
     testSetup?.mockInput.pressArrow("down");
     await flushInput();
     testSetup?.mockInput.pressEnter();
     await flushInput();
-    expect(cmd4.callCount()).toBe(1); // Exit Compare
-
-    // Navigate down to index 3 (refresh, Action)
-    testSetup?.mockInput.pressArrow("down");
-    await flushInput();
-    testSetup?.mockInput.pressEnter();
-    await flushInput();
-    expect(cmd2.callCount()).toBe(1); // Refresh
     expect(cmd4.callCount()).toBe(1);
 
-    // Navigate down to index 4 (stage-file, Action)
     testSetup?.mockInput.pressArrow("down");
     await flushInput();
     testSetup?.mockInput.pressEnter();
     await flushInput();
-    expect(cmd5.callCount()).toBe(1); // Stage
+    expect(cmd2.callCount()).toBe(1);
+    expect(cmd4.callCount()).toBe(1);
 
-    // Navigate down to index 5 (unstage-file, Action)
     testSetup?.mockInput.pressArrow("down");
     await flushInput();
     testSetup?.mockInput.pressEnter();
     await flushInput();
-    expect(cmd6.callCount()).toBe(1); // Unstage
+    expect(cmd5.callCount()).toBe(1);
 
-    // Navigate down to index 6 (discard-file, Action)
     testSetup?.mockInput.pressArrow("down");
     await flushInput();
     testSetup?.mockInput.pressEnter();
     await flushInput();
-    expect(cmd7.callCount()).toBe(1); // Discard
+    expect(cmd6.callCount()).toBe(1);
 
-    // Navigate down to index 7 (shrink-sidebar, Layout)
     testSetup?.mockInput.pressArrow("down");
     await flushInput();
     testSetup?.mockInput.pressEnter();
     await flushInput();
-    expect(cmd8.callCount()).toBe(1); // Narrow Sidebar
+    expect(cmd7.callCount()).toBe(1);
 
-    // Navigate down to index 8 (grow-sidebar, Layout)
     testSetup?.mockInput.pressArrow("down");
     await flushInput();
     testSetup?.mockInput.pressEnter();
     await flushInput();
-    expect(cmd9.callCount()).toBe(1); // Wider Sidebar
+    expect(cmd8.callCount()).toBe(1);
+
+    testSetup?.mockInput.pressArrow("down");
+    await flushInput();
+    testSetup?.mockInput.pressEnter();
+    await flushInput();
+    expect(cmd9.callCount()).toBe(1);
   });
 
   test("navigation with suggested commands and categories", async () => {
@@ -334,20 +394,13 @@ describe("DialogCommand", () => {
       { id: "exit-compare", label: "Exit Compare", category: "View", run: exitCompare },
     ];
 
-    const suggested = commands.filter((c) => c.id === "refresh");
+    await renderDialogForInput(commands, ["refresh"]);
 
-    await renderDialogForInput(commands, suggested);
-
-    // Initial on Refresh (index 0)
-    // Suggested: Refresh (index 0), then: Refresh (index 1), Exit Compare (index 2)
-
-    // Navigate to Exit Compare (index 2)
     testSetup?.mockInput.pressArrow("down");
     await flushInput();
     testSetup?.mockInput.pressArrow("down");
     await flushInput();
 
-    // Press Enter on Exit Compare
     testSetup?.mockInput.pressEnter();
     await flushInput();
     expect(exitCompare.callCount()).toBe(1);
@@ -364,20 +417,16 @@ describe("DialogCommand", () => {
 
     await renderDialogForInput(commands);
 
-    // Select first item
     testSetup?.mockInput.pressEnter();
     await flushInput();
     expect(cmd1.callCount()).toBe(1);
 
-    // Navigate to second
     testSetup?.mockInput.pressArrow("down");
     await flushInput();
 
-    // Verify selection moved by pressing Enter
     testSetup?.mockInput.pressEnter();
     await flushInput();
 
-    // cmd1 should not have been called again, cmd2 should be called once
     expect(cmd1.callCount()).toBe(1);
     expect(cmd2.callCount()).toBe(1);
   });
@@ -393,11 +442,9 @@ describe("DialogCommand", () => {
 
     await renderDialogForInput(commands);
 
-    // Initial at index 0 (refresh)
     testSetup?.mockInput.pressArrow("down");
     await flushInput();
 
-    // Should be at index 1 (exit-compare)
     testSetup?.mockInput.pressEnter();
     await flushInput();
 
@@ -416,7 +463,6 @@ describe("DialogCommand", () => {
 
     await renderDialogForInput(commands);
 
-    // Go down from index 0 to 1
     testSetup?.mockInput.pressArrow("down");
     await flushInput();
     testSetup?.mockInput.pressEnter();
@@ -424,12 +470,252 @@ describe("DialogCommand", () => {
     expect(cmd1.callCount()).toBe(0);
     expect(cmd2.callCount()).toBe(1);
 
-    // Go down from index 1 to 0 (wrap)
     testSetup?.mockInput.pressArrow("down");
     await flushInput();
     testSetup?.mockInput.pressEnter();
     await flushInput();
     expect(cmd1.callCount()).toBe(1);
     expect(cmd2.callCount()).toBe(1);
+  });
+
+  test("renders the exact command palette rows from App", async () => {
+    const commands: CommandOption[] = [
+      {
+        id: "toggle-compare",
+        label: "Compare",
+        category: "View",
+        slash: "v",
+        run: () => {},
+      },
+      {
+        id: "refresh",
+        label: "Refresh",
+        category: "Action",
+        slash: "r",
+        run: () => {},
+      },
+      {
+        id: "toggle-diff-view",
+        label: "Diff View",
+        category: "View",
+        slash: "space",
+        run: () => {},
+      },
+      {
+        id: "exit-compare",
+        label: "Exit Compare",
+        category: "View",
+        run: () => {},
+      },
+      {
+        id: "stage-file",
+        label: "Stage",
+        category: "Action",
+        slash: "s",
+        run: () => {},
+      },
+      {
+        id: "unstage-file",
+        label: "Unstage",
+        category: "Action",
+        slash: "u",
+        run: () => {},
+      },
+      {
+        id: "discard-file",
+        label: "Discard",
+        category: "Action",
+        slash: "x",
+        run: () => {},
+      },
+      {
+        id: "shrink-sidebar",
+        label: "Narrow Sidebar",
+        category: "Layout",
+        slash: "[",
+        run: () => {},
+      },
+      {
+        id: "grow-sidebar",
+        label: "Wider Sidebar",
+        category: "Layout",
+        slash: "]",
+        run: () => {},
+      },
+    ];
+
+    const suggestedIds = ["refresh", "toggle-compare", "toggle-diff-view"];
+
+    const rows = buildDialogSelectRows(
+      [
+        {
+          group: "Suggested",
+          options: commands
+            .filter((cmd) => suggestedIds.includes(cmd.id))
+            .map((cmd) => ({
+              id: cmd.id,
+              title: cmd.label,
+              description: cmd.slash,
+            })),
+        },
+        {
+          group: "View",
+          options: commands
+            .filter((cmd) => cmd.category === "View")
+            .map((cmd) => ({
+              id: cmd.id,
+              title: cmd.label,
+              description: cmd.slash,
+            })),
+        },
+        {
+          group: "Action",
+          options: commands
+            .filter((cmd) => cmd.category === "Action")
+            .map((cmd) => ({
+              id: cmd.id,
+              title: cmd.label,
+              description: cmd.slash,
+            })),
+        },
+        {
+          group: "Layout",
+          options: commands
+            .filter((cmd) => cmd.category === "Layout")
+            .map((cmd) => ({
+              id: cmd.id,
+              title: cmd.label,
+              description: cmd.slash,
+            })),
+        },
+      ],
+      "",
+    );
+
+    expect(rows).toEqual([
+      { kind: "group", key: "group:Suggested", label: "Suggested" },
+      {
+        kind: "option",
+        key: "option:Suggested:Compare:toggle-compare",
+        group: "Suggested",
+        option: {
+          id: "toggle-compare",
+          title: "Compare",
+          description: "v",
+        },
+      },
+      {
+        kind: "option",
+        key: "option:Suggested:Refresh:refresh",
+        group: "Suggested",
+        option: {
+          id: "refresh",
+          title: "Refresh",
+          description: "r",
+        },
+      },
+      {
+        kind: "option",
+        key: "option:Suggested:Diff View:toggle-diff-view",
+        group: "Suggested",
+        option: {
+          id: "toggle-diff-view",
+          title: "Diff View",
+          description: "space",
+        },
+      },
+      { kind: "group", key: "group:View", label: "View" },
+      {
+        kind: "option",
+        key: "option:View:Compare:toggle-compare",
+        group: "View",
+        option: {
+          id: "toggle-compare",
+          title: "Compare",
+          description: "v",
+        },
+      },
+      {
+        kind: "option",
+        key: "option:View:Diff View:toggle-diff-view",
+        group: "View",
+        option: {
+          id: "toggle-diff-view",
+          title: "Diff View",
+          description: "space",
+        },
+      },
+      {
+        kind: "option",
+        key: "option:View:Exit Compare:exit-compare",
+        group: "View",
+        option: {
+          id: "exit-compare",
+          title: "Exit Compare",
+        },
+      },
+      { kind: "group", key: "group:Action", label: "Action" },
+      {
+        kind: "option",
+        key: "option:Action:Refresh:refresh",
+        group: "Action",
+        option: {
+          id: "refresh",
+          title: "Refresh",
+          description: "r",
+        },
+      },
+      {
+        kind: "option",
+        key: "option:Action:Stage:stage-file",
+        group: "Action",
+        option: {
+          id: "stage-file",
+          title: "Stage",
+          description: "s",
+        },
+      },
+      {
+        kind: "option",
+        key: "option:Action:Unstage:unstage-file",
+        group: "Action",
+        option: {
+          id: "unstage-file",
+          title: "Unstage",
+          description: "u",
+        },
+      },
+      {
+        kind: "option",
+        key: "option:Action:Discard:discard-file",
+        group: "Action",
+        option: {
+          id: "discard-file",
+          title: "Discard",
+          description: "x",
+        },
+      },
+      { kind: "group", key: "group:Layout", label: "Layout" },
+      {
+        kind: "option",
+        key: "option:Layout:Narrow Sidebar:shrink-sidebar",
+        group: "Layout",
+        option: {
+          id: "shrink-sidebar",
+          title: "Narrow Sidebar",
+          description: "[",
+        },
+      },
+      {
+        kind: "option",
+        key: "option:Layout:Wider Sidebar:grow-sidebar",
+        group: "Layout",
+        option: {
+          id: "grow-sidebar",
+          title: "Wider Sidebar",
+          description: "]",
+        },
+      },
+    ]);
   });
 });

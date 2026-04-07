@@ -1,8 +1,8 @@
-export * from "./types";
-export * from "./utils";
+export * from "./branch-picker";
 export * from "./file-item";
 export * from "./file-list";
-export * from "./branch-picker";
+export * from "./types";
+export * from "./utils";
 
 import type { FileSection, ViewMode } from "../../context/changes/state";
 import type { Theme } from "../../context/theme/provider";

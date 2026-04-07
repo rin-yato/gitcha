@@ -1,2 +1,2 @@
-export type { FsBackend } from "./types";
 export { bunFs } from "./bun";
+export type { FsBackend } from "./types";

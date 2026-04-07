@@ -4,81 +4,83 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Theme } from "../context/theme/provider";
 
-export interface DialogSelectOption<T = unknown> {
+export interface DialogSelectOption {
+  id: string;
   title: string;
-  value: T;
   description?: string;
-  group?: string;
 }
 
-export interface DialogSelectProps<T> {
+export interface DialogSelectOptionGroup {
+  group: string;
+  options: DialogSelectOption[];
+}
+
+export interface DialogSelectProps {
   theme: Theme;
   title: string;
   placeholder?: string;
-  options: DialogSelectOption<T>[];
-  onSelect: (option: DialogSelectOption<T>) => void;
+  options: DialogSelectOptionGroup[];
+  onSelect: (option: DialogSelectOption) => void;
   onClose?: () => void;
 }
 
-type VisibleRow<T> =
-  | {
-      kind: "group";
-      key: string;
-      label: string;
-    }
-  | {
-      kind: "option";
-      key: string;
-      group: string;
-      option: DialogSelectOption<T>;
-    };
+type VisibleRow =
+  | { kind: "group"; key: string; label: string }
+  | { kind: "option"; key: string; group: string; option: DialogSelectOption };
 
 function normalize(value: string) {
   return value.trim().toLowerCase();
 }
 
-function matchesFilter<T>(option: DialogSelectOption<T>, needle: string) {
+function matchesFilter(option: DialogSelectOption, needle: string) {
   if (!needle) return true;
 
   return (
     option.title.toLowerCase().includes(needle) ||
-    option.description?.toLowerCase().includes(needle) ||
-    option.group?.toLowerCase().includes(needle)
+    option.description?.toLowerCase().includes(needle)
   );
 }
 
-function scoreOption<T>(option: DialogSelectOption<T>, needle: string) {
+function scoreOption(option: DialogSelectOption, needle: string) {
   if (!needle) return 0;
 
   const title = option.title.toLowerCase();
   const description = option.description?.toLowerCase() ?? "";
-  const group = option.group?.toLowerCase() ?? "";
 
   if (title === needle) return 0;
   if (title.startsWith(needle)) return 1;
   if (title.includes(needle)) return 2;
   if (description.includes(needle)) return 3;
-  if (group.includes(needle)) return 4;
   return 10;
 }
 
-function buildVisibleRows<T>(options: DialogSelectOption<T>[], filter: string) {
+export function buildDialogSelectRows(optionGroups: DialogSelectOptionGroup[], filter: string) {
   const needle = normalize(filter);
-  const filtered = options
-    .filter((option) => matchesFilter(option, needle))
-    .map((option, index) => ({ option, index, score: scoreOption(option, needle) }))
+
+  const allOptionsWithGroup = optionGroups.flatMap(({ group, options }) =>
+    options.map((option) => ({ option, group: group ?? "" })),
+  );
+
+  const filtered = allOptionsWithGroup
+    .filter(({ option }) => matchesFilter(option, needle))
+    .map(({ option, group }, index) => ({
+      option,
+      group,
+      index,
+      score: scoreOption(option, needle),
+    }))
     .sort((a, b) => a.score - b.score || a.index - b.index);
 
-  const rows: VisibleRow<T>[] = [];
-  const groups = new Map<string, DialogSelectOption<T>[]>();
+  const rows: VisibleRow[] = [];
+  const groups = new Map<string, DialogSelectOption[]>();
 
-  for (const { option } of filtered) {
-    const group = option.group?.trim() || "";
-    const list = groups.get(group);
+  for (const { option, group } of filtered) {
+    const trimmedGroup = group?.trim() || "";
+    const list = groups.get(trimmedGroup);
     if (list) {
       list.push(option);
     } else {
-      groups.set(group, [option]);
+      groups.set(trimmedGroup, [option]);
     }
   }
 
@@ -90,7 +92,7 @@ function buildVisibleRows<T>(options: DialogSelectOption<T>[], filter: string) {
     for (const option of groupedOptions) {
       rows.push({
         kind: "option",
-        key: `option:${group}:${String(option.title)}:${String(option.value)}`,
+        key: `option:${group}:${option.title}:${option.id}`,
         group,
         option,
       });
@@ -100,7 +102,7 @@ function buildVisibleRows<T>(options: DialogSelectOption<T>[], filter: string) {
   return rows;
 }
 
-export function DialogSelect<T>(props: DialogSelectProps<T>) {
+export function DialogSelect(props: DialogSelectProps) {
   const [filter, setFilter] = useState("");
   const [activeKey, setActiveKey] = useState<string | null>(null);
 
@@ -110,12 +112,15 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   onSelectRef.current = props.onSelect;
   onCloseRef.current = props.onClose;
 
-  const rows = useMemo(() => buildVisibleRows(props.options, filter), [props.options, filter]);
+  const rows = useMemo(
+    () => buildDialogSelectRows(props.options, filter),
+    [props.options, filter],
+  );
 
   const optionRows = useMemo(
     () =>
       rows.filter(
-        (row): row is Extract<VisibleRow<T>, { kind: "option" }> => row.kind === "option",
+        (row): row is Extract<VisibleRow, { kind: "option" }> => row.kind === "option",
       ),
     [rows],
   );
@@ -135,12 +140,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
     });
   }, [optionRows]);
 
-  const activeIndex = useMemo(
-    () => optionRows.findIndex((row) => row.key === activeKey),
-    [activeKey, optionRows],
-  );
-
-  const activeOption = activeIndex >= 0 ? optionRows[activeIndex]?.option : undefined;
+  const activeOption = optionRows.find((row) => row.key === activeKey)?.option;
 
   const moveSelection = useCallback(
     (delta: number) => {
@@ -177,12 +177,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
     }
   });
 
-  const handleInput = useCallback((value: string) => {
-    setFilter(value);
-  }, []);
-
-  const handleOptionClick = useCallback((row: Extract<VisibleRow<T>, { kind: "option" }>) => {
-    setActiveKey(row.key);
+  const handleOptionClick = useCallback((row: Extract<VisibleRow, { kind: "option" }>) => {
     onSelectRef.current(row.option);
   }, []);
 
@@ -204,23 +199,24 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
         <box paddingTop={0}>
           <input
             value={filter}
-            onInput={handleInput}
+            onInput={setFilter}
             placeholder={props.placeholder ?? "Search..."}
             focused
             backgroundColor={props.theme.surface}
             textColor={props.theme.text}
+            cursorColor={props.theme.accent}
             placeholderColor={props.theme.textMuted}
           />
         </box>
       </box>
 
       {optionRows.length > 0 ? (
-        <box flexDirection="column" maxHeight={16}>
+        <scrollbox scrollbarOptions={{ visible: false }} flexGrow={1}>
           {rows.map((row) => {
             if (row.kind === "group") {
               return (
-                <box key={row.key} paddingTop={1} paddingLeft={4} paddingBottom={1}>
-                  <text fg={props.theme.textMuted} attributes={1} selectable={false}>
+                <box key={row.key} paddingTop={1} paddingLeft={4}>
+                  <text fg={props.theme.accent} attributes={1} selectable={false}>
                     {row.label}
                   </text>
                 </box>
@@ -239,32 +235,27 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                 paddingRight={4}
                 onMouseUp={() => handleOptionClick(row)}
               >
-                <box flexDirection="row" justifyContent="space-between" flexGrow={1}>
-                  <box flexDirection="row" flexGrow={1}>
-                    <text
-                      fg={isActive ? props.theme.background : props.theme.text}
-                      attributes={1}
-                      selectable={false}
-                      overflow="hidden"
-                    >
-                      {row.option.title}
-                    </text>
-                  </box>
+                <text
+                  fg={isActive ? props.theme.background : props.theme.text}
+                  selectable={false}
+                  overflow="hidden"
+                >
+                  {row.option.title}
+                </text>
 
-                  {row.option.description ? (
-                    <text
-                      fg={isActive ? props.theme.background : props.theme.textMuted}
-                      selectable={false}
-                      overflow="hidden"
-                    >
-                      {row.option.description}
-                    </text>
-                  ) : null}
-                </box>
+                {row.option.description ? (
+                  <text
+                    fg={isActive ? props.theme.background : props.theme.textMuted}
+                    selectable={false}
+                    overflow="hidden"
+                  >
+                    {row.option.description}
+                  </text>
+                ) : null}
               </box>
             );
           })}
-        </box>
+        </scrollbox>
       ) : (
         <box paddingLeft={4} paddingRight={4} paddingTop={1}>
           <text fg={props.theme.textMuted} selectable={false}>
