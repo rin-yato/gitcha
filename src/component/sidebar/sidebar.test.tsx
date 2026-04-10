@@ -33,11 +33,7 @@ const cleanStatus: GitRepoStatus = {
 
 const baseProps = {
   viewMode: "staging" as const,
-  branchPickerOpen: false,
-  branches: [] as string[],
-  currentBranch: null as string | null,
   compareState: null,
-  selectCompareBranch: () => {},
 };
 
 let testSetup: Awaited<ReturnType<typeof testRender>> | null = null;
@@ -116,8 +112,6 @@ test("sidebar shows compare mode header", async () => {
       status: cleanStatus,
       error: null,
       viewMode: "compare",
-      branches: ["main", "feature"],
-      currentBranch: "feature",
       compareState: {
         baseRef: "main",
         baseLabel: "main",
@@ -134,31 +128,6 @@ test("sidebar shows compare mode header", async () => {
   const output = JSON.stringify(testSetup.captureSpans().lines);
   expect(output).toContain("Compare");
   expect(output).toContain("Changes");
-});
-
-test("branch picker shows when branchPickerOpen is true", async () => {
-  testSetup = await testRender(
-    renderSidebar({
-      status: cleanStatus,
-      error: null,
-      viewMode: "compare",
-      branchPickerOpen: true,
-      branches: ["main", "develop", "feature"],
-      currentBranch: "feature",
-      compareState: null,
-    }),
-    { width: 80, height: 24 },
-  );
-
-  await act(async () => {
-    await testSetup?.renderOnce();
-  });
-
-  const output = JSON.stringify(testSetup.captureSpans().lines);
-  expect(output).toContain("main");
-  expect(output).toContain("develop");
-  expect(output).toContain("feature");
-  expect(output).toContain("current");
 });
 
 test("sidebar shows error message", async () => {
