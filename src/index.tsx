@@ -196,8 +196,12 @@ function App() {
     if (event.name === "]") app.growSidebar();
 
     // Exit
-    if (event.name === "escape" && app.viewMode === "compare") {
-      app.exitCompareMode();
+    if (event.name === "escape") {
+      if (app.viewMode === "compare") {
+        app.exitCompareMode();
+      } else {
+        renderer.destroy();
+      }
     }
   });
 
