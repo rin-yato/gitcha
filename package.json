@@ -1,10 +1,10 @@
 {
-  "name": "sourcery",
+  "name": "changes",
   "version": "0.1.0",
   "description": "A terminal UI for reviewing code changes with syntax highlighting",
   "type": "module",
   "bin": {
-    "sourcery": "dist/sourcery"
+    "changes": "dist/changes"
   },
   "files": [
     "dist"

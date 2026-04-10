@@ -54,7 +54,7 @@ To provide a feature-rich, keyboard-centric Git workflow with an easy-to-underst
 bun run build
 ```
 
-This generates a compiled macOS binary in `dist/sourcery` using Bun compile and the OpenTUI Solid Bun plugin.
+This generates a compiled macOS binary in `dist/changes` using Bun compile and the OpenTUI Solid Bun plugin.
 
 ### Install on macOS
 
@@ -62,7 +62,7 @@ This generates a compiled macOS binary in `dist/sourcery` using Bun compile and 
 bun run install:local
 ```
 
-By default, this installs the compiled binary to `~/.local/bin/sourcery`. Set `PREFIX` to change the install location.
+By default, this installs the compiled binary to `~/.local/bin/changes`. Set `PREFIX` to change the install location.
 
 ## 📁 Project Structure
 
