@@ -196,12 +196,8 @@ function App() {
     if (event.name === "]") app.growSidebar();
 
     // Exit
-    if (event.name === "escape") {
-      if (app.viewMode === "compare") {
-        app.exitCompareMode();
-      } else {
-        renderer.destroy();
-      }
+    if (event.name === "escape" && app.viewMode === "compare") {
+      app.exitCompareMode();
     }
   });
 
@@ -239,7 +235,16 @@ function App() {
   );
 }
 
-const renderer = await createCliRenderer();
+const renderer = await createCliRenderer({
+  exitOnCtrlC: false,
+  autoFocus: false,
+  externalOutputMode: "passthrough",
+  gatherStats: false,
+  maxFps: 60,
+  onDestroy: () => {
+    process.exit(0);
+  },
+});
 
 renderer.keyInput.on("keypress", (key) => {
   // Toggle with backtick key
@@ -255,6 +260,11 @@ renderer.keyInput.on("keypress", (key) => {
   // handle copy selection
   if (key.name === "y" && key.ctrl) {
     renderer.copyToClipboardOSC52(renderer.getSelection()?.getSelectedText() ?? "");
+  }
+
+  if (key.name === "c" && key.ctrl) {
+    renderer.destroy();
+    process.exit(0);
   }
 });
 
