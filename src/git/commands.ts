@@ -271,28 +271,26 @@ export async function getCompareTarget(cwd?: string): Promise<CompareTarget | nu
  * Parse "XY path" or "XY\0path" lines from git diff --name-status
  */
 function parseDiffNameStatusLine(line: string): { path: string; status: string } | null {
-  if (!line || line.length < 3) return null;
-  const indexStatus = line[0] ?? "";
-  const workingTreeStatus = line[1] ?? "";
-  const rest = line.slice(2).trimStart();
+  if (!line || line.length < 2) return null;
+  const status = line[0] ?? "";
+  const rest = line.slice(1).trimStart();
 
   if (!rest) return null;
 
   // Handle renames: "R100\told -> new"
-  if (indexStatus === "R" || indexStatus === "C") {
-    const arrowIndex = rest.indexOf("\t");
+  if (status === "R" || status === "C") {
+    const arrowIndex = rest.indexOf(" -> ");
     if (arrowIndex !== -1) {
-      const afterTab = rest.slice(arrowIndex + 1);
-      const arrow = afterTab.indexOf(" -> ");
-      if (arrow !== -1) {
-        return { path: afterTab.slice(arrow + 4), status: workingTreeStatus || " " };
+      const afterArrow = rest.slice(arrowIndex + 4);
+      if (afterArrow) {
+        return { path: afterArrow, status };
       }
     }
   }
 
   // Strip leading tab from name-status output
   const path = rest.startsWith("\t") ? rest.slice(1) : rest;
-  return { path, status: workingTreeStatus || indexStatus || " " };
+  return { path, status: status || " " };
 }
 
 /**
