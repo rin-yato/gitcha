@@ -13,7 +13,7 @@ import {
 import { describe, expect, test } from "bun:test";
 
 async function createRepo() {
-  const dir = mkdtempSync(join(tmpdir(), "sourcery-git-"));
+  const dir = mkdtempSync(join(tmpdir(), "changes-git-"));
   await execGit(["init", "-b", "master"], { cwd: dir });
   await execGit(["config", "user.email", "test@example.com"], { cwd: dir });
   await execGit(["config", "user.name", "Test User"], { cwd: dir });
@@ -59,7 +59,7 @@ describe("default compare target", () => {
 
 describe("root fallback", () => {
   test("returns the first commit when there are no other local branches", async () => {
-    const repo = mkdtempSync(join(tmpdir(), "sourcery-root-"));
+    const repo = mkdtempSync(join(tmpdir(), "changes-root-"));
     await execGit(["init", "-b", "master"], { cwd: repo });
     await execGit(["config", "user.email", "test@example.com"], { cwd: repo });
     await execGit(["config", "user.name", "Test User"], { cwd: repo });

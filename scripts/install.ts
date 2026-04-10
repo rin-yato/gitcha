@@ -1,7 +1,7 @@
 import { chmod, copyFile, mkdir } from "node:fs/promises";
 
-const binName = "sourcery";
-const sourceBin = "dist/sourcery";
+const binName = "changes";
+const sourceBin = "dist/changes";
 const prefix = process.env.PREFIX ?? `${process.env.HOME}/.local`;
 const installDir = `${prefix}/bin`;
 const targetBin = `${installDir}/${binName}`;

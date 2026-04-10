@@ -14,7 +14,7 @@ const result = await Bun.build({
   target: "bun",
   compile: {
     target: compileTarget,
-    outfile: "dist/sourcery",
+    outfile: "dist/changes",
     execArgv: ["--"],
   },
   entrypoints: ["./src/index.tsx", parserWorker],
@@ -31,4 +31,4 @@ if (!result.success) {
   process.exit(1);
 }
 
-console.log("Built dist/sourcery");
+console.log("Built dist/changes");

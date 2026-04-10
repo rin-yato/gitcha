@@ -1,4 +1,4 @@
-# Sourcery AGENTS.md
+# Changes AGENTS.md
 
 ## Dev Commands
 
@@ -6,8 +6,8 @@
 bun test             # Bun test runner (USE THIS to verify changes)
 bun run ci           # biome check && tsc --noEmit
 bun run fix          # biome check --write --unsafe
-bun run build        # Compiles to dist/sourcery (Bun compile)
-bun run install      # Builds if needed, installs to ~/.local/bin/sourcery
+bun run build        # Compiles to dist/changes (Bun compile)
+bun run install      # Builds if needed, installs to ~/.local/bin/changes
 ```
 
 **Never run `bun run dev` or `bun run dev:git`** — these start interactive TUI apps that will block. If you need 
