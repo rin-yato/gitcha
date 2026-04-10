@@ -1,4 +1,3 @@
-export * from "./branch-picker";
 export * from "./file-item";
 export * from "./file-list";
 export * from "./types";
@@ -7,7 +6,6 @@ export * from "./utils";
 import type { FileSection, ViewMode } from "../../context/changes/state";
 import type { Theme } from "../../context/theme/provider";
 import type { CompareState, GitRepoStatus, GitStatusFile } from "../../git";
-import { BranchPicker } from "./branch-picker";
 import { FileList } from "./file-list";
 
 // ---------------------------------------------------------------------------
@@ -22,11 +20,7 @@ export type SidebarProps = {
   focusedFileKey: string | null;
   selectFile: (path: string, section: FileSection) => void;
   viewMode: ViewMode;
-  branchPickerOpen: boolean;
-  branches: string[];
-  currentBranch: string | null;
   compareState: CompareState | null;
-  selectCompareBranch: (target: { ref: string; label: string }) => void;
   width: number;
 };
 
@@ -109,11 +103,7 @@ export function Sidebar(props: SidebarProps) {
     focusedFileKey,
     selectFile,
     viewMode,
-    branchPickerOpen,
-    branches,
-    currentBranch,
     compareState,
-    selectCompareBranch,
     width,
   } = props;
 
@@ -126,73 +116,64 @@ export function Sidebar(props: SidebarProps) {
     <box backgroundColor={theme.surface} width={width} flexDirection="column" paddingY={1}>
       <Header viewMode={viewMode} baseLabel={compareState?.baseLabel ?? null} theme={theme} />
 
-      {error ? <ErrorMessage error={error} theme={theme} /> : null}
+      <scrollbox>
+        {error ? <ErrorMessage error={error} theme={theme} /> : null}
 
-      {/* Branch picker mode */}
-      {viewMode === "compare" && branchPickerOpen ? (
-        <BranchPicker
-          branches={branches}
-          currentBranch={currentBranch}
-          selectedBranch={compareState?.baseRef ?? null}
-          onSelectBranch={(branch) => selectCompareBranch({ ref: branch, label: branch })}
-          theme={theme}
-        />
-      ) : null}
-
-      {/* Compare file list */}
-      {viewMode === "compare" && !branchPickerOpen ? (
-        compareFiles.length > 0 ? (
-          <FileList
-            title="Changes"
-            count={compareFiles.length}
-            countColor={theme.modified}
-            files={compareFiles}
-            section="compare"
-            focusedFileKey={focusedFileKey}
-            selectedFileKey={selectedFileKey}
-            onSelectFile={selectFile}
-            theme={theme}
-          />
-        ) : (
-          <EmptyState
-            viewMode="compare"
-            baseLabel={compareState?.baseLabel ?? null}
-            theme={theme}
-          />
-        )
-      ) : null}
-
-      {/* Staging view */}
-      {viewMode === "staging" ? (
-        isEmpty ? (
-          <EmptyState viewMode="staging" baseLabel={null} theme={theme} />
-        ) : (
-          <>
-            <FileList
-              title="Staged"
-              count={staged.length}
-              countColor={theme.added}
-              files={staged}
-              section="staged"
-              focusedFileKey={focusedFileKey}
-              selectedFileKey={selectedFileKey}
-              onSelectFile={selectFile}
-              theme={theme}
-            />
+        {/* Compare file list */}
+        {viewMode === "compare" ? (
+          compareFiles.length > 0 ? (
             <FileList
               title="Changes"
-              count={changes.length}
+              count={compareFiles.length}
               countColor={theme.modified}
-              files={changes}
-              section="changes"
+              files={compareFiles}
+              section="compare"
               focusedFileKey={focusedFileKey}
               selectedFileKey={selectedFileKey}
               onSelectFile={selectFile}
               theme={theme}
             />
-          </>
-        )
-      ) : null}
+          ) : (
+            <EmptyState
+              viewMode="compare"
+              baseLabel={compareState?.baseLabel ?? null}
+              theme={theme}
+            />
+          )
+        ) : null}
+
+        {/* Staging view */}
+        {viewMode === "staging" ? (
+          isEmpty ? (
+            <EmptyState viewMode="staging" baseLabel={null} theme={theme} />
+          ) : (
+            <>
+              <FileList
+                title="Staged"
+                count={staged.length}
+                countColor={theme.added}
+                files={staged}
+                section="staged"
+                focusedFileKey={focusedFileKey}
+                selectedFileKey={selectedFileKey}
+                onSelectFile={selectFile}
+                theme={theme}
+              />
+              <FileList
+                title="Changes"
+                count={changes.length}
+                countColor={theme.modified}
+                files={changes}
+                section="changes"
+                focusedFileKey={focusedFileKey}
+                selectedFileKey={selectedFileKey}
+                onSelectFile={selectFile}
+                theme={theme}
+              />
+            </>
+          )
+        ) : null}
+      </scrollbox>
     </box>
   );
 }

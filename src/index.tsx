@@ -6,6 +6,7 @@ import { useCallback } from "react";
 
 import type { CommandOption } from "./component/dialog-command";
 import { DialogCommand } from "./component/dialog-command";
+import { CompareBranchDialog } from "./component/dialog-compare-branch";
 import { DiffPane } from "./component/diff-pane";
 import { Sidebar } from "./component/sidebar/index";
 import { createFakeGitClient } from "./context/changes/fake-client";
@@ -30,7 +31,7 @@ function App() {
         label: "Compare",
         category: "View",
         slash: "v",
-        run: () => app.toggleViewMode(),
+        run: () => showCompareBranchDialog(),
       },
       {
         id: "refresh",
@@ -126,6 +127,34 @@ function App() {
     );
   }, [app, git, theme, dialog]);
 
+  const showCompareBranchDialog = useCallback(() => {
+    dialog.replace(
+      <CompareBranchDialog
+        theme={theme}
+        branches={git.branches}
+        currentBranch={git.status?.branch ?? null}
+        defaultCompareTarget={
+          git.compareState?.baseRef
+            ? { ref: git.compareState.baseRef, label: git.compareState.baseLabel }
+            : git.defaultCompareTarget
+        }
+        onSelect={(target) => {
+          dialog.clear();
+          app.enterCompareMode(target);
+        }}
+        onClose={() => dialog.clear()}
+      />,
+    );
+  }, [
+    dialog,
+    theme,
+    git.branches,
+    git.status?.branch,
+    git.compareState,
+    git.defaultCompareTarget,
+    app,
+  ]);
+
   useKeyboard((event) => {
     // Don't handle if dialog is open
     if (dialog.stack.length > 0) return;
@@ -152,8 +181,10 @@ function App() {
       }
     }
 
-    // View mode
-    if (event.name === "v") app.toggleViewMode();
+    // View mode - always open dialog to select compare branch
+    if (event.name === "v") {
+      showCompareBranchDialog();
+    }
 
     // File actions
     if (event.name === "s") app.stageSelectedFile();
@@ -190,11 +221,7 @@ function App() {
         focusedFileKey={app.focusedFileKey}
         selectFile={app.selectFile}
         viewMode={app.viewMode}
-        branchPickerOpen={app.branchPickerOpen}
-        branches={git.branches}
-        currentBranch={git.status?.branch ?? null}
         compareState={git.compareState}
-        selectCompareBranch={app.selectCompareBranch}
         width={app.sidebarWidth}
       />
 

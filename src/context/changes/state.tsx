@@ -47,9 +47,7 @@ export type ReviewState = {
   toggleDiffViewMode: () => void;
   // View mode (staging vs compare)
   viewMode: ViewMode;
-  branchPickerOpen: boolean;
-  toggleViewMode: () => void;
-  enterCompareMode: () => void;
+  enterCompareMode: (target: CompareTarget) => void;
   exitCompareMode: () => void;
   selectCompareBranch: (target: CompareTarget) => void;
   // File actions
@@ -158,7 +156,6 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
   const [focusedRowIndex, setFocusedRowIndex] = useState(0);
   const [diffViewMode, setDiffViewMode] = useState<DiffViewMode>("unified");
   const [viewMode, setViewMode] = useState<ViewMode>("staging");
-  const [branchPickerOpen, setBranchPickerOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(40);
   const scrollPositionsRef = useRef(new Map<string, number>());
   const hasInitializedRef = useRef(false);
@@ -253,52 +250,38 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
   }, [focusRow, focusedRowIndex]);
 
   // -- view mode actions --
-  const enterCompareMode = useCallback(() => {
-    setViewMode("compare");
-    setBranchPickerOpen(false);
-    setSelectedFile(null);
-    setSelectedFileSection(null);
-    setDiffContent(null);
-    setFocusedRowIndex(0);
-  }, []);
+  const enterCompareMode = useCallback(
+    (target: CompareTarget) => {
+      git.startCompare(target).then((nextState) => {
+        setViewMode("compare");
+        setSelectedFile(null);
+        setSelectedFileSection(null);
+        setDiffContent(null);
+        setFocusedRowIndex(0);
+        if (nextState?.files[0]) {
+          const first = nextState.files[0];
+          setSelectedFile(first.path);
+          setSelectedFileSection("compare");
+          setFocusedRowIndex(0);
+          loadDiff(first, "compare");
+        }
+      });
+    },
+    [git, loadDiff],
+  );
 
   const exitCompareMode = useCallback(() => {
     git.stopCompare();
     setViewMode("staging");
-    setBranchPickerOpen(false);
     setSelectedFile(null);
     setSelectedFileSection(null);
     setDiffContent(null);
     setFocusedRowIndex(0);
   }, [git]);
 
-  const toggleViewMode = useCallback(() => {
-    if (viewMode === "staging") {
-      const target = git.defaultCompareTarget;
-      if (target) {
-        git.startCompare(target).then((nextState) => {
-          if (nextState?.files[0]) {
-            const first = nextState.files[0];
-            if (first) {
-              setSelectedFile(first.path);
-              setSelectedFileSection("compare");
-              setFocusedRowIndex(0);
-              loadDiff(first, "compare");
-            }
-          }
-        });
-      }
-      setViewMode("compare");
-      setBranchPickerOpen(false);
-    } else {
-      setBranchPickerOpen((open) => !open);
-    }
-  }, [viewMode, git, loadDiff]);
-
   const selectCompareBranch = useCallback(
     (target: CompareTarget) => {
       git.startCompare(target).then((nextState) => {
-        setBranchPickerOpen(false);
         const first = nextState?.files[0];
         if (first) {
           setSelectedFile(first.path);
@@ -380,8 +363,6 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
       diffViewMode,
       toggleDiffViewMode,
       viewMode,
-      branchPickerOpen,
-      toggleViewMode,
       enterCompareMode,
       exitCompareMode,
       selectCompareBranch,
@@ -411,8 +392,6 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
       focusedFile,
       diffViewMode,
       viewMode,
-      branchPickerOpen,
-      toggleViewMode,
       enterCompareMode,
       exitCompareMode,
       selectCompareBranch,

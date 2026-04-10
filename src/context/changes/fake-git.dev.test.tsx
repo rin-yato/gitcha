@@ -12,13 +12,13 @@ import { afterEach, describe, expect, test } from "bun:test";
 function Probe() {
   const app = useReviewState();
   const git = useReviewSession();
-  const toggledRef = useRef(false);
+  const enteredRef = useRef(false);
 
   useEffect(() => {
-    if (toggledRef.current) return;
+    if (enteredRef.current) return;
     if (!git.defaultCompareTarget) return;
-    toggledRef.current = true;
-    app.toggleViewMode();
+    enteredRef.current = true;
+    app.enterCompareMode(git.defaultCompareTarget);
   }, [app, git.defaultCompareTarget]);
 
   return (

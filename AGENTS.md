@@ -10,7 +10,9 @@ bun run build        # Compiles to dist/sourcery (Bun compile)
 bun run install      # Builds if needed, installs to ~/.local/bin/sourcery
 ```
 
-**Never run `bun run dev` or `bun run dev:git`** — these start interactive TUI apps that will block.
+**Never run `bun run dev` or `bun run dev:git`** — these start interactive TUI apps that will block. If you need 
+to see the current state, or test an issue/bug, you need to run the test command. If no test is suitable for your investigation
+that mean our test case isn't good enough. You should first add the test to verify what you expect and run them.
 
 ## Key Quirks
 
@@ -23,10 +25,3 @@ bun run install      # Builds if needed, installs to ~/.local/bin/sourcery
 
 `@/*` → `./src/*`
 
-## Entry Point
-
-`src/index.tsx` — has `#!/usr/bin/env bun` shebang, used as both CLI entry and React root.
-
-## Binary
-
-Output: `dist/sourcery`. Installed as `sourcery` command via `bun run install`.
