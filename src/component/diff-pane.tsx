@@ -1,9 +1,8 @@
-import type { ScrollBoxRenderable } from "@opentui/core";
+import type { DiffRenderable, ScrollBoxRenderable } from "@opentui/core";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import type { DiffViewMode } from "../context/changes/state";
-import { useReviewState } from "../context/changes/state";
 import type { Theme } from "../context/theme/provider";
 import { createSyntaxStyle, detectFiletype, treeSitterClient } from "../context/theme/syntax";
 import { computeScrollbarMarkers, parseDiffPositions } from "../git/diff";
@@ -17,41 +16,15 @@ type FileDiffViewProps = {
   syntaxStyle: ReturnType<typeof createSyntaxStyle>;
 };
 
-type ScrollableRenderable = {
-  scrollY: number;
-};
-
-type DiffRenderableLike = {
-  scrollY?: number;
-  findDescendantById?: (id: string) => ScrollableRenderable | undefined;
-};
-
 const SCROLLBAR_WIDTH = 1;
 
 function DiffRenderablePane(props: FileDiffViewProps) {
-  const app = useReviewState();
-  const diffRenderableRef = useRef<DiffRenderableLike | null>(null);
+  const diffRenderableRef = useRef<DiffRenderable | null>(null);
   const scrollboxRef = useRef<ScrollBoxRenderable | null>(null);
+
   const [scrollTop, setScrollTop] = useState(0);
-  const [viewportHeight, setViewportHeight] = useState(30);
-  const [scrollHeight, setScrollHeight] = useState(30);
-
-  const getScrollTargetRaw = () => {
-    const diffRenderable = diffRenderableRef.current;
-    if (!diffRenderable) return null;
-
-    if (typeof diffRenderable.scrollY === "number") {
-      return diffRenderable;
-    }
-
-    return (
-      diffRenderable.findDescendantById?.(`${props.fileKey}-left-code`) ??
-      diffRenderable.findDescendantById?.(`${props.fileKey}-right-code`) ??
-      null
-    );
-  };
-
-  const getScrollTarget = () => getScrollTargetRaw();
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const [scrollHeight, setScrollHeight] = useState(0);
 
   const changeInfo = useMemo(() => {
     if (!props.diffContent) return null;
@@ -60,8 +33,8 @@ function DiffRenderablePane(props: FileDiffViewProps) {
 
   const markers = useMemo(() => {
     if (!changeInfo) return [];
-    return computeScrollbarMarkers(changeInfo, scrollHeight);
-  }, [changeInfo, scrollHeight]);
+    return computeScrollbarMarkers(changeInfo, changeInfo.totalUnifiedLines);
+  }, [changeInfo]);
 
   const thumbHeight = useMemo(() => {
     if (scrollHeight === 0) return viewportHeight;
@@ -76,40 +49,12 @@ function DiffRenderablePane(props: FileDiffViewProps) {
     return Math.round(ratio * (viewportHeight - thumbHeight));
   }, [scrollTop, scrollHeight, viewportHeight, thumbHeight]);
 
-  useEffect(() => {
-    const target = getScrollTarget();
-    if (target) {
-      target.scrollY = app.getScrollPosition(props.fileKey);
-    }
-  }, [app, props.fileKey, props.diffContent]);
-
-  useEffect(() => {
-    if (!scrollboxRef.current) return;
-    setScrollHeight(scrollboxRef.current.scrollHeight);
-    const viewportBox = scrollboxRef.current.viewport;
-    if (viewportBox) {
-      const height = viewportBox.height;
-      if (typeof height === "number" && height > 0) {
-        setViewportHeight(height);
-      }
-    }
-  }, [props.diffContent]);
-
   return (
     <box flexGrow={1} flexDirection="row">
       <scrollbox
+        viewportCulling
         ref={scrollboxRef}
-        flexGrow={1}
         style={{
-          rootOptions: {
-            backgroundColor: props.theme.background,
-          },
-          viewportOptions: {
-            backgroundColor: props.theme.background,
-          },
-          contentOptions: {
-            backgroundColor: props.theme.background,
-          },
           scrollbarOptions: {
             visible: false,
           },
@@ -118,13 +63,19 @@ function DiffRenderablePane(props: FileDiffViewProps) {
           if (!scrollboxRef.current) return;
           setScrollTop(scrollboxRef.current.scrollTop);
         }}
+        onSizeChange={() => {
+          if (!scrollboxRef.current) return;
+          setViewportHeight(scrollboxRef.current.height);
+        }}
       >
         <diff
-          key={props.fileKey}
           id={props.fileKey}
+          key={props.fileKey}
           syncScroll={true}
-          ref={(el) => {
-            diffRenderableRef.current = el as DiffRenderableLike | null;
+          ref={diffRenderableRef}
+          onSizeChange={() => {
+            if (!diffRenderableRef.current) return;
+            setScrollHeight(diffRenderableRef.current.height);
           }}
           diff={props.diffContent}
           view={props.viewMode}
@@ -149,6 +100,7 @@ function DiffRenderablePane(props: FileDiffViewProps) {
           removedLineNumberBg={`${props.theme.removed}16`}
         />
       </scrollbox>
+
       <box
         width={SCROLLBAR_WIDTH}
         backgroundColor={`${props.theme.surface}40`}

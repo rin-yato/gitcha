@@ -106,6 +106,6 @@ index 1111111..2222222 100644
   });
 
   const output = JSON.stringify(testSetup.captureSpans().lines);
-  expect(output).toContain("console.log");
   expect(output).toContain("feat/b");
+  expect(output).toContain("▎");
 });

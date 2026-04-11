@@ -116,7 +116,7 @@ export function Sidebar(props: SidebarProps) {
     <box backgroundColor={theme.surface} width={width} flexDirection="column" paddingY={1}>
       <Header viewMode={viewMode} baseLabel={compareState?.baseLabel ?? null} theme={theme} />
 
-      <scrollbox>
+      <scrollbox viewportCulling>
         {error ? <ErrorMessage error={error} theme={theme} /> : null}
 
         {/* Compare file list */}

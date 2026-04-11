@@ -64,8 +64,8 @@ export function parseDiffPositions(diff: string): DiffChangeMap {
     if (line.startsWith("@@")) {
       const header = parseHunkHeader(line);
       if (header) {
-        currentOldLine = header.oldStart;
-        currentNewLine = header.newStart;
+        currentOldLine = header.oldStart - 1;
+        currentNewLine = header.newStart - 1;
       }
     } else if (line.startsWith("+") && !line.startsWith("+++")) {
       unifiedLine++;
