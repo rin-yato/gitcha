@@ -150,8 +150,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
   const git = useReviewSession();
 
   // -- state --
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [selectedFileSection, setSelectedFileSection] = useState<FileSection | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [diffContent, setDiffContent] = useState<string | null>(null);
   const [focusedRowIndex, setFocusedRowIndex] = useState(0);
   const [diffViewMode, setDiffViewMode] = useState<DiffViewMode>("unified");
@@ -184,6 +183,29 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
     [files, focusedRowIndex, stagedCount, viewMode],
   );
 
+  const selectedFile = useMemo(
+    () => (selectedIndex !== null ? (files[selectedIndex]?.path ?? null) : null),
+    [files, selectedIndex],
+  );
+
+  const selectedFileSection = useMemo(
+    () =>
+      selectedIndex !== null
+        ? viewMode === "compare"
+          ? "compare"
+          : sectionForIndex(selectedIndex, stagedCount)
+        : null,
+    [selectedIndex, stagedCount, viewMode],
+  );
+
+  const selectedFileKey = useMemo(
+    () =>
+      selectedIndex !== null && selectedFile && selectedFileSection
+        ? buildFileKey(selectedFileSection, selectedFile)
+        : null,
+    [selectedIndex, selectedFile, selectedFileSection],
+  );
+
   // -- file loading --
   const loadDiff = useCallback(
     (file: GitStatusFile, section: FileSection | null) => {
@@ -211,10 +233,9 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
   // -- selection actions --
   const selectFile = useCallback(
     (path: string, section: FileSection = "changes") => {
-      setSelectedFile(path);
-      setSelectedFileSection(section);
       const idx = indexOfFileInSection(files, path, section, stagedCount, viewMode);
       if (idx !== -1) {
+        setSelectedIndex(idx);
         setFocusedRowIndex(idx);
         const file = files[idx];
         if (file) loadDiff(file, section);
@@ -226,44 +247,43 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
   const focusRow = useCallback(
     (nextIndex: number) => {
       const clamped = clampIndex(nextIndex, files.length);
-      const file = fileAtIndex(files, clamped);
-      const section =
-        viewMode === "compare" ? "compare" : sectionForIndex(clamped, stagedCount);
-
       setFocusedRowIndex(clamped);
-
-      if (file && section) {
-        setSelectedFile(file.path);
-        setSelectedFileSection(section);
-        loadDiff(file, section);
-      }
     },
-    [files, stagedCount, viewMode, loadDiff],
+    [files.length],
   );
 
   const focusPreviousRow = useCallback(() => {
-    focusRow(focusedRowIndex - 1);
-  }, [focusRow, focusedRowIndex]);
+    const nextIndex = clampIndex(focusedRowIndex - 1, files.length);
+    setFocusedRowIndex(nextIndex);
+    setSelectedIndex(nextIndex);
+    const file = files[nextIndex];
+    const section =
+      viewMode === "compare" ? "compare" : sectionForIndex(nextIndex, stagedCount);
+    if (file) loadDiff(file, section);
+  }, [focusedRowIndex, files, stagedCount, viewMode, loadDiff]);
 
   const focusNextRow = useCallback(() => {
-    focusRow(focusedRowIndex + 1);
-  }, [focusRow, focusedRowIndex]);
+    const nextIndex = clampIndex(focusedRowIndex + 1, files.length);
+    setFocusedRowIndex(nextIndex);
+    setSelectedIndex(nextIndex);
+    const file = files[nextIndex];
+    const section =
+      viewMode === "compare" ? "compare" : sectionForIndex(nextIndex, stagedCount);
+    if (file) loadDiff(file, section);
+  }, [focusedRowIndex, files, stagedCount, viewMode, loadDiff]);
 
   // -- view mode actions --
   const enterCompareMode = useCallback(
     (target: CompareTarget) => {
       git.startCompare(target).then((nextState) => {
         setViewMode("compare");
-        setSelectedFile(null);
-        setSelectedFileSection(null);
+        setSelectedIndex(null);
         setDiffContent(null);
         setFocusedRowIndex(0);
         if (nextState?.files[0]) {
-          const first = nextState.files[0];
-          setSelectedFile(first.path);
-          setSelectedFileSection("compare");
+          setSelectedIndex(0);
           setFocusedRowIndex(0);
-          loadDiff(first, "compare");
+          loadDiff(nextState.files[0], "compare");
         }
       });
     },
@@ -273,8 +293,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
   const exitCompareMode = useCallback(() => {
     git.stopCompare();
     setViewMode("staging");
-    setSelectedFile(null);
-    setSelectedFileSection(null);
+    setSelectedIndex(null);
     setDiffContent(null);
     setFocusedRowIndex(0);
   }, [git]);
@@ -284,8 +303,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
       git.startCompare(target).then((nextState) => {
         const first = nextState?.files[0];
         if (first) {
-          setSelectedFile(first.path);
-          setSelectedFileSection("compare");
+          setSelectedIndex(0);
           setFocusedRowIndex(0);
           loadDiff(first, "compare");
         }
@@ -318,40 +336,29 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
 
     const first = firstAvailableFile(status);
     if (first) {
-      setSelectedFile(first.path);
-      setSelectedFileSection(first.section);
-      setFocusedRowIndex(0);
-      loadDiff({ path: first.path } as GitStatusFile, first.section);
+      const idx = indexOfFileInSection(files, first.path, first.section, stagedCount, viewMode);
+      if (idx !== -1) {
+        setSelectedIndex(idx);
+        setFocusedRowIndex(idx);
+        loadDiff({ path: first.path } as GitStatusFile, first.section);
+      }
     }
-  }, [files.length, status, loadDiff]);
+  }, [files.length, status, loadDiff, files, stagedCount, viewMode]);
 
   // Handle empty state: clear selection when no files
   useEffect(() => {
     if (files.length === 0) {
-      setSelectedFile(null);
-      setSelectedFileSection(null);
+      setSelectedIndex(null);
       setDiffContent(null);
       setFocusedRowIndex(0);
     }
   }, [files.length]);
 
-  // Sync focused index if selected file moves
-  useEffect(() => {
-    if (!selectedFile || !files.length) return;
-    const idx = indexOfFile(files, selectedFile);
-    if (idx !== -1 && idx !== focusedRowIndex) {
-      setFocusedRowIndex(idx);
-    }
-  }, [files, selectedFile, focusedRowIndex]);
-
   // -- context value --
   const value = useMemo<ReviewState>(
     () => ({
       selectedFile,
-      selectedFileKey:
-        selectedFile && selectedFileSection
-          ? buildFileKey(selectedFileSection, selectedFile)
-          : null,
+      selectedFileKey,
       selectedFileSection,
       diffContent,
       getScrollPosition: (k) => scrollPositionsRef.current.get(k) ?? 0,
@@ -384,6 +391,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
     }),
     [
       selectedFile,
+      selectedFileKey,
       selectedFileSection,
       diffContent,
       focusedRowIndex,
