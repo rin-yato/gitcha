@@ -4,6 +4,7 @@ import type { DiffViewMode } from "../context/changes/state";
 import { useReviewState } from "../context/changes/state";
 import type { Theme } from "../context/theme/provider";
 import { createSyntaxStyle, detectFiletype, treeSitterClient } from "../context/theme/syntax";
+import { computeScrollbarMarkers, parseDiffPositions } from "../git/diff";
 
 type FileDiffViewProps = {
   fileKey: string;
@@ -26,6 +27,12 @@ type DiffRenderableLike = {
 function DiffRenderablePane(props: FileDiffViewProps) {
   const app = useReviewState();
   const diffRenderableRef = useRef<DiffRenderableLike | null>(null);
+
+  const markers = useMemo(() => {
+    if (!props.diffContent) return [];
+    const changeMap = parseDiffPositions(props.diffContent);
+    return computeScrollbarMarkers(changeMap);
+  }, [props.diffContent]);
 
   const getScrollTarget = () => {
     const diffRenderable = diffRenderableRef.current;
@@ -57,35 +64,70 @@ function DiffRenderablePane(props: FileDiffViewProps) {
   }, [app, props.fileKey, props.diffContent]);
 
   return (
-    <diff
-      key={props.fileKey}
-      id={props.fileKey}
-      syncScroll={true}
-      ref={(el) => {
-        diffRenderableRef.current = el as DiffRenderableLike | null;
-      }}
-      diff={props.diffContent}
-      view={props.viewMode}
-      filetype={props.filetype}
-      syntaxStyle={props.syntaxStyle as never}
-      treeSitterClient={treeSitterClient as never}
-      showLineNumbers
-      wrapMode="word"
-      fg={props.theme.text}
-      selectionBg={`${props.theme.accent}16`}
-      addedBg={`${props.theme.added}12`}
-      removedBg={`${props.theme.removed}12`}
-      contextBg={props.theme.background}
-      lineNumberFg={props.theme.textMuted}
-      lineNumberBg={props.theme.surface}
-      addedContentBg={`${props.theme.added}12`}
-      removedContentBg={`${props.theme.removed}12`}
-      contextContentBg={props.theme.background}
-      addedSignColor={props.theme.added}
-      removedSignColor={props.theme.removed}
-      addedLineNumberBg={`${props.theme.added}16`}
-      removedLineNumberBg={`${props.theme.removed}16`}
-    />
+    <box flexGrow={1} flexDirection="row">
+      <scrollbox
+        flexGrow={1}
+        style={{
+          rootOptions: {
+            backgroundColor: props.theme.background,
+          },
+          viewportOptions: {
+            backgroundColor: props.theme.background,
+          },
+          contentOptions: {
+            backgroundColor: props.theme.background,
+          },
+          scrollbarOptions: {
+            width: 1,
+            trackOptions: {
+              foregroundColor: props.theme.textMuted,
+              backgroundColor: `${props.theme.surface}40`,
+            },
+          },
+        }}
+      >
+        <diff
+          key={props.fileKey}
+          id={props.fileKey}
+          syncScroll={true}
+          ref={(el) => {
+            diffRenderableRef.current = el as DiffRenderableLike | null;
+          }}
+          diff={props.diffContent}
+          view={props.viewMode}
+          filetype={props.filetype}
+          syntaxStyle={props.syntaxStyle as never}
+          treeSitterClient={treeSitterClient as never}
+          showLineNumbers
+          wrapMode="word"
+          fg={props.theme.text}
+          selectionBg={`${props.theme.accent}16`}
+          addedBg={`${props.theme.added}12`}
+          removedBg={`${props.theme.removed}12`}
+          contextBg={props.theme.background}
+          lineNumberFg={props.theme.textMuted}
+          lineNumberBg={props.theme.surface}
+          addedContentBg={`${props.theme.added}12`}
+          removedContentBg={`${props.theme.removed}12`}
+          contextContentBg={props.theme.background}
+          addedSignColor={props.theme.added}
+          removedSignColor={props.theme.removed}
+          addedLineNumberBg={`${props.theme.added}16`}
+          removedLineNumberBg={`${props.theme.removed}16`}
+        />
+      </scrollbox>
+      <box width={1} backgroundColor={`${props.theme.surface}40`}>
+        {markers.map((marker, i) => (
+          <text
+            key={i}
+            content="▎"
+            fg={marker.type === "addition" ? props.theme.added : props.theme.removed}
+            position="absolute"
+            top={`${marker.position * 100}%`}
+          />
+        ))}
+      </box>
+    </box>
   );
 }
 

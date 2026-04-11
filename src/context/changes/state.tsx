@@ -244,7 +244,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
     [files, loadDiff, stagedCount, viewMode],
   );
 
-  const focusRow = useCallback(
+  const _focusRow = useCallback(
     (nextIndex: number) => {
       const clamped = clampIndex(nextIndex, files.length);
       setFocusedRowIndex(clamped);
