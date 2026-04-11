@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useRef } from "react";
+import type { ScrollBoxRenderable } from "@opentui/core";
+
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { DiffViewMode } from "../context/changes/state";
 import { useReviewState } from "../context/changes/state";
@@ -24,17 +26,17 @@ type DiffRenderableLike = {
   findDescendantById?: (id: string) => ScrollableRenderable | undefined;
 };
 
+const SCROLLBAR_WIDTH = 1;
+
 function DiffRenderablePane(props: FileDiffViewProps) {
   const app = useReviewState();
   const diffRenderableRef = useRef<DiffRenderableLike | null>(null);
+  const scrollboxRef = useRef<ScrollBoxRenderable | null>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(30);
+  const [scrollHeight, setScrollHeight] = useState(30);
 
-  const markers = useMemo(() => {
-    if (!props.diffContent) return [];
-    const changeMap = parseDiffPositions(props.diffContent);
-    return computeScrollbarMarkers(changeMap);
-  }, [props.diffContent]);
-
-  const getScrollTarget = () => {
+  const getScrollTargetRaw = () => {
     const diffRenderable = diffRenderableRef.current;
     if (!diffRenderable) return null;
 
@@ -49,23 +51,54 @@ function DiffRenderablePane(props: FileDiffViewProps) {
     );
   };
 
+  const getScrollTarget = () => getScrollTargetRaw();
+
+  const changeInfo = useMemo(() => {
+    if (!props.diffContent) return null;
+    return parseDiffPositions(props.diffContent);
+  }, [props.diffContent]);
+
+  const markers = useMemo(() => {
+    if (!changeInfo) return [];
+    return computeScrollbarMarkers(changeInfo, scrollHeight);
+  }, [changeInfo, scrollHeight]);
+
+  const thumbHeight = useMemo(() => {
+    if (scrollHeight === 0) return viewportHeight;
+    const ratio = viewportHeight / scrollHeight;
+    return Math.max(1, Math.round(ratio * viewportHeight));
+  }, [viewportHeight, scrollHeight]);
+
+  const thumbTop = useMemo(() => {
+    if (scrollHeight <= viewportHeight) return 0;
+    const maxScroll = scrollHeight - viewportHeight;
+    const ratio = scrollTop / maxScroll;
+    return Math.round(ratio * (viewportHeight - thumbHeight));
+  }, [scrollTop, scrollHeight, viewportHeight, thumbHeight]);
+
   useEffect(() => {
     const target = getScrollTarget();
     if (target) {
       target.scrollY = app.getScrollPosition(props.fileKey);
     }
-
-    return () => {
-      const currentTarget = getScrollTarget();
-      if (currentTarget) {
-        app.setScrollPosition(props.fileKey, currentTarget.scrollY ?? 0);
-      }
-    };
   }, [app, props.fileKey, props.diffContent]);
+
+  useEffect(() => {
+    if (!scrollboxRef.current) return;
+    setScrollHeight(scrollboxRef.current.scrollHeight);
+    const viewportBox = scrollboxRef.current.viewport;
+    if (viewportBox) {
+      const height = viewportBox.height;
+      if (typeof height === "number" && height > 0) {
+        setViewportHeight(height);
+      }
+    }
+  }, [props.diffContent]);
 
   return (
     <box flexGrow={1} flexDirection="row">
       <scrollbox
+        ref={scrollboxRef}
         flexGrow={1}
         style={{
           rootOptions: {
@@ -78,12 +111,12 @@ function DiffRenderablePane(props: FileDiffViewProps) {
             backgroundColor: props.theme.background,
           },
           scrollbarOptions: {
-            width: 1,
-            trackOptions: {
-              foregroundColor: props.theme.textMuted,
-              backgroundColor: `${props.theme.surface}40`,
-            },
+            visible: false,
           },
+        }}
+        onMouseScroll={() => {
+          if (!scrollboxRef.current) return;
+          setScrollTop(scrollboxRef.current.scrollTop);
         }}
       >
         <diff
@@ -116,7 +149,19 @@ function DiffRenderablePane(props: FileDiffViewProps) {
           removedLineNumberBg={`${props.theme.removed}16`}
         />
       </scrollbox>
-      <box width={1} backgroundColor={`${props.theme.surface}40`}>
+      <box
+        width={SCROLLBAR_WIDTH}
+        backgroundColor={`${props.theme.surface}40`}
+        position="relative"
+      >
+        <box
+          position="absolute"
+          top={thumbTop}
+          width={SCROLLBAR_WIDTH}
+          height={thumbHeight}
+          backgroundColor={`${props.theme.textMuted}80`}
+        />
+
         {markers.map((marker, i) => (
           <text
             key={i}

@@ -108,12 +108,16 @@ export interface ScrollbarMarker {
   type: "addition" | "deletion";
 }
 
-export function computeScrollbarMarkers(changeMap: DiffChangeMap): ScrollbarMarker[] {
-  if (changeMap.totalUnifiedLines === 0) return [];
+export function computeScrollbarMarkers(
+  changeMap: DiffChangeMap,
+  scrollHeight?: number,
+): ScrollbarMarker[] {
+  const totalLines = scrollHeight ?? changeMap.totalUnifiedLines;
+  if (totalLines === 0) return [];
 
   return changeMap.changes.map((change) => ({
     lineInNewFile: change.lineInNewFile,
-    position: change.unifiedLine / changeMap.totalUnifiedLines,
+    position: change.unifiedLine / totalLines,
     type: change.type,
   }));
 }
