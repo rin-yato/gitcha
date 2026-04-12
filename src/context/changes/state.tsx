@@ -9,6 +9,8 @@ import {
   useState,
 } from "react";
 
+import { flushSync } from "@opentui/react";
+
 import type { CompareTarget, GitStatusFile } from "@/lib/git";
 import { generateDiff } from "@/lib/git";
 
@@ -28,6 +30,7 @@ export type DiffViewMode = "unified" | "split";
 export type FileSection = "staged" | "changes" | "compare";
 export type ViewMode = "staging" | "compare";
 export type FileKey = `${FileSection}:${string}`;
+export type SelectionSource = "keyboard" | "mouse" | "programmatic";
 
 export type ReviewState = {
   // Selection
@@ -41,6 +44,7 @@ export type ReviewState = {
   // Focus / navigation
   focusedRowIndex: number;
   focusedFileKey: string | null;
+  selectionSource: SelectionSource;
   visibleFiles: GitStatusFile[];
   focusedFile: GitStatusFile | null;
   // Diff view
@@ -156,6 +160,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [diffContent, setDiffContent] = useState<string | null>(null);
   const [focusedRowIndex, setFocusedRowIndex] = useState(0);
+  const [selectionSource, setSelectionSource] = useState<SelectionSource>("programmatic");
   const [diffViewMode, setDiffViewMode] = useState<DiffViewMode>("unified");
   const [viewMode, setViewMode] = useState<ViewMode>("staging");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -240,8 +245,11 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
     (path: string, section: FileSection = "changes") => {
       const idx = indexOfFileInSection(files, path, section, stagedCount, viewMode);
       if (idx !== -1) {
-        setSelectedIndex(idx);
-        setFocusedRowIndex(idx);
+        flushSync(() => {
+          setSelectedIndex(idx);
+          setFocusedRowIndex(idx);
+          setSelectionSource("mouse");
+        });
         const file = files[idx];
         if (file) loadDiff(file, section);
       }
@@ -259,8 +267,11 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
 
   const focusPreviousRow = useCallback(() => {
     const nextIndex = clampIndex(focusedRowIndex - 1, files.length);
-    setFocusedRowIndex(nextIndex);
-    setSelectedIndex(nextIndex);
+    flushSync(() => {
+      setFocusedRowIndex(nextIndex);
+      setSelectedIndex(nextIndex);
+      setSelectionSource("keyboard");
+    });
     const file = files[nextIndex];
     const section =
       viewMode === "compare" ? "compare" : sectionForIndex(nextIndex, stagedCount);
@@ -269,8 +280,11 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
 
   const focusNextRow = useCallback(() => {
     const nextIndex = clampIndex(focusedRowIndex + 1, files.length);
-    setFocusedRowIndex(nextIndex);
-    setSelectedIndex(nextIndex);
+    flushSync(() => {
+      setFocusedRowIndex(nextIndex);
+      setSelectedIndex(nextIndex);
+      setSelectionSource("keyboard");
+    });
     const file = files[nextIndex];
     const section =
       viewMode === "compare" ? "compare" : sectionForIndex(nextIndex, stagedCount);
@@ -285,9 +299,11 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
         setSelectedIndex(null);
         setDiffContent(null);
         setFocusedRowIndex(0);
+        setSelectionSource("programmatic");
         if (nextState?.files[0]) {
           setSelectedIndex(0);
           setFocusedRowIndex(0);
+          setSelectionSource("programmatic");
           loadDiff(nextState.files[0], "compare");
         }
       });
@@ -301,6 +317,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
     setSelectedIndex(null);
     setDiffContent(null);
     setFocusedRowIndex(0);
+    setSelectionSource("programmatic");
   }, [git]);
 
   const selectCompareBranch = useCallback(
@@ -310,6 +327,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
         if (first) {
           setSelectedIndex(0);
           setFocusedRowIndex(0);
+          setSelectionSource("programmatic");
           loadDiff(first, "compare");
         }
       });
@@ -367,6 +385,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
       if (idx !== -1) {
         setSelectedIndex(idx);
         setFocusedRowIndex(idx);
+        setSelectionSource("programmatic");
         loadDiff({ path: first.path } as GitStatusFile, first.section);
       }
     }
@@ -378,6 +397,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
       setSelectedIndex(null);
       setDiffContent(null);
       setFocusedRowIndex(0);
+      setSelectionSource("programmatic");
     }
   }, [files.length]);
 
@@ -392,6 +412,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
       setScrollPosition: (k, v) => scrollPositionsRef.current.set(k, v),
       focusedRowIndex,
       focusedFileKey,
+      selectionSource,
       visibleFiles: files,
       focusedFile,
       diffViewMode,
@@ -425,6 +446,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
       diffContent,
       focusedRowIndex,
       focusedFileKey,
+      selectionSource,
       files,
       focusedFile,
       diffViewMode,

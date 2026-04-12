@@ -5,6 +5,7 @@ import type { GitStatusFile } from "@/lib/git";
 export type FileSection = "staged" | "changes" | "compare";
 
 export type FileItemProps = {
+  id: string;
   file: GitStatusFile;
   isFocused: boolean;
   isSelected: boolean;

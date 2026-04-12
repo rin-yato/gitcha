@@ -60,6 +60,7 @@ function renderSidebar(props: Partial<Parameters<typeof Sidebar>[0]> = {}) {
       error={null}
       selectedFileKey={null}
       focusedFileKey={null}
+      selectionSource="programmatic"
       selectFile={() => {}}
       {...baseProps}
       {...props}
@@ -179,6 +180,37 @@ test("sidebar highlights focused file", async () => {
   expect(JSON.stringify(testSetup.captureSpans().lines)).toContain("app.ts");
 });
 
+test("sidebar highlights selected file", async () => {
+  testSetup = await testRender(
+    renderSidebar({
+      status: {
+        branch: "main",
+        aheadCount: 0,
+        behindCount: 0,
+        files: {
+          staged: [],
+          changes: [{ path: "src/app.ts", indexStatus: " ", workingTreeStatus: "M" }],
+          untracked: [],
+          conflicted: [],
+        },
+        totalFiles: 1,
+        isRepo: true,
+      },
+      error: null,
+      selectedFileKey: "changes:src/app.ts",
+      focusedFileKey: "changes:src/app.ts",
+      selectionSource: "keyboard",
+    }),
+    { width: 80, height: 24 },
+  );
+
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
+
+  expect(JSON.stringify(testSetup.captureSpans().lines)).toContain("app.ts");
+});
+
 test("sidebar shows untracked files in changes section", async () => {
   testSetup = await testRender(
     renderSidebar({
@@ -240,4 +272,118 @@ test("sidebar renders same path in different sections independently", async () =
   expect(output).toContain("Staged");
   expect(output).toContain("Changes");
   expect(output).toContain("shared.ts");
+});
+
+test("sidebar scrolls the selected file into view", async () => {
+  const staged = Array.from({ length: 14 }, (_, i) => ({
+    path: `src/staged-${i}.ts`,
+    indexStatus: "A" as const,
+    workingTreeStatus: " " as const,
+  }));
+
+  testSetup = await testRender(
+    renderSidebar({
+      status: {
+        branch: "main",
+        aheadCount: 0,
+        behindCount: 0,
+        files: {
+          staged,
+          changes: [],
+          untracked: [],
+          conflicted: [],
+        },
+        totalFiles: staged.length,
+        isRepo: true,
+      },
+      error: null,
+      selectedFileKey: "staged:src/staged-13.ts",
+      focusedFileKey: "staged:src/staged-13.ts",
+      selectionSource: "keyboard",
+    }),
+    { width: 80, height: 10 },
+  );
+
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
+
+  const output = JSON.stringify(testSetup.captureSpans().lines);
+  expect(output).toContain("staged-13.ts");
+  expect(output).not.toContain("staged-0.ts");
+});
+
+test("sidebar does not auto scroll on mouse selection", async () => {
+  const staged = Array.from({ length: 14 }, (_, i) => ({
+    path: `src/staged-${i}.ts`,
+    indexStatus: "A" as const,
+    workingTreeStatus: " " as const,
+  }));
+
+  testSetup = await testRender(
+    renderSidebar({
+      status: {
+        branch: "main",
+        aheadCount: 0,
+        behindCount: 0,
+        files: {
+          staged,
+          changes: [],
+          untracked: [],
+          conflicted: [],
+        },
+        totalFiles: staged.length,
+        isRepo: true,
+      },
+      error: null,
+      selectedFileKey: "staged:src/staged-13.ts",
+      focusedFileKey: "staged:src/staged-13.ts",
+      selectionSource: "mouse",
+    }),
+    { width: 80, height: 10 },
+  );
+
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
+
+  const output = JSON.stringify(testSetup.captureSpans().lines);
+  expect(output).toContain("staged-0.ts");
+  expect(output).not.toContain("staged-13.ts");
+});
+
+test("sidebar truncates long paths to one line", async () => {
+  testSetup = await testRender(
+    renderSidebar({
+      status: {
+        branch: "main",
+        aheadCount: 0,
+        behindCount: 0,
+        files: {
+          staged: [],
+          changes: [
+            {
+              path: "src/features/very/long/path/that/should/not/wrap/in/the/sidebar/component-name.ts",
+              indexStatus: " ",
+              workingTreeStatus: "M",
+            },
+          ],
+          untracked: [],
+          conflicted: [],
+        },
+        totalFiles: 1,
+        isRepo: true,
+      },
+      error: null,
+    }),
+    { width: 40, height: 10 },
+  );
+
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
+
+  const output = JSON.stringify(testSetup.captureSpans().lines);
+  expect(output).toContain("component-name.ts");
+  expect(output).not.toContain("wrap");
 });

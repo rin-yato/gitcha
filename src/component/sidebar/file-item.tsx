@@ -2,7 +2,7 @@ import type { FileItemProps } from "./types";
 import { getFileStatus, getStatusColor, getStatusIcon, splitPath, truncateDir } from "./utils";
 
 export function FileItem(props: FileItemProps) {
-  const { file, isFocused, isSelected, onSelect, theme } = props;
+  const { id, file, isFocused, isSelected, onSelect, theme } = props;
 
   const status = getFileStatus(file);
   const icon = getStatusIcon(status);
@@ -21,6 +21,7 @@ export function FileItem(props: FileItemProps) {
 
   return (
     <box
+      id={id}
       onMouseUp={onSelect}
       flexDirection="row"
       width="100%"

@@ -33,6 +33,7 @@ export function FileList(props: FileListProps) {
         return (
           <FileItem
             key={key}
+            id={key}
             file={file}
             isFocused={isFocused}
             isSelected={isSelected}

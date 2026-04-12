@@ -245,6 +245,7 @@ function App() {
         error={git.error}
         selectedFileKey={app.selectedFileKey}
         focusedFileKey={app.focusedFileKey}
+        selectionSource={app.selectionSource}
         selectFile={app.selectFile}
         viewMode={app.viewMode}
         compareState={git.compareState}
