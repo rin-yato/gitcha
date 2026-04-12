@@ -257,6 +257,7 @@ function App() {
         theme={theme}
         selectedFile={app.selectedFile}
         selectedFileKey={app.selectedFileKey}
+        selectedFileInfo={app.selectedFileInfo}
         diffContent={app.diffContent}
         diffViewMode={app.diffViewMode}
         toggleDiffViewMode={app.toggleDiffViewMode}

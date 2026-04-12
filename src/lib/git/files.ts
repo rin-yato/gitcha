@@ -17,22 +17,28 @@ export async function loadStagedDiffSource(
   ctx: RepoContext,
   file: GitStatusFile,
 ): Promise<FileDiffSource> {
+  const basePath = file.originalPath ?? file.path;
   const [baseContent, indexContent] = await Promise.all([
-    getFileVersion("HEAD", file.path, ctx.cwd),
+    getFileVersion("HEAD", basePath, ctx.cwd),
     getFileVersion(":0", file.path, ctx.cwd),
   ]);
-  return { baseContent, currentContent: indexContent };
+  return { baseContent, currentContent: indexContent, originalPath: file.originalPath };
 }
 
 export async function loadChangesDiffSource(
   ctx: RepoContext,
   file: GitStatusFile,
 ): Promise<FileDiffSource> {
+  const basePath = file.originalPath ?? file.path;
   const [indexContent, workingContent] = await Promise.all([
-    getFileVersion(":0", file.path, ctx.cwd),
+    getFileVersion(":0", basePath, ctx.cwd),
     readWorkingFile(ctx, file.path),
   ]);
-  return { baseContent: indexContent, currentContent: workingContent };
+  return {
+    baseContent: indexContent,
+    currentContent: workingContent,
+    originalPath: file.originalPath,
+  };
 }
 
 export async function loadCompareDiffSource(
@@ -40,9 +46,10 @@ export async function loadCompareDiffSource(
   file: GitStatusFile,
   baseRef: string,
 ): Promise<FileDiffSource> {
+  const basePath = file.originalPath ?? file.path;
   const [baseContent, currentContent] = await Promise.all([
-    getFileVersion(baseRef, file.path, ctx.cwd),
+    getFileVersion(baseRef, basePath, ctx.cwd),
     readWorkingFile(ctx, file.path),
   ]);
-  return { baseContent, currentContent };
+  return { baseContent, currentContent, originalPath: file.originalPath };
 }

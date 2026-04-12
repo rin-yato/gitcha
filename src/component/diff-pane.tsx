@@ -6,6 +6,7 @@ import type { DiffViewMode } from "@/context/changes/state";
 import type { Theme } from "@/context/theme/provider";
 import { createSyntaxStyle, detectFiletype, treeSitterClient } from "@/context/theme/syntax";
 
+import type { GitStatusFile } from "@/lib/git";
 import { computeScrollbarMarkers, parseDiffPositions } from "@/lib/git";
 
 type FileDiffViewProps = {
@@ -132,12 +133,16 @@ export function DiffPane(props: {
   theme: Theme;
   selectedFile: string | null;
   selectedFileKey: string | null;
+  selectedFileInfo: GitStatusFile | null;
   diffContent: string | null;
   diffViewMode: DiffViewMode;
   toggleDiffViewMode: () => void;
 }) {
   const filetype = useMemo(() => detectFiletype(props.selectedFile), [props.selectedFile]);
   const syntaxStyle = useMemo(() => createSyntaxStyle(props.theme), [props.theme]);
+  const headerLabel = props.selectedFileInfo?.originalPath
+    ? `${props.selectedFile ?? "no file selected"} · Renamed from ${props.selectedFileInfo.originalPath}`
+    : props.selectedFile || "no file selected";
 
   return (
     <box
@@ -146,14 +151,29 @@ export function DiffPane(props: {
       flexGrow={1}
       flexDirection="column"
     >
-      <box flexDirection="row" justifyContent="space-between" paddingBottom={1} paddingX={1}>
+      <box
+        flexDirection="row"
+        justifyContent="space-between"
+        paddingBottom={1}
+        paddingX={1}
+        overflow="hidden"
+      >
         <text
-          content={props.selectedFile || "no file selected"}
+          content={headerLabel}
           fg={props.theme.text}
           attributes={1}
           selectable={false}
+          flexGrow={1}
+          flexShrink={1}
+          minWidth={0}
+          truncate
         />
-        <text content={props.diffViewMode} fg={props.theme.textMuted} selectable={false} />
+        <text
+          content={props.diffViewMode}
+          fg={props.theme.textMuted}
+          selectable={false}
+          flexShrink={0}
+        />
       </box>
 
       {props.selectedFileKey ? (

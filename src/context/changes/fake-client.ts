@@ -241,25 +241,29 @@ export function createFakeGitClient(project = createFakeProject()): GitClient {
     },
     loadDiffSource: async (file, section, compareBaseRef) => {
       const filePath = file.path;
+      const originalPath = file.originalPath ?? file.path;
       if (section === "compare" && compareBaseRef) {
         const diffKey = `${compareBaseRef}::${filePath}`;
         const diff = project.fileDiffs[diffKey];
         return {
           baseContent: diff ? `base content of ${filePath}` : null,
           currentContent: diff ? `current content of ${filePath}` : null,
+          originalPath,
         };
       }
 
       if (section === "staged") {
         return {
-          baseContent: project.fileVersions[`HEAD:${filePath}`] ?? null,
+          baseContent: project.fileVersions[`HEAD:${originalPath}`] ?? null,
           currentContent: project.fileVersions[`:0:${filePath}`] ?? null,
+          originalPath,
         };
       }
 
       return {
-        baseContent: project.fileVersions[`:0:${filePath}`] ?? null,
+        baseContent: project.fileVersions[`:0:${originalPath}`] ?? null,
         currentContent: `working tree content of ${filePath}`,
+        originalPath,
       };
     },
     stageFile: async (filePath) => {

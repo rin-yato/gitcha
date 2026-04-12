@@ -37,6 +37,7 @@ export type ReviewState = {
   selectedFile: string | null;
   selectedFileKey: string | null;
   selectedFileSection: FileSection | null;
+  selectedFileInfo: GitStatusFile | null;
   diffContent: string | null;
   // Scroll
   getScrollPosition: (key: string) => number;
@@ -186,6 +187,11 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
   const focusedFile = useMemo(
     () => fileAtIndex(files, focusedRowIndex),
     [files, focusedRowIndex],
+  );
+
+  const selectedFileInfo = useMemo(
+    () => (selectedIndex !== null ? (files[selectedIndex] ?? null) : null),
+    [files, selectedIndex],
   );
 
   const focusedFileKey = useMemo(
@@ -407,6 +413,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
       selectedFile,
       selectedFileKey,
       selectedFileSection,
+      selectedFileInfo,
       diffContent,
       getScrollPosition: (k) => scrollPositionsRef.current.get(k) ?? 0,
       setScrollPosition: (k, v) => scrollPositionsRef.current.set(k, v),
@@ -443,6 +450,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
       selectedFile,
       selectedFileKey,
       selectedFileSection,
+      selectedFileInfo,
       diffContent,
       focusedRowIndex,
       focusedFileKey,

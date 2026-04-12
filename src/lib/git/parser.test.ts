@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { buildFileTree, categorizeFiles, parseStatusLine } from "./parser";
+import { generateDiff } from "./diff";
 import type { GitStatusFile } from "./types";
 
 describe("parseStatusLine", () => {
@@ -115,6 +116,20 @@ describe("buildFileTree", () => {
     expect(root.children[0]?.name).toBe("root.ts");
     expect(root.children[0]?.isDirectory).toBe(false);
     expect(root.children[0]?.fileInfo?.path).toBe("root.ts");
+  });
+
+  test("preserves originalPath in generated rename diffs", () => {
+    const diff = generateDiff(
+      {
+        baseContent: "old\n",
+        currentContent: "new\n",
+        originalPath: "src/old-name.ts",
+      },
+      "src/new-name.ts",
+    );
+
+    expect(diff).toContain("--- src/old-name.ts");
+    expect(diff).toContain("+++ src/new-name.ts");
   });
 
   test("duplicate paths only store first fileInfo (last one wins for path traversal)", () => {

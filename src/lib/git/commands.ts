@@ -270,7 +270,9 @@ export async function getCompareTarget(cwd?: string): Promise<CompareTarget | nu
 /**
  * Parse "XY path" or "XY\0path" lines from git diff --name-status
  */
-function parseDiffNameStatusLine(line: string): { path: string; status: string } | null {
+function parseDiffNameStatusLine(
+  line: string,
+): { path: string; originalPath?: string; status: string } | null {
   if (!line || line.length < 2) return null;
   const status = line[0] ?? "";
   const rest = line.slice(1).trimStart();
@@ -281,9 +283,20 @@ function parseDiffNameStatusLine(line: string): { path: string; status: string }
   if (status === "R" || status === "C") {
     const arrowIndex = rest.indexOf(" -> ");
     if (arrowIndex !== -1) {
-      const afterArrow = rest.slice(arrowIndex + 4);
-      if (afterArrow) {
-        return { path: afterArrow, status };
+      const originalPath = rest.slice(0, arrowIndex);
+      const path = rest.slice(arrowIndex + 4);
+      if (originalPath && path) {
+        return { path, originalPath, status };
+      }
+    }
+
+    const parts = rest.split("\t").filter(Boolean);
+    if (parts.length >= 2) {
+      const originalPath = parts[parts.length - 2]!;
+      const path = parts[parts.length - 1]!;
+
+      if (originalPath && path) {
+        return { path, originalPath, status };
       }
     }
   }
@@ -312,6 +325,7 @@ export async function getBranchDiffFiles(
     if (parsed) {
       files.push({
         path: parsed.path,
+        originalPath: parsed.originalPath,
         indexStatus: " " as GitFileStatus,
         workingTreeStatus: parsed.status as GitFileStatus,
       });

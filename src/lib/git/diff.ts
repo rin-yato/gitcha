@@ -12,8 +12,9 @@ import type { FileDiffSource } from "./types";
 export function generateDiff(source: FileDiffSource, filePath: string): string {
   const base = source.baseContent ?? "";
   const current = source.currentContent ?? "";
+  const oldPath = source.originalPath ?? filePath;
 
-  return createTwoFilesPatch(filePath, filePath, base, current, undefined, undefined, {
+  return createTwoFilesPatch(oldPath, filePath, base, current, undefined, undefined, {
     context: Infinity,
   });
 }

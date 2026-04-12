@@ -45,6 +45,7 @@ test("code panel shows an empty state", async () => {
       theme={theme}
       selectedFile={null}
       selectedFileKey={null}
+      selectedFileInfo={null}
       diffContent={null}
       diffViewMode="unified"
       toggleDiffViewMode={() => {}}
@@ -65,6 +66,7 @@ test("code panel shows loading state when a file is selected", async () => {
       theme={theme}
       selectedFile="src/app.ts"
       selectedFileKey="changes:src/app.ts"
+      selectedFileInfo={null}
       diffContent={null}
       diffViewMode="split"
       toggleDiffViewMode={() => {}}
@@ -88,6 +90,7 @@ test("code panel renders diff content when provided", async () => {
           theme={theme}
           selectedFile="src/app.ts"
           selectedFileKey="compare:src/app.ts"
+          selectedFileInfo={null}
           diffContent={`diff --git a/src/app.ts b/src/app.ts
 index 1111111..2222222 100644
 --- a/src/app.ts
@@ -110,4 +113,38 @@ index 1111111..2222222 100644
   const output = JSON.stringify(testSetup.captureSpans().lines);
   expect(output).toContain("feat/b");
   expect(output).toContain("▎");
+});
+
+test("code panel shows rename source when file was renamed", async () => {
+  testSetup = await testRender(
+    <DiffPane
+      theme={theme}
+      selectedFile="src/ui/panel.renamed.tsx"
+      selectedFileKey="staged:src/ui/panel.renamed.tsx"
+      selectedFileInfo={{
+        path: "src/ui/panel.renamed.tsx",
+        originalPath: "src/ui/panel.tsx",
+        indexStatus: "R",
+        workingTreeStatus: " ",
+      }}
+      diffContent={`diff --git a/src/ui/panel.tsx b/src/ui/panel.renamed.tsx
+similarity index 95%
+rename from src/ui/panel.tsx
+rename to src/ui/panel.renamed.tsx
+@@ -1,1 +1,1 @@
+-old
++new`}
+      diffViewMode="unified"
+      toggleDiffViewMode={() => {}}
+    />,
+    { width: 120, height: 24 },
+  );
+
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
+
+  const output = JSON.stringify(testSetup.captureSpans().lines);
+  expect(output).toContain("Renamed");
+  expect(output).toContain("src/ui/panel.tsx");
 });

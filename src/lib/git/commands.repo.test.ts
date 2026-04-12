@@ -56,6 +56,21 @@ describe("default compare target", () => {
     const files = await getBranchDiffFiles("feat/a", repo);
     expect(files.map((file) => file.path)).toEqual(["file.txt"]);
   });
+
+  test("preserves originalPath for renamed files", async () => {
+    const repo = mkdtempSync(join(tmpdir(), "changes-rename-"));
+    await execGit(["init", "-b", "master"], { cwd: repo });
+    await execGit(["config", "user.email", "test@example.com"], { cwd: repo });
+    await execGit(["config", "user.name", "Test User"], { cwd: repo });
+
+    writeFileSync(join(repo, "old.txt"), "old\n");
+    await execGit(["add", "old.txt"], { cwd: repo });
+    await execGit(["commit", "-m", "base commit"], { cwd: repo });
+
+    await execGit(["mv", "old.txt", "new.txt"], { cwd: repo });
+    await execGit(["commit", "-am", "rename file"], { cwd: repo });
+    expect(await getBranchDiffFiles("master", repo)).toEqual([]);
+  });
 });
 
 describe("root fallback", () => {

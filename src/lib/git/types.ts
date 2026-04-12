@@ -110,6 +110,8 @@ export interface FileDiffSource {
   baseContent: string | null;
   /** Content at the current version (null = deleted file, no current exists) */
   currentContent: string | null;
+  /** Original path when the file was renamed or copied */
+  originalPath?: string;
 }
 
 export type { RepoContext } from "./repo";
