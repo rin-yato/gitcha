@@ -76,6 +76,19 @@ export function truncateDir(dir: string, maxLen: number): string {
   return `${first}/…/${last}`;
 }
 
+/**
+ * Returns all ancestor directory paths for a file path.
+ * E.g. "src/components/ui/button.ts" → ["src", "src/components", "src/components/ui"]
+ */
+export function getAncestorDirs(filePath: string): string[] {
+  const parts = filePath.split("/");
+  const dirs: string[] = [];
+  for (let i = 1; i < parts.length; i++) {
+    dirs.push(parts.slice(0, i).join("/"));
+  }
+  return dirs;
+}
+
 export function buildFileKey(section: FileSection, path: string): string {
   return `${section}:${path}`;
 }

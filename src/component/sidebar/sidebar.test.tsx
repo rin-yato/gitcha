@@ -275,8 +275,9 @@ test("sidebar renders same path in different sections independently", async () =
 });
 
 test("sidebar scrolls the selected file into view", async () => {
+  // Use zero-padded names so alphabetical sort matches insertion order
   const staged = Array.from({ length: 14 }, (_, i) => ({
-    path: `src/staged-${i}.ts`,
+    path: `src/staged-${i.toString().padStart(2, "0")}.ts`,
     indexStatus: "A" as const,
     workingTreeStatus: " " as const,
   }));
@@ -310,12 +311,13 @@ test("sidebar scrolls the selected file into view", async () => {
 
   const output = JSON.stringify(testSetup.captureSpans().lines);
   expect(output).toContain("staged-13.ts");
-  expect(output).not.toContain("staged-0.ts");
+  expect(output).not.toContain("staged-00.ts");
 });
 
 test("sidebar does not auto scroll on mouse selection", async () => {
+  // Use zero-padded names so alphabetical sort matches insertion order
   const staged = Array.from({ length: 14 }, (_, i) => ({
-    path: `src/staged-${i}.ts`,
+    path: `src/staged-${i.toString().padStart(2, "0")}.ts`,
     indexStatus: "A" as const,
     workingTreeStatus: " " as const,
   }));
@@ -348,11 +350,11 @@ test("sidebar does not auto scroll on mouse selection", async () => {
   });
 
   const output = JSON.stringify(testSetup.captureSpans().lines);
-  expect(output).toContain("staged-0.ts");
+  expect(output).toContain("staged-00.ts");
   expect(output).not.toContain("staged-13.ts");
 });
 
-test("sidebar truncates long paths to one line", async () => {
+test("sidebar shows tree structure for nested files", async () => {
   testSetup = await testRender(
     renderSidebar({
       status: {
@@ -363,7 +365,7 @@ test("sidebar truncates long paths to one line", async () => {
           staged: [],
           changes: [
             {
-              path: "src/features/very/long/path/that/should/not/wrap/in/the/sidebar/component-name.ts",
+              path: "src/features/component-name.ts",
               indexStatus: " ",
               workingTreeStatus: "M",
             },
@@ -384,6 +386,7 @@ test("sidebar truncates long paths to one line", async () => {
   });
 
   const output = JSON.stringify(testSetup.captureSpans().lines);
+  expect(output).toContain("src");
+  expect(output).toContain("features");
   expect(output).toContain("component-name.ts");
-  expect(output).not.toContain("wrap");
 });

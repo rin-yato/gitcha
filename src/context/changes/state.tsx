@@ -1,3 +1,5 @@
+import { flushSync } from "@opentui/react";
+
 import type React from "react";
 import {
   createContext,
@@ -8,8 +10,6 @@ import {
   useRef,
   useState,
 } from "react";
-
-import { flushSync } from "@opentui/react";
 
 import type { CompareTarget, GitStatusFile } from "@/lib/git";
 import { generateDiff } from "@/lib/git";
