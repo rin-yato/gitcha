@@ -1,186 +1,309 @@
-import { buildDialogSelectRows, type DialogSelectOptionGroup } from "./dialog-select";
+import { buildDialogSelectRows, type DialogSelectOption } from "./dialog-select";
+
+function stripRowKeys(rows: readonly unknown[]) {
+  return rows.map((row) => {
+    if (typeof row === "object" && row !== null) {
+      const clone = { ...(row as Record<string, unknown>) };
+      delete clone.key;
+      return clone;
+    }
+
+    return row;
+  });
+}
 
 describe("buildDialogSelectRows", () => {
-  const paletteOptions: DialogSelectOptionGroup[] = [
+  const paletteOptions: DialogSelectOption[] = [
+    { title: "Compare", value: "toggle-compare", description: "v", category: "Suggested" },
+    { title: "Refresh", value: "refresh", description: "r", category: "Suggested" },
     {
-      group: "Suggested",
-      options: [
-        { id: "toggle-compare", title: "Compare", description: "v" },
-        { id: "refresh", title: "Refresh", description: "r" },
-        { id: "toggle-diff-view", title: "Diff View", description: "space" },
-      ],
+      title: "Diff View",
+      value: "toggle-diff-view",
+      description: "space",
+      category: "Suggested",
     },
-    {
-      group: "View",
-      options: [
-        { id: "toggle-compare", title: "Compare", description: "v" },
-        { id: "toggle-diff-view", title: "Diff View", description: "space" },
-        { id: "exit-compare", title: "Exit Compare" },
-      ],
-    },
-    {
-      group: "Action",
-      options: [
-        { id: "refresh", title: "Refresh", description: "r" },
-        { id: "stage-file", title: "Stage", description: "s" },
-        { id: "unstage-file", title: "Unstage", description: "u" },
-        { id: "discard-file", title: "Discard", description: "x" },
-      ],
-    },
-    {
-      group: "Layout",
-      options: [
-        { id: "shrink-sidebar", title: "Narrow Sidebar", description: "[" },
-        { id: "grow-sidebar", title: "Wider Sidebar", description: "]" },
-      ],
-    },
+    { title: "Compare", value: "toggle-compare", description: "v", category: "View" },
+    { title: "Diff View", value: "toggle-diff-view", description: "space", category: "View" },
+    { title: "Exit Compare", value: "exit-compare", category: "View" },
+    { title: "Refresh", value: "refresh", description: "r", category: "Action" },
+    { title: "Stage", value: "stage-file", description: "s", category: "Action" },
+    { title: "Unstage", value: "unstage-file", description: "u", category: "Action" },
+    { title: "Discard", value: "discard-file", description: "x", category: "Action" },
+    { title: "Narrow Sidebar", value: "shrink-sidebar", description: "[", category: "Layout" },
+    { title: "Wider Sidebar", value: "grow-sidebar", description: "]", category: "Layout" },
   ];
 
   test("builds grouped rows in input order", () => {
     const rows = buildDialogSelectRows(paletteOptions, "");
 
-    expect(rows).toEqual([
-      { kind: "group", key: "group:Suggested", label: "Suggested" },
-      {
-        kind: "option",
-        key: "option:Suggested:Compare:toggle-compare",
-        group: "Suggested",
-        option: { id: "toggle-compare", title: "Compare", description: "v" },
-      },
-      {
-        kind: "option",
-        key: "option:Suggested:Refresh:refresh",
-        group: "Suggested",
-        option: { id: "refresh", title: "Refresh", description: "r" },
-      },
-      {
-        kind: "option",
-        key: "option:Suggested:Diff View:toggle-diff-view",
-        group: "Suggested",
-        option: { id: "toggle-diff-view", title: "Diff View", description: "space" },
-      },
-      { kind: "group", key: "group:View", label: "View" },
-      {
-        kind: "option",
-        key: "option:View:Compare:toggle-compare",
-        group: "View",
-        option: { id: "toggle-compare", title: "Compare", description: "v" },
-      },
-      {
-        kind: "option",
-        key: "option:View:Diff View:toggle-diff-view",
-        group: "View",
-        option: { id: "toggle-diff-view", title: "Diff View", description: "space" },
-      },
-      {
-        kind: "option",
-        key: "option:View:Exit Compare:exit-compare",
-        group: "View",
-        option: { id: "exit-compare", title: "Exit Compare" },
-      },
-      { kind: "group", key: "group:Action", label: "Action" },
-      {
-        kind: "option",
-        key: "option:Action:Refresh:refresh",
-        group: "Action",
-        option: { id: "refresh", title: "Refresh", description: "r" },
-      },
-      {
-        kind: "option",
-        key: "option:Action:Stage:stage-file",
-        group: "Action",
-        option: { id: "stage-file", title: "Stage", description: "s" },
-      },
-      {
-        kind: "option",
-        key: "option:Action:Unstage:unstage-file",
-        group: "Action",
-        option: { id: "unstage-file", title: "Unstage", description: "u" },
-      },
-      {
-        kind: "option",
-        key: "option:Action:Discard:discard-file",
-        group: "Action",
-        option: { id: "discard-file", title: "Discard", description: "x" },
-      },
-      { kind: "group", key: "group:Layout", label: "Layout" },
-      {
-        kind: "option",
-        key: "option:Layout:Narrow Sidebar:shrink-sidebar",
-        group: "Layout",
-        option: { id: "shrink-sidebar", title: "Narrow Sidebar", description: "[" },
-      },
-      {
-        kind: "option",
-        key: "option:Layout:Wider Sidebar:grow-sidebar",
-        group: "Layout",
-        option: { id: "grow-sidebar", title: "Wider Sidebar", description: "]" },
-      },
-    ]);
+    expect(stripRowKeys(rows)).toEqual(
+      stripRowKeys([
+        { kind: "group", key: "group:Suggested", label: "Suggested" },
+        {
+          kind: "option",
+          key: "option:Suggested:0:Compare",
+          group: "Suggested",
+          option: {
+            title: "Compare",
+            value: "toggle-compare",
+            description: "v",
+            category: "Suggested",
+          },
+          index: 0,
+        },
+        {
+          kind: "option",
+          key: "option:Suggested:1:Refresh",
+          group: "Suggested",
+          option: {
+            title: "Refresh",
+            value: "refresh",
+            description: "r",
+            category: "Suggested",
+          },
+          index: 1,
+        },
+        {
+          kind: "option",
+          key: "option:Suggested:2:Diff View",
+          group: "Suggested",
+          option: {
+            title: "Diff View",
+            value: "toggle-diff-view",
+            description: "space",
+            category: "Suggested",
+          },
+          index: 2,
+        },
+        { kind: "group", key: "group:View", label: "View" },
+        {
+          kind: "option",
+          key: "option:View:3:Compare",
+          group: "View",
+          option: {
+            title: "Compare",
+            value: "toggle-compare",
+            description: "v",
+            category: "View",
+          },
+          index: 3,
+        },
+        {
+          kind: "option",
+          key: "option:View:4:Diff View",
+          group: "View",
+          option: {
+            title: "Diff View",
+            value: "toggle-diff-view",
+            description: "space",
+            category: "View",
+          },
+          index: 4,
+        },
+        {
+          kind: "option",
+          key: "option:View:5:Exit Compare",
+          group: "View",
+          option: { title: "Exit Compare", value: "exit-compare", category: "View" },
+          index: 5,
+        },
+        { kind: "group", key: "group:Action", label: "Action" },
+        {
+          kind: "option",
+          key: "option:Action:6:Refresh",
+          group: "Action",
+          option: { title: "Refresh", value: "refresh", description: "r", category: "Action" },
+          index: 6,
+        },
+        {
+          kind: "option",
+          key: "option:Action:7:Stage",
+          group: "Action",
+          option: { title: "Stage", value: "stage-file", description: "s", category: "Action" },
+          index: 7,
+        },
+        {
+          kind: "option",
+          key: "option:Action:8:Unstage",
+          group: "Action",
+          option: {
+            title: "Unstage",
+            value: "unstage-file",
+            description: "u",
+            category: "Action",
+          },
+          index: 8,
+        },
+        {
+          kind: "option",
+          key: "option:Action:9:Discard",
+          group: "Action",
+          option: {
+            title: "Discard",
+            value: "discard-file",
+            description: "x",
+            category: "Action",
+          },
+          index: 9,
+        },
+        { kind: "group", key: "group:Layout", label: "Layout" },
+        {
+          kind: "option",
+          key: "option:Layout:10:Narrow Sidebar",
+          group: "Layout",
+          option: {
+            title: "Narrow Sidebar",
+            value: "shrink-sidebar",
+            description: "[",
+            category: "Layout",
+          },
+          index: 10,
+        },
+        {
+          kind: "option",
+          key: "option:Layout:11:Wider Sidebar",
+          group: "Layout",
+          option: {
+            title: "Wider Sidebar",
+            value: "grow-sidebar",
+            description: "]",
+            category: "Layout",
+          },
+          index: 11,
+        },
+      ]),
+    );
   });
 
   test("filters by title and description", () => {
-    expect(buildDialogSelectRows(paletteOptions, "space")).toEqual([
-      { kind: "group", key: "group:Suggested", label: "Suggested" },
-      {
-        kind: "option",
-        key: "option:Suggested:Diff View:toggle-diff-view",
-        group: "Suggested",
-        option: { id: "toggle-diff-view", title: "Diff View", description: "space" },
-      },
-      { kind: "group", key: "group:View", label: "View" },
-      {
-        kind: "option",
-        key: "option:View:Diff View:toggle-diff-view",
-        group: "View",
-        option: { id: "toggle-diff-view", title: "Diff View", description: "space" },
-      },
-    ]);
+    expect(stripRowKeys(buildDialogSelectRows(paletteOptions, "space"))).toEqual(
+      stripRowKeys([
+        { kind: "group", key: "group:Suggested", label: "Suggested" },
+        {
+          kind: "option",
+          key: "option:Suggested:0:Diff View",
+          group: "Suggested",
+          option: {
+            title: "Diff View",
+            value: "toggle-diff-view",
+            description: "space",
+            category: "Suggested",
+          },
+          index: 0,
+        },
+        { kind: "group", key: "group:View", label: "View" },
+        {
+          kind: "option",
+          key: "option:View:1:Diff View",
+          group: "View",
+          option: {
+            title: "Diff View",
+            value: "toggle-diff-view",
+            description: "space",
+            category: "View",
+          },
+          index: 1,
+        },
+      ]),
+    );
 
-    expect(buildDialogSelectRows(paletteOptions, "side")).toEqual([
-      { kind: "group", key: "group:Layout", label: "Layout" },
-      {
-        kind: "option",
-        key: "option:Layout:Narrow Sidebar:shrink-sidebar",
-        group: "Layout",
-        option: { id: "shrink-sidebar", title: "Narrow Sidebar", description: "[" },
-      },
-      {
-        kind: "option",
-        key: "option:Layout:Wider Sidebar:grow-sidebar",
-        group: "Layout",
-        option: { id: "grow-sidebar", title: "Wider Sidebar", description: "]" },
-      },
-    ]);
+    expect(stripRowKeys(buildDialogSelectRows(paletteOptions, "side"))).toEqual(
+      stripRowKeys([
+        { kind: "group", key: "group:Layout", label: "Layout" },
+        {
+          kind: "option",
+          key: "option:Layout:0:Wider Sidebar",
+          group: "Layout",
+          option: {
+            title: "Wider Sidebar",
+            value: "grow-sidebar",
+            description: "]",
+            category: "Layout",
+          },
+          index: 0,
+        },
+        {
+          kind: "option",
+          key: "option:Layout:1:Narrow Sidebar",
+          group: "Layout",
+          option: {
+            title: "Narrow Sidebar",
+            value: "shrink-sidebar",
+            description: "[",
+            category: "Layout",
+          },
+          index: 1,
+        },
+      ]),
+    );
+  });
+
+  test("ranks title matches ahead of description matches", () => {
+    const rows = buildDialogSelectRows(
+      [
+        { title: "Alpha Command", value: "alpha", description: "shared", category: "Actions" },
+        { title: "Other", value: "beta", description: "Alpha shortcut", category: "Actions" },
+      ],
+      "alpha",
+    );
+
+    expect(stripRowKeys(rows)).toEqual(
+      stripRowKeys([
+        { kind: "group", key: "group:Actions", label: "Actions" },
+        {
+          kind: "option",
+          key: "option:Actions:0:Alpha Command",
+          group: "Actions",
+          option: {
+            title: "Alpha Command",
+            value: "alpha",
+            description: "shared",
+            category: "Actions",
+          },
+          index: 0,
+        },
+        {
+          kind: "option",
+          key: "option:Actions:1:Other",
+          group: "Actions",
+          option: {
+            title: "Other",
+            value: "beta",
+            description: "Alpha shortcut",
+            category: "Actions",
+          },
+          index: 1,
+        },
+      ]),
+    );
   });
 
   test("omits group headers for ungrouped results", () => {
     const rows = buildDialogSelectRows(
       [
-        {
-          group: "",
-          options: [
-            { id: "a", title: "Alpha" },
-            { id: "b", title: "Beta" },
-          ],
-        },
+        { title: "Alpha", value: "a" },
+        { title: "Beta", value: "b" },
       ],
       "",
     );
 
-    expect(rows).toEqual([
-      {
-        kind: "option",
-        key: "option::Alpha:a",
-        group: "",
-        option: { id: "a", title: "Alpha" },
-      },
-      {
-        kind: "option",
-        key: "option::Beta:b",
-        group: "",
-        option: { id: "b", title: "Beta" },
-      },
-    ]);
+    expect(stripRowKeys(rows)).toEqual(
+      stripRowKeys([
+        {
+          kind: "option",
+          key: "option::0:Alpha",
+          group: "",
+          option: { title: "Alpha", value: "a" },
+          index: 0,
+        },
+        {
+          kind: "option",
+          key: "option::1:Beta",
+          group: "",
+          option: { title: "Beta", value: "b" },
+          index: 1,
+        },
+      ]),
+    );
   });
 });

@@ -5,10 +5,22 @@ import { act } from "react";
 
 import type { Theme } from "../context/theme/provider";
 import { DialogProvider } from "../ui/dialog";
-import type { DialogSelectOptionGroup } from "../ui/dialog-select";
+import type { DialogSelectOption } from "../ui/dialog-select";
 import { buildDialogSelectRows } from "../ui/dialog-select";
 import { type CommandOption, DialogCommand } from "./dialog-command";
 import { afterEach, describe, expect, test } from "bun:test";
+
+function stripRowKeys(rows: readonly unknown[]) {
+  return rows.map((row) => {
+    if (typeof row === "object" && row !== null) {
+      const clone = { ...(row as Record<string, unknown>) };
+      delete clone.key;
+      return clone;
+    }
+
+    return row;
+  });
+}
 
 const theme: Theme = {
   background: "#000000",
@@ -58,7 +70,7 @@ const testCommands: CommandOption[] = [
 function buildTestSelectOptions(
   commands: CommandOption[],
   suggestedIds: string[] = [],
-): DialogSelectOptionGroup[] {
+): DialogSelectOption<string>[] {
   const groups = new Map<string, CommandOption[]>();
 
   const suggested = commands.filter((cmd) => suggestedIds.includes(cmd.id));
@@ -76,14 +88,14 @@ function buildTestSelectOptions(
     }
   }
 
-  return Array.from(groups.entries()).map(([group, cmds]) => ({
-    group,
-    options: cmds.map((cmd) => ({
-      id: cmd.id,
+  return Array.from(groups.entries()).flatMap(([group, cmds]) =>
+    cmds.map((cmd) => ({
       title: cmd.label,
+      value: cmd.id,
       description: cmd.slash,
+      category: group,
     })),
-  }));
+  );
 }
 
 describe("DialogCommand", () => {
@@ -189,7 +201,7 @@ describe("DialogCommand", () => {
 
   test("shows empty state when no commands", async () => {
     const commandsMap = {};
-    const options: DialogSelectOptionGroup[] = [];
+    const options: DialogSelectOption<string>[] = [];
     testSetup = await testRender(
       <DialogProvider>
         <DialogCommand theme={theme} options={options} commands={commandsMap} />
@@ -221,29 +233,21 @@ describe("DialogCommand", () => {
     ];
 
     const rows = buildDialogSelectRows(
-      [
-        {
-          group: "",
-          options: commands.map((cmd) => ({
-            id: cmd.id,
-            title: cmd.label,
-          })),
-        },
-      ],
+      commands.map((cmd) => ({ title: cmd.label, value: cmd.id })),
       "ban",
     );
 
-    expect(rows).toEqual([
-      {
-        kind: "option",
-        key: "option::Banana:banana",
-        group: "",
-        option: {
-          id: "banana",
-          title: "Banana",
+    expect(stripRowKeys(rows)).toEqual(
+      stripRowKeys([
+        {
+          kind: "option",
+          key: "option::0:Banana",
+          group: "",
+          option: { title: "Banana", value: "banana" },
+          index: 0,
         },
-      },
-    ]);
+      ]),
+    );
   });
 
   test("arrow keys navigate and enter runs selected command", async () => {
@@ -546,176 +550,144 @@ describe("DialogCommand", () => {
 
     const suggestedIds = ["refresh", "toggle-compare", "toggle-diff-view"];
 
-    const rows = buildDialogSelectRows(
-      [
-        {
-          group: "Suggested",
-          options: commands
-            .filter((cmd) => suggestedIds.includes(cmd.id))
-            .map((cmd) => ({
-              id: cmd.id,
-              title: cmd.label,
-              description: cmd.slash,
-            })),
-        },
-        {
-          group: "View",
-          options: commands
-            .filter((cmd) => cmd.category === "View")
-            .map((cmd) => ({
-              id: cmd.id,
-              title: cmd.label,
-              description: cmd.slash,
-            })),
-        },
-        {
-          group: "Action",
-          options: commands
-            .filter((cmd) => cmd.category === "Action")
-            .map((cmd) => ({
-              id: cmd.id,
-              title: cmd.label,
-              description: cmd.slash,
-            })),
-        },
-        {
-          group: "Layout",
-          options: commands
-            .filter((cmd) => cmd.category === "Layout")
-            .map((cmd) => ({
-              id: cmd.id,
-              title: cmd.label,
-              description: cmd.slash,
-            })),
-        },
-      ],
-      "",
-    );
+    const rows = buildDialogSelectRows(buildTestSelectOptions(commands, suggestedIds), "");
 
-    expect(rows).toEqual([
-      { kind: "group", key: "group:Suggested", label: "Suggested" },
-      {
-        kind: "option",
-        key: "option:Suggested:Compare:toggle-compare",
-        group: "Suggested",
-        option: {
-          id: "toggle-compare",
-          title: "Compare",
-          description: "v",
+    expect(stripRowKeys(rows)).toEqual(
+      stripRowKeys([
+        { kind: "group", key: "group:Suggested", label: "Suggested" },
+        {
+          kind: "option",
+          key: "option:Suggested:0:Compare",
+          group: "Suggested",
+          option: {
+            title: "Compare",
+            value: "toggle-compare",
+            description: "v",
+            category: "Suggested",
+          },
+          index: 0,
         },
-      },
-      {
-        kind: "option",
-        key: "option:Suggested:Refresh:refresh",
-        group: "Suggested",
-        option: {
-          id: "refresh",
-          title: "Refresh",
-          description: "r",
+        {
+          kind: "option",
+          key: "option:Suggested:1:Refresh",
+          group: "Suggested",
+          option: {
+            title: "Refresh",
+            value: "refresh",
+            description: "r",
+            category: "Suggested",
+          },
+          index: 1,
         },
-      },
-      {
-        kind: "option",
-        key: "option:Suggested:Diff View:toggle-diff-view",
-        group: "Suggested",
-        option: {
-          id: "toggle-diff-view",
-          title: "Diff View",
-          description: "space",
+        {
+          kind: "option",
+          key: "option:Suggested:2:Diff View",
+          group: "Suggested",
+          option: {
+            title: "Diff View",
+            value: "toggle-diff-view",
+            description: "space",
+            category: "Suggested",
+          },
+          index: 2,
         },
-      },
-      { kind: "group", key: "group:View", label: "View" },
-      {
-        kind: "option",
-        key: "option:View:Compare:toggle-compare",
-        group: "View",
-        option: {
-          id: "toggle-compare",
-          title: "Compare",
-          description: "v",
+        { kind: "group", key: "group:View", label: "View" },
+        {
+          kind: "option",
+          key: "option:View:3:Compare",
+          group: "View",
+          option: {
+            title: "Compare",
+            value: "toggle-compare",
+            description: "v",
+            category: "View",
+          },
+          index: 3,
         },
-      },
-      {
-        kind: "option",
-        key: "option:View:Diff View:toggle-diff-view",
-        group: "View",
-        option: {
-          id: "toggle-diff-view",
-          title: "Diff View",
-          description: "space",
+        {
+          kind: "option",
+          key: "option:View:4:Diff View",
+          group: "View",
+          option: {
+            title: "Diff View",
+            value: "toggle-diff-view",
+            description: "space",
+            category: "View",
+          },
+          index: 4,
         },
-      },
-      {
-        kind: "option",
-        key: "option:View:Exit Compare:exit-compare",
-        group: "View",
-        option: {
-          id: "exit-compare",
-          title: "Exit Compare",
+        {
+          kind: "option",
+          key: "option:View:5:Exit Compare",
+          group: "View",
+          option: { title: "Exit Compare", value: "exit-compare", category: "View" },
+          index: 5,
         },
-      },
-      { kind: "group", key: "group:Action", label: "Action" },
-      {
-        kind: "option",
-        key: "option:Action:Refresh:refresh",
-        group: "Action",
-        option: {
-          id: "refresh",
-          title: "Refresh",
-          description: "r",
+        { kind: "group", key: "group:Action", label: "Action" },
+        {
+          kind: "option",
+          key: "option:Action:6:Refresh",
+          group: "Action",
+          option: { title: "Refresh", value: "refresh", description: "r", category: "Action" },
+          index: 6,
         },
-      },
-      {
-        kind: "option",
-        key: "option:Action:Stage:stage-file",
-        group: "Action",
-        option: {
-          id: "stage-file",
-          title: "Stage",
-          description: "s",
+        {
+          kind: "option",
+          key: "option:Action:7:Stage",
+          group: "Action",
+          option: { title: "Stage", value: "stage-file", description: "s", category: "Action" },
+          index: 7,
         },
-      },
-      {
-        kind: "option",
-        key: "option:Action:Unstage:unstage-file",
-        group: "Action",
-        option: {
-          id: "unstage-file",
-          title: "Unstage",
-          description: "u",
+        {
+          kind: "option",
+          key: "option:Action:8:Unstage",
+          group: "Action",
+          option: {
+            title: "Unstage",
+            value: "unstage-file",
+            description: "u",
+            category: "Action",
+          },
+          index: 8,
         },
-      },
-      {
-        kind: "option",
-        key: "option:Action:Discard:discard-file",
-        group: "Action",
-        option: {
-          id: "discard-file",
-          title: "Discard",
-          description: "x",
+        {
+          kind: "option",
+          key: "option:Action:9:Discard",
+          group: "Action",
+          option: {
+            title: "Discard",
+            value: "discard-file",
+            description: "x",
+            category: "Action",
+          },
+          index: 9,
         },
-      },
-      { kind: "group", key: "group:Layout", label: "Layout" },
-      {
-        kind: "option",
-        key: "option:Layout:Narrow Sidebar:shrink-sidebar",
-        group: "Layout",
-        option: {
-          id: "shrink-sidebar",
-          title: "Narrow Sidebar",
-          description: "[",
+        { kind: "group", key: "group:Layout", label: "Layout" },
+        {
+          kind: "option",
+          key: "option:Layout:10:Narrow Sidebar",
+          group: "Layout",
+          option: {
+            title: "Narrow Sidebar",
+            value: "shrink-sidebar",
+            description: "[",
+            category: "Layout",
+          },
+          index: 10,
         },
-      },
-      {
-        kind: "option",
-        key: "option:Layout:Wider Sidebar:grow-sidebar",
-        group: "Layout",
-        option: {
-          id: "grow-sidebar",
-          title: "Wider Sidebar",
-          description: "]",
+        {
+          kind: "option",
+          key: "option:Layout:11:Wider Sidebar",
+          group: "Layout",
+          option: {
+            title: "Wider Sidebar",
+            value: "grow-sidebar",
+            description: "]",
+            category: "Layout",
+          },
+          index: 11,
         },
-      },
-    ]);
+      ]),
+    );
   });
 });

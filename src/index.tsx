@@ -14,6 +14,7 @@ import { ReviewProvider, useReviewSession } from "./context/changes/session";
 import { ReviewStateProvider, useReviewState } from "./context/changes/state";
 import { ThemeProvider, useTheme } from "./context/theme/provider";
 import { DialogProvider, useDialog } from "./ui/dialog";
+import type { DialogSelectOption } from "./ui/dialog-select";
 import { Toast, ToastProvider } from "./ui/toast";
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
   const git = useReviewSession();
   const app = useReviewState();
   const dialog = useDialog();
+  const isFakeGit = process.env.USE_FAKE_GIT === "1";
 
   const showCommandPalette = useCallback(() => {
     const commands: CommandOption[] = [
@@ -99,32 +101,49 @@ function App() {
       },
     ];
 
+    if (isFakeGit) {
+      commands.push(
+        { id: "fake-scroll-1", label: "Fake Scroll 1", category: "Debug", run: () => {} },
+        { id: "fake-scroll-2", label: "Fake Scroll 2", category: "Debug", run: () => {} },
+        { id: "fake-scroll-3", label: "Fake Scroll 3", category: "Debug", run: () => {} },
+        { id: "fake-scroll-4", label: "Fake Scroll 4", category: "Debug", run: () => {} },
+        { id: "fake-scroll-5", label: "Fake Scroll 5", category: "Debug", run: () => {} },
+        { id: "fake-scroll-6", label: "Fake Scroll 6", category: "Debug", run: () => {} },
+        { id: "fake-scroll-7", label: "Fake Scroll 7", category: "Debug", run: () => {} },
+        { id: "fake-scroll-8", label: "Fake Scroll 8", category: "Debug", run: () => {} },
+        { id: "fake-scroll-9", label: "Fake Scroll 9", category: "Debug", run: () => {} },
+        { id: "fake-scroll-10", label: "Fake Scroll 10", category: "Debug", run: () => {} },
+      );
+    }
+
     const commandsMap = Object.fromEntries(commands.map((cmd) => [cmd.id, cmd]));
 
     const suggestedCmds = commands.filter((cmd) =>
       ["refresh", "toggle-compare", "toggle-diff-view"].includes(cmd.id),
     );
 
+    const categories = isFakeGit
+      ? (["View", "Action", "Layout", "Debug"] as const)
+      : (["View", "Action", "Layout"] as const);
+
     const selectOptions = [
-      {
-        group: "Suggested",
-        options: suggestedCmds.map((cmd) => ({
-          id: cmd.id,
-          title: cmd.label,
-          description: cmd.slash,
-        })),
-      },
-      ...(["View", "Action", "Layout"] as const).map((cat) => ({
-        group: cat,
-        options: commands
+      ...suggestedCmds.map((cmd) => ({
+        title: cmd.label,
+        value: cmd.id,
+        description: cmd.slash,
+        category: "Suggested",
+      })),
+      ...categories.flatMap((cat) =>
+        commands
           .filter((cmd) => cmd.category === cat)
           .map((cmd) => ({
-            id: cmd.id,
             title: cmd.label,
+            value: cmd.id,
             description: cmd.slash,
+            category: cat,
           })),
-      })),
-    ];
+      ),
+    ] satisfies DialogSelectOption<string>[];
 
     dialog.replace(
       <DialogCommand theme={theme} options={selectOptions} commands={commandsMap} />,

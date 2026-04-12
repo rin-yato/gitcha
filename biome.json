@@ -95,7 +95,8 @@
       "a11y": {
         "noPositiveTabindex": "off",
         "noNoninteractiveTabindex": "off",
-        "noStaticElementInteractions": "off"
+        "noStaticElementInteractions": "off",
+        "useKeyWithMouseEvents": "off"
       },
       "nursery": {
         "useSortedClasses": {

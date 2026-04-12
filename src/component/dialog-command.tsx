@@ -2,12 +2,10 @@ import { useCallback } from "react";
 
 import type { Theme } from "../context/theme/provider";
 import { useDialog } from "../ui/dialog";
-import {
-  DialogSelect,
-  type DialogSelectOption,
-  type DialogSelectOptionGroup,
-} from "../ui/dialog-select";
+import { DialogSelect, type DialogSelectOption } from "../ui/dialog-select";
 import { Overlay } from "@/ui/overlay";
+
+type DialogSelectOptionValue = DialogSelectOption<string>;
 
 export type CommandOption = {
   id: string;
@@ -19,7 +17,7 @@ export type CommandOption = {
 
 export type DialogCommandProps = {
   theme: Theme;
-  options: DialogSelectOptionGroup[];
+  options: DialogSelectOptionValue[];
   commands: Record<string, CommandOption>;
 };
 
@@ -27,8 +25,8 @@ export function DialogCommand(props: DialogCommandProps) {
   const dialog = useDialog();
 
   const handleSelect = useCallback(
-    (option: DialogSelectOption) => {
-      const cmd = props.commands[option.id];
+    (option: DialogSelectOptionValue) => {
+      const cmd = props.commands[option.value];
       cmd?.run();
       dialog.closeTop();
     },

@@ -2,7 +2,7 @@ import { useCallback } from "react";
 
 import type { Theme } from "../context/theme/provider";
 import type { CompareTarget } from "../git";
-import { DialogSelect } from "../ui/dialog-select";
+import { DialogSelect, type DialogSelectOption } from "../ui/dialog-select";
 import { Overlay } from "../ui/overlay";
 
 export interface CompareBranchDialogProps {
@@ -17,47 +17,33 @@ export interface CompareBranchDialogProps {
 export function CompareBranchDialog(props: CompareBranchDialogProps) {
   const { theme, branches, currentBranch, defaultCompareTarget, onSelect, onClose } = props;
 
-  const otherBranches = branches.filter((b) => b !== currentBranch);
-
   const options = defaultCompareTarget
-    ? [
+    ? ([
         {
-          group: "Nearest branch",
-          options: [
-            {
-              id: defaultCompareTarget.ref,
-              title: defaultCompareTarget.label,
-              description: "Nearest merged branch",
-            },
-          ],
+          title: defaultCompareTarget.label,
+          value: defaultCompareTarget.ref,
+          description: "Nearest merged branch",
+          category: "Nearest branch",
         },
-        ...(otherBranches.length > 0
-          ? [
-              {
-                group: "Other branches",
-                options: otherBranches.map((branch) => ({
-                  id: branch,
-                  title: branch,
-                  description: branch === currentBranch ? "Current branch" : undefined,
-                })),
-              },
-            ]
-          : []),
-      ]
-    : [
-        {
-          group: "Branches",
-          options: branches.map((branch) => ({
-            id: branch,
+        ...branches
+          .filter((branch) => branch !== currentBranch)
+          .map((branch) => ({
             title: branch,
+            value: branch,
             description: branch === currentBranch ? "Current branch" : undefined,
+            category: "Other branches",
           })),
-        },
-      ];
+      ] satisfies DialogSelectOption<string>[])
+    : (branches.map((branch) => ({
+        title: branch,
+        value: branch,
+        description: branch === currentBranch ? "Current branch" : undefined,
+        category: "Branches",
+      })) satisfies DialogSelectOption<string>[]);
 
   const handleSelect = useCallback(
-    (option: { id: string; title: string }) => {
-      onSelect({ ref: option.id, label: option.title });
+    (option: DialogSelectOption<string>) => {
+      onSelect({ ref: option.value, label: option.title });
     },
     [onSelect],
   );

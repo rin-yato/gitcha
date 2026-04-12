@@ -36,7 +36,9 @@
     "@opentui/core": "^0.1.97",
     "@opentui/react": "^0.1.97",
     "diff": "^8.0.2",
-    "react": "^19.0.0"
+    "fuzzysort": "^3.1.0",
+    "react": "^19.0.0",
+    "remeda": "^2.33.7"
   },
   "keywords": [
     "git",
