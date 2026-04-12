@@ -58,7 +58,9 @@ export type ReviewState = {
   unstageSelectedFile: () => void;
   discardSelectedFile: () => void;
   // Layout
+  isSidebarOpen: boolean;
   sidebarWidth: number;
+  toggleSidebar: () => void;
   shrinkSidebar: () => void;
   growSidebar: () => void;
 };
@@ -155,7 +157,9 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
   const [focusedRowIndex, setFocusedRowIndex] = useState(0);
   const [diffViewMode, setDiffViewMode] = useState<DiffViewMode>("unified");
   const [viewMode, setViewMode] = useState<ViewMode>("staging");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(40);
+  const previousSidebarWidthRef = useRef(40);
   const scrollPositionsRef = useRef(new Map<string, number>());
   const hasInitializedRef = useRef(false);
 
@@ -317,13 +321,35 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
     setDiffViewMode((m) => (m === "unified" ? "split" : "unified"));
   }, []);
 
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarOpen((open) => {
+      if (open) {
+        previousSidebarWidthRef.current = sidebarWidth;
+        setSidebarWidth(0);
+      } else {
+        setSidebarWidth(previousSidebarWidthRef.current);
+      }
+      return !open;
+    });
+  }, [sidebarWidth]);
+
   const shrinkSidebar = useCallback(() => {
+    if (!isSidebarOpen) {
+      setIsSidebarOpen(true);
+      setSidebarWidth(Math.max(MIN_SIDEBAR_WIDTH, previousSidebarWidthRef.current - 5));
+      return;
+    }
     setSidebarWidth((w) => Math.max(MIN_SIDEBAR_WIDTH, w - 5));
-  }, []);
+  }, [isSidebarOpen]);
 
   const growSidebar = useCallback(() => {
+    if (!isSidebarOpen) {
+      setIsSidebarOpen(true);
+      setSidebarWidth(Math.min(MAX_SIDEBAR_WIDTH, previousSidebarWidthRef.current + 5));
+      return;
+    }
     setSidebarWidth((w) => Math.min(MAX_SIDEBAR_WIDTH, w + 5));
-  }, []);
+  }, [isSidebarOpen]);
 
   // -- effects --
 
@@ -385,7 +411,9 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
       discardSelectedFile: () => {
         if (selectedFile && viewMode === "staging") git.discardChanges(selectedFile);
       },
+      isSidebarOpen,
       sidebarWidth,
+      toggleSidebar,
       shrinkSidebar,
       growSidebar,
     }),
@@ -406,7 +434,9 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
       selectFile,
       focusPreviousRow,
       focusNextRow,
+      isSidebarOpen,
       sidebarWidth,
+      toggleSidebar,
       shrinkSidebar,
       growSidebar,
       git,

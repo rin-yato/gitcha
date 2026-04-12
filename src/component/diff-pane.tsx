@@ -90,7 +90,6 @@ function DiffRenderablePane(props: FileDiffViewProps) {
           removedBg={`${props.theme.removed}12`}
           contextBg={props.theme.background}
           lineNumberFg={props.theme.textMuted}
-          lineNumberBg={props.theme.surface}
           addedContentBg={`${props.theme.added}12`}
           removedContentBg={`${props.theme.removed}12`}
           contextContentBg={props.theme.background}
@@ -146,7 +145,7 @@ export function DiffPane(props: {
       flexGrow={1}
       flexDirection="column"
     >
-      <box flexDirection="row" justifyContent="space-between" paddingBottom={1}>
+      <box flexDirection="row" justifyContent="space-between" paddingBottom={1} paddingX={1}>
         <text
           content={props.selectedFile || "no file selected"}
           fg={props.theme.text}

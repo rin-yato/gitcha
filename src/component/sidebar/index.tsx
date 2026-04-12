@@ -21,6 +21,7 @@ export type SidebarProps = {
   selectFile: (path: string, section: FileSection) => void;
   viewMode: ViewMode;
   compareState: CompareState | null;
+  isOpen: boolean;
   width: number;
 };
 
@@ -53,18 +54,20 @@ function isEmptyRepo(status: GitRepoStatus | null): boolean {
 function Header(props: { viewMode: ViewMode; baseLabel: string | null; theme: Theme }) {
   const { viewMode, baseLabel, theme } = props;
 
-  const title = viewMode === "staging" ? "Staging" : `Compare · ${baseLabel ?? "?"}`;
-  const hint = viewMode === "staging" ? "[v]" : "[v] staging";
+  const title = viewMode === "staging" ? "Staging" : "Compare";
 
   return (
-    <box flexDirection="row" justifyContent="space-between" paddingBottom={1}>
+    <box flexDirection="row" justifyContent="space-between" paddingBottom={1} paddingX={1}>
       <text
         content={title}
         fg={viewMode === "compare" ? theme.accent : theme.text}
         attributes={1}
         selectable={false}
       />
-      <text content={hint} fg={theme.textMuted} selectable={false} />
+
+      {viewMode === "compare" && baseLabel && (
+        <text content={baseLabel} fg={theme.textMuted} selectable={false} />
+      )}
     </box>
   );
 }
@@ -104,8 +107,11 @@ export function Sidebar(props: SidebarProps) {
     selectFile,
     viewMode,
     compareState,
+    isOpen,
     width,
   } = props;
+
+  if (!isOpen) return null;
 
   const staged = getStagedFiles(status);
   const changes = getChangeFiles(status);
@@ -113,7 +119,7 @@ export function Sidebar(props: SidebarProps) {
   const isEmpty = isEmptyRepo(status);
 
   return (
-    <box backgroundColor={theme.surface} width={width} flexDirection="column" paddingY={1}>
+    <box backgroundColor={theme.surface} width={width} flexDirection="column" paddingX={1}>
       <Header viewMode={viewMode} baseLabel={compareState?.baseLabel ?? null} theme={theme} />
 
       <scrollbox viewportCulling>

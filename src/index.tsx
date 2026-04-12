@@ -91,6 +91,13 @@ function App() {
         slash: "]",
         run: () => app.growSidebar(),
       },
+      {
+        id: "toggle-sidebar",
+        label: "Toggle Sidebar",
+        category: "Layout",
+        slash: "\\",
+        run: () => app.toggleSidebar(),
+      },
     ];
 
     const commandsMap = Object.fromEntries(commands.map((cmd) => [cmd.id, cmd]));
@@ -194,6 +201,7 @@ function App() {
     // Layout
     if (event.name === "[") app.shrinkSidebar();
     if (event.name === "]") app.growSidebar();
+    if (event.name === "\\") app.toggleSidebar();
 
     // Exit
     if (event.name === "escape") {
@@ -222,6 +230,7 @@ function App() {
         selectFile={app.selectFile}
         viewMode={app.viewMode}
         compareState={git.compareState}
+        isOpen={app.isSidebarOpen}
         width={app.sidebarWidth}
       />
 

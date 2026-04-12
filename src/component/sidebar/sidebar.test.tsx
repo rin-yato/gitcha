@@ -34,6 +34,7 @@ const cleanStatus: GitRepoStatus = {
 const baseProps = {
   viewMode: "staging" as const,
   compareState: null,
+  isOpen: true,
 };
 
 let testSetup: Awaited<ReturnType<typeof testRender>> | null = null;
