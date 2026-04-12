@@ -14,7 +14,6 @@ import { ReviewProvider, useReviewSession } from "./context/changes/session";
 import { ReviewStateProvider, useReviewState } from "./context/changes/state";
 import { ThemeProvider, useTheme } from "./context/theme/provider";
 import { DialogProvider, useDialog } from "./ui/dialog";
-import { Overlay } from "./ui/overlay";
 import { Toast, ToastProvider } from "./ui/toast";
 
 function App() {
@@ -128,9 +127,7 @@ function App() {
     ];
 
     dialog.replace(
-      <Overlay backgroundColor="#00000088">
-        <DialogCommand theme={theme} options={selectOptions} commands={commandsMap} />
-      </Overlay>,
+      <DialogCommand theme={theme} options={selectOptions} commands={commandsMap} />,
     );
   }, [app, git, theme, dialog]);
 

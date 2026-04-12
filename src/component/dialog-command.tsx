@@ -7,6 +7,7 @@ import {
   type DialogSelectOption,
   type DialogSelectOptionGroup,
 } from "../ui/dialog-select";
+import { Overlay } from "@/ui/overlay";
 
 export type CommandOption = {
   id: string;
@@ -35,17 +36,17 @@ export function DialogCommand(props: DialogCommandProps) {
   );
 
   return (
-    <box width="100%" height="100%" justifyContent="center" alignItems="center">
-      <box width={76} height={24} backgroundColor="#f7f7f7">
-        <DialogSelect
-          theme={props.theme}
-          title="Commands"
-          placeholder="Search commands..."
-          options={props.options}
-          onSelect={handleSelect}
-          onClose={() => dialog.closeTop()}
-        />
-      </box>
-    </box>
+    <Overlay>
+      <DialogSelect
+        theme={props.theme}
+        title="Commands"
+        placeholder="Search commands..."
+        options={props.options}
+        onSelect={handleSelect}
+        onClose={() => dialog.closeTop()}
+        width={76}
+        height={24}
+      />
+    </Overlay>
   );
 }

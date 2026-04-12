@@ -22,6 +22,8 @@ export interface DialogSelectProps {
   options: DialogSelectOptionGroup[];
   onSelect: (option: DialogSelectOption) => void;
   onClose?: () => void;
+  width: number;
+  height: number;
 }
 
 type VisibleRow =
@@ -182,7 +184,14 @@ export function DialogSelect(props: DialogSelectProps) {
   }, []);
 
   return (
-    <box gap={0} paddingBottom={1} paddingTop={1} height="100%" width="100%">
+    <box
+      gap={0}
+      paddingBottom={1}
+      paddingTop={1}
+      width={props.width}
+      height={props.height}
+      backgroundColor={props.theme.surface}
+    >
       <box paddingLeft={4} paddingRight={4}>
         <box flexDirection="row" justifyContent="space-between" paddingBottom={1}>
           <text fg={props.theme.text} attributes={1} selectable={false}>

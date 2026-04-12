@@ -63,19 +63,17 @@ export function CompareBranchDialog(props: CompareBranchDialogProps) {
   );
 
   return (
-    <Overlay backgroundColor="#00000088">
-      <box width="100%" height="100%" justifyContent="center" alignItems="center">
-        <box width={60} height={20} backgroundColor={theme.surface} flexDirection="column">
-          <DialogSelect
-            theme={theme}
-            title="Compare to branch"
-            placeholder="Filter branches..."
-            options={options}
-            onSelect={handleSelect}
-            onClose={onClose}
-          />
-        </box>
-      </box>
+    <Overlay>
+      <DialogSelect
+        theme={theme}
+        title="Compare to branch"
+        placeholder="Filter branches..."
+        options={options}
+        onSelect={handleSelect}
+        onClose={onClose}
+        width={60}
+        height={20}
+      />
     </Overlay>
   );
 }
