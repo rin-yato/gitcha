@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 
-import type { Theme } from "../context/theme/provider";
+import type { Theme } from "@/context/theme/provider";
 
 type ToastVariant = "success" | "error" | "info" | "warning";
 

@@ -1,5 +1,6 @@
-import { createFakeGitClient } from "./fake-client";
 import { describe, expect, test } from "bun:test";
+
+import { createFakeGitClient } from "./fake-client";
 
 describe("fake git project", () => {
   test("exposes realistic repo state", async () => {

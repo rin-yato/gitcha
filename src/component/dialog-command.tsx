@@ -1,9 +1,10 @@
 import { useCallback } from "react";
 
-import type { Theme } from "../context/theme/provider";
-import { useDialog } from "../ui/dialog";
-import { DialogSelect, type DialogSelectOption } from "../ui/dialog-select";
-import { Overlay } from "@/ui/overlay";
+import type { Theme } from "@/context/theme/provider";
+
+import { useDialog } from "@/component/ui/dialog";
+import { DialogSelect, type DialogSelectOption } from "@/component/ui/dialog-select";
+import { Overlay } from "@/component/ui/overlay";
 
 type DialogSelectOptionValue = DialogSelectOption<string>;
 

@@ -1,6 +1,8 @@
-import type { GitStatusFile } from "../../git";
-import { buildFileKey, getFileStatus, parseFileKey, splitPath, truncateDir } from "./utils";
 import { describe, expect, test } from "bun:test";
+
+import type { GitStatusFile } from "@/lib/git";
+
+import { buildFileKey, getFileStatus, parseFileKey, splitPath, truncateDir } from "./utils";
 
 describe("sidebar utils", () => {
   test("getFileStatus prefers working tree status", () => {

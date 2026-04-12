@@ -1,15 +1,17 @@
 import "../test-setup";
 
+import { afterEach, expect, test } from "bun:test";
+
 import { testRender } from "@opentui/react/test-utils";
 
 import { act } from "react";
 
-import { createFakeGitClient } from "../context/changes/fake-client";
-import { ReviewProvider } from "../context/changes/session";
-import { ReviewStateProvider } from "../context/changes/state";
-import type { Theme } from "../context/theme/provider";
+import { createFakeGitClient } from "@/context/changes/fake-client";
+import { ReviewProvider } from "@/context/changes/session";
+import { ReviewStateProvider } from "@/context/changes/state";
+import type { Theme } from "@/context/theme/provider";
+
 import { DiffPane } from "./diff-pane";
-import { afterEach, expect, test } from "bun:test";
 
 const theme: Theme = {
   background: "#000000",

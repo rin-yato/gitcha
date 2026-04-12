@@ -1,5 +1,6 @@
-import { getBranchDiffFiles } from "./commands";
 import { describe, expect, test } from "bun:test";
+
+import { getBranchDiffFiles } from "./commands";
 
 describe("getBranchDiffFiles shape", () => {
   test("returns file records with status fields", async () => {

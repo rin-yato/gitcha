@@ -1,11 +1,14 @@
+import { afterEach, expect, test } from "bun:test";
+
 import { testRender } from "@opentui/react/test-utils";
 
 import { act } from "react";
 
-import type { Theme } from "../../context/theme/provider";
-import type { GitRepoStatus } from "../../git";
+import type { Theme } from "@/context/theme/provider";
+
+import type { GitRepoStatus } from "@/lib/git";
+
 import { Sidebar } from "./index";
-import { afterEach, expect, test } from "bun:test";
 
 const theme: Theme = {
   background: "#000000",

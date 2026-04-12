@@ -1,13 +1,16 @@
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core";
 import { flushSync, useKeyboard, useTerminalDimensions } from "@opentui/react";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import type { Theme } from "@/context/theme/provider";
+import { useTheme } from "@/context/theme/provider";
+
 import fuzzysort from "fuzzysort";
 import { entries, flatMap, groupBy, isDeepEqual, pipe } from "remeda";
-import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { DialogState } from "./dialog";
 import { useDialog } from "./dialog";
-import type { Theme } from "../context/theme/provider";
-import { useTheme } from "../context/theme/provider";
 
 export interface DialogSelectOption<T = unknown> {
   title: string;

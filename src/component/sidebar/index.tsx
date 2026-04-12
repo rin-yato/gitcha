@@ -3,9 +3,11 @@ export * from "./file-list";
 export * from "./types";
 export * from "./utils";
 
-import type { FileSection, ViewMode } from "../../context/changes/state";
-import type { Theme } from "../../context/theme/provider";
-import type { CompareState, GitRepoStatus, GitStatusFile } from "../../git";
+import type { FileSection, ViewMode } from "@/context/changes/state";
+import type { Theme } from "@/context/theme/provider";
+
+import type { CompareState, GitRepoStatus, GitStatusFile } from "@/lib/git";
+
 import { FileList } from "./file-list";
 
 // ---------------------------------------------------------------------------

@@ -8,7 +8,7 @@ import type {
   GitRepoStatus,
   GitStatusFile,
   RepoContext,
-} from "../../git";
+} from "@/lib/git";
 import {
   commitChanges as commitGitChanges,
   detectRepoContext,
@@ -27,7 +27,7 @@ import {
   pushChanges as pushGitChanges,
   stageFile as stageGitFile,
   unstageFile as unstageGitFile,
-} from "../../git";
+} from "@/lib/git";
 
 export type ReviewSession = {
   status: GitRepoStatus | null;

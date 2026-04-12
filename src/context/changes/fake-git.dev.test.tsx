@@ -1,4 +1,6 @@
-import "../../test-setup";
+import "@/test-setup";
+
+import { afterEach, describe, expect, test } from "bun:test";
 
 import { testRender } from "@opentui/react/test-utils";
 
@@ -7,7 +9,6 @@ import { act, useEffect, useRef } from "react";
 import { createFakeGitClient } from "./fake-client";
 import { ReviewProvider, useReviewSession } from "./session";
 import { ReviewStateProvider, useReviewState } from "./state";
-import { afterEach, describe, expect, test } from "bun:test";
 
 function Probe() {
   const app = useReviewState();

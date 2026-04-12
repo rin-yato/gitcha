@@ -1,7 +1,7 @@
 import type React from "react";
 import { createContext, useContext, useMemo } from "react";
 
-import opencodeLightThemeJson from "../../themes/opencode-light.json";
+import opencodeLightThemeJson from "@/themes/opencode-light.json";
 
 export interface Theme {
   background: string;

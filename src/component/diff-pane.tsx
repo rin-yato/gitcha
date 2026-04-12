@@ -2,10 +2,11 @@ import type { DiffRenderable, ScrollBoxRenderable } from "@opentui/core";
 
 import { useMemo, useRef, useState } from "react";
 
-import type { DiffViewMode } from "../context/changes/state";
-import type { Theme } from "../context/theme/provider";
-import { createSyntaxStyle, detectFiletype, treeSitterClient } from "../context/theme/syntax";
-import { computeScrollbarMarkers, parseDiffPositions } from "../git/diff";
+import type { DiffViewMode } from "@/context/changes/state";
+import type { Theme } from "@/context/theme/provider";
+import { createSyntaxStyle, detectFiletype, treeSitterClient } from "@/context/theme/syntax";
+
+import { computeScrollbarMarkers, parseDiffPositions } from "@/lib/git";
 
 type FileDiffViewProps = {
   fileKey: string;

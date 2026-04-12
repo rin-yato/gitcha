@@ -1,5 +1,5 @@
-import type { FsBackend } from "../fs";
-import { bunFs } from "../fs";
+import { bunFs, type FsBackend } from "@/lib/fs";
+
 import { execGit, getRepoRoot } from "./commands";
 
 export interface RepoContext {

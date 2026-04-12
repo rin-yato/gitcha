@@ -1,14 +1,17 @@
+import { afterEach, describe, expect, test } from "bun:test";
+
 import { createSpy } from "@opentui/core/testing";
 import { testRender } from "@opentui/react/test-utils";
 
 import { act } from "react";
 
-import type { Theme } from "../context/theme/provider";
-import { DialogProvider } from "../ui/dialog";
-import type { DialogSelectOption } from "../ui/dialog-select";
-import { buildDialogSelectRows } from "../ui/dialog-select";
+import type { Theme } from "@/context/theme/provider";
+
+import { DialogProvider } from "@/component/ui/dialog";
+import type { DialogSelectOption } from "@/component/ui/dialog-select";
+import { buildDialogSelectRows } from "@/component/ui/dialog-select";
+
 import { type CommandOption, DialogCommand } from "./dialog-command";
-import { afterEach, describe, expect, test } from "bun:test";
 
 function stripRowKeys(rows: readonly unknown[]) {
   return rows.map((row) => {

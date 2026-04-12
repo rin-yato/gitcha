@@ -9,8 +9,9 @@ import {
   useState,
 } from "react";
 
-import type { CompareTarget, GitStatusFile } from "../../git";
-import { generateDiff } from "../../git";
+import type { CompareTarget, GitStatusFile } from "@/lib/git";
+import { generateDiff } from "@/lib/git";
+
 import {
   firstAvailableFile,
   sectionForIndex,

@@ -1,6 +1,7 @@
+import { describe, expect, test } from "bun:test";
+
 import { buildFileTree, categorizeFiles, parseStatusLine } from "./parser";
 import type { GitStatusFile } from "./types";
-import { describe, expect, test } from "bun:test";
 
 describe("parseStatusLine", () => {
   test("parses a modified file", () => {

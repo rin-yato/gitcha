@@ -1,6 +1,8 @@
-import type { GitStatusFile } from "../../git";
-import { buildFileKey, clampIndex, fileAtIndex, fileKeyFromIndex, indexOfFile } from "./state";
 import { describe, expect, test } from "bun:test";
+
+import type { GitStatusFile } from "@/lib/git";
+
+import { buildFileKey, clampIndex, fileAtIndex, fileKeyFromIndex, indexOfFile } from "./state";
 
 const file = (path: string): GitStatusFile => ({
   path,

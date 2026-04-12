@@ -1,21 +1,23 @@
 #!/usr/bin/env bun
+
 import { createCliRenderer } from "@opentui/core";
 import { createRoot, useKeyboard, useRenderer } from "@opentui/react";
 
 import { useCallback } from "react";
 
-import type { CommandOption } from "./component/dialog-command";
-import { DialogCommand } from "./component/dialog-command";
-import { CompareBranchDialog } from "./component/dialog-compare-branch";
-import { DiffPane } from "./component/diff-pane";
-import { Sidebar } from "./component/sidebar/index";
-import { createFakeGitClient } from "./context/changes/fake-client";
-import { ReviewProvider, useReviewSession } from "./context/changes/session";
-import { ReviewStateProvider, useReviewState } from "./context/changes/state";
-import { ThemeProvider, useTheme } from "./context/theme/provider";
-import { DialogProvider, useDialog } from "./ui/dialog";
-import type { DialogSelectOption } from "./ui/dialog-select";
-import { Toast, ToastProvider } from "./ui/toast";
+import { createFakeGitClient } from "@/context/changes/fake-client";
+import { ReviewProvider, useReviewSession } from "@/context/changes/session";
+import { ReviewStateProvider, useReviewState } from "@/context/changes/state";
+import { ThemeProvider, useTheme } from "@/context/theme/provider";
+
+import type { CommandOption } from "@/component/dialog-command";
+import { DialogCommand } from "@/component/dialog-command";
+import { CompareBranchDialog } from "@/component/dialog-compare-branch";
+import { DiffPane } from "@/component/diff-pane";
+import { Sidebar } from "@/component/sidebar/index";
+import { DialogProvider, useDialog } from "@/component/ui/dialog";
+import type { DialogSelectOption } from "@/component/ui/dialog-select";
+import { Toast, ToastProvider } from "@/component/ui/toast";
 
 function App() {
   const renderer = useRenderer();

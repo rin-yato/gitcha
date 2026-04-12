@@ -1,9 +1,11 @@
 import { useCallback } from "react";
 
-import type { Theme } from "../context/theme/provider";
-import type { CompareTarget } from "../git";
-import { DialogSelect, type DialogSelectOption } from "../ui/dialog-select";
-import { Overlay } from "../ui/overlay";
+import type { Theme } from "@/context/theme/provider";
+
+import type { CompareTarget } from "@/lib/git";
+
+import { DialogSelect, type DialogSelectOption } from "@/component/ui/dialog-select";
+import { Overlay } from "@/component/ui/overlay";
 
 export interface CompareBranchDialogProps {
   theme: Theme;

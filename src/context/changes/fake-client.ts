@@ -1,4 +1,5 @@
-import type { CompareTarget, GitRepoStatus, GitStatusFile } from "../../git";
+import type { CompareTarget, GitRepoStatus, GitStatusFile } from "@/lib/git";
+
 import type { GitClient } from "./session";
 
 type FakeRepoContext = {

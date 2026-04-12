@@ -1,6 +1,8 @@
-import type { GitRepoStatus, GitStatusFile } from "../../git";
-import { firstAvailableFile, sectionForIndex, stagedFileCount, visibleFiles } from "./session";
 import { describe, expect, test } from "bun:test";
+
+import type { GitRepoStatus, GitStatusFile } from "@/lib/git";
+
+import { firstAvailableFile, sectionForIndex, stagedFileCount, visibleFiles } from "./session";
 
 const file = (path: string, indexStatus = " ", workingTreeStatus = "M"): GitStatusFile => ({
   path,

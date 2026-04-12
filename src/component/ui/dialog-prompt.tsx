@@ -1,6 +1,7 @@
 import { useState } from "react";
 
-import type { Theme } from "../context/theme/provider";
+import type { Theme } from "@/context/theme/provider";
+
 import { useDialog } from "./dialog";
 
 export type DialogPromptProps = {

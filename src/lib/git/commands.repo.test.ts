@@ -1,3 +1,5 @@
+import { describe, expect, test } from "bun:test";
+
 import { mkdtempSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -10,7 +12,6 @@ import {
   getLocalBranches,
   getRootCommit,
 } from "./commands";
-import { describe, expect, test } from "bun:test";
 
 async function createRepo() {
   const dir = mkdtempSync(join(tmpdir(), "changes-git-"));

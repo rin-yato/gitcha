@@ -1,5 +1,6 @@
-import type { Theme } from "../../context/theme/provider";
-import type { GitStatusFile } from "../../git";
+import type { Theme } from "@/context/theme/provider";
+
+import type { GitStatusFile } from "@/lib/git";
 
 export type FileSection = "staged" | "changes" | "compare";
 
