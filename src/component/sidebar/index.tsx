@@ -5,19 +5,22 @@ export * from "./utils";
 
 import type { ScrollBoxRenderable } from "@opentui/core";
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { FileSection, SelectionSource, ViewMode } from "@/context/changes/state";
 import type { Theme } from "@/context/theme/provider";
 
-import type { CompareState, GitRepoStatus, GitStatusFile } from "@/lib/git";
+import type { CompareState, FileTreeNode, GitRepoStatus, GitStatusFile } from "@/lib/git";
+import { buildFileTree } from "@/lib/git";
 
 import {
   buildFileKey,
+  getAncestorDirs,
   getFileStatus,
   getStatusColor,
   getStatusIcon,
-  formatFilePath,
+  parseFileKey,
+  splitPath,
 } from "./utils";
 
 // ---------------------------------------------------------------------------
@@ -62,7 +65,49 @@ function isEmptyRepo(status: GitRepoStatus | null): boolean {
 
 type SidebarRow =
   | { kind: "section"; key: string; label: string; count: number; countColor: string }
-  | { kind: "file"; key: string; file: GitStatusFile; section: FileSection };
+  | { kind: "file"; key: string; file: GitStatusFile; section: FileSection; depth: number }
+  | {
+      kind: "dir";
+      key: string;
+      path: string;
+      name: string;
+      depth: number;
+      isCollapsed: boolean;
+    };
+
+function flattenTreeNodes(
+  nodes: FileTreeNode[],
+  section: FileSection,
+  depth: number,
+  collapsedDirs: Set<string>,
+): SidebarRow[] {
+  const rows: SidebarRow[] = [];
+  for (const node of nodes) {
+    if (node.isDirectory) {
+      const isCollapsed = collapsedDirs.has(node.path);
+      rows.push({
+        kind: "dir",
+        key: `dir:${section}:${node.path}`,
+        path: node.path,
+        name: node.name,
+        depth,
+        isCollapsed,
+      });
+      if (!isCollapsed) {
+        rows.push(...flattenTreeNodes(node.children, section, depth + 1, collapsedDirs));
+      }
+    } else if (node.fileInfo) {
+      rows.push({
+        kind: "file",
+        key: buildFileKey(section, node.path),
+        file: node.fileInfo,
+        section,
+        depth,
+      });
+    }
+  }
+  return rows;
+}
 
 function buildSidebarRows(args: {
   theme: Theme;
@@ -71,8 +116,9 @@ function buildSidebarRows(args: {
   changes: GitStatusFile[];
   compareFiles: GitStatusFile[];
   isEmpty: boolean;
+  collapsedDirs: Set<string>;
 }): SidebarRow[] {
-  const { theme, viewMode, staged, changes, compareFiles, isEmpty } = args;
+  const { theme, viewMode, staged, changes, compareFiles, isEmpty, collapsedDirs } = args;
   if (viewMode === "compare") {
     if (compareFiles.length === 0) {
       return [];
@@ -86,12 +132,7 @@ function buildSidebarRows(args: {
         count: compareFiles.length,
         countColor: theme.modified,
       },
-      ...compareFiles.map((file) => ({
-        kind: "file" as const,
-        key: buildFileKey("compare", file.path),
-        file,
-        section: "compare" as const,
-      })),
+      ...flattenTreeNodes(buildFileTree(compareFiles).children, "compare", 0, collapsedDirs),
     ];
   }
 
@@ -105,12 +146,7 @@ function buildSidebarRows(args: {
       count: staged.length,
       countColor: theme.added,
     },
-    ...staged.map((file) => ({
-      kind: "file" as const,
-      key: buildFileKey("staged", file.path),
-      file,
-      section: "staged" as const,
-    })),
+    ...flattenTreeNodes(buildFileTree(staged).children, "staged", 0, collapsedDirs),
     {
       kind: "section",
       key: "section:changes",
@@ -118,12 +154,7 @@ function buildSidebarRows(args: {
       count: changes.length,
       countColor: theme.modified,
     },
-    ...changes.map((file) => ({
-      kind: "file" as const,
-      key: buildFileKey("changes", file.path),
-      file,
-      section: "changes" as const,
-    })),
+    ...flattenTreeNodes(buildFileTree(changes).children, "changes", 0, collapsedDirs),
   ];
 }
 
@@ -147,11 +178,47 @@ function SidebarSectionHeader(props: {
   );
 }
 
+function SidebarDirRow(props: {
+  name: string;
+  depth: number;
+  isCollapsed: boolean;
+  onToggle: () => void;
+  theme: Theme;
+}) {
+  const indent = 1 + props.depth * 2;
+  const icon = props.isCollapsed ? "▶" : "▼";
+
+  return (
+    <box
+      onMouseUp={props.onToggle}
+      flexDirection="row"
+      width="100%"
+      height={1}
+      maxHeight={1}
+      overflow="hidden"
+      paddingLeft={indent}
+      paddingRight={1}
+    >
+      <text content={icon} fg={props.theme.textMuted} selectable={false} />
+      <text content=" " selectable={false} />
+      <text
+        content={props.name}
+        fg={props.theme.textMuted}
+        selectable={false}
+        flexGrow={1}
+        flexShrink={1}
+        truncate
+      />
+    </box>
+  );
+}
+
 function SidebarRowView(props: {
   file: GitStatusFile;
   section: FileSection;
   theme: Theme;
   isActive: boolean;
+  depth: number;
   onSelect: () => void;
 }) {
   const status = getFileStatus(props.file);
@@ -161,7 +228,8 @@ function SidebarRowView(props: {
   const bgColor = props.isActive ? props.theme.accent : undefined;
   const nameColor = props.isActive ? props.theme.background : statusColor;
   const iconColor = props.isActive ? props.theme.background : statusColor;
-  const fileLabel = formatFilePath(props.file.path);
+  const fileLabel = splitPath(props.file.path).name;
+  const indent = 1 + props.depth * 2;
 
   return (
     <box
@@ -172,7 +240,7 @@ function SidebarRowView(props: {
       height={1}
       maxHeight={1}
       overflow="hidden"
-      paddingLeft={1}
+      paddingLeft={indent}
       paddingRight={1}
       backgroundColor={bgColor}
     >
@@ -262,23 +330,61 @@ export function Sidebar(props: SidebarProps) {
   } = props;
 
   const scrollRef = useRef<ScrollBoxRenderable | null>(null);
-  const [scrollTop, setScrollTop] = useState(0);
+  const [_scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
+  const [collapsedDirs, setCollapsedDirs] = useState<Set<string>>(new Set());
 
   const staged = getStagedFiles(status);
   const changes = getChangeFiles(status);
   const compareFiles = getCompareFiles(compareState);
   const isEmpty = isEmptyRepo(status);
   const activeFileKey = selectedFileKey ?? focusedFileKey;
+
+  const toggleDir = useCallback((path: string) => {
+    setCollapsedDirs((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  }, []);
+
   const rows = useMemo(
-    () => buildSidebarRows({ theme, viewMode, staged, changes, compareFiles, isEmpty }),
-    [theme, viewMode, staged, changes, compareFiles, isEmpty],
+    () =>
+      buildSidebarRows({
+        theme,
+        viewMode,
+        staged,
+        changes,
+        compareFiles,
+        isEmpty,
+        collapsedDirs,
+      }),
+    [theme, viewMode, staged, changes, compareFiles, isEmpty, collapsedDirs],
   );
 
   const activeRowIndex = useMemo(
     () => rows.findIndex((row) => getRowKey(row) === activeFileKey),
     [rows, activeFileKey],
   );
+
+  // Auto-expand collapsed ancestor directories when the active file is not visible
+  useLayoutEffect(() => {
+    if (!activeFileKey) return;
+    if (activeRowIndex >= 0) return;
+    const parsed = parseFileKey(activeFileKey);
+    if (!parsed) return;
+    const ancestors = getAncestorDirs(parsed.path);
+    if (ancestors.length === 0) return;
+    setCollapsedDirs((prev) => {
+      const next = new Set(prev);
+      for (const dir of ancestors) next.delete(dir);
+      return next;
+    });
+  }, [activeFileKey, activeRowIndex]);
 
   useLayoutEffect(() => {
     if (props.selectionSource !== "keyboard") return;
@@ -316,7 +422,6 @@ export function Sidebar(props: SidebarProps) {
 
       <scrollbox
         ref={scrollRef}
-        scrollTop={scrollTop}
         viewportCulling
         flexGrow={1}
         onSizeChange={() => {
@@ -353,6 +458,19 @@ export function Sidebar(props: SidebarProps) {
               );
             }
 
+            if (row.kind === "dir") {
+              return (
+                <SidebarDirRow
+                  key={row.key}
+                  name={row.name}
+                  depth={row.depth}
+                  isCollapsed={row.isCollapsed}
+                  onToggle={() => toggleDir(row.path)}
+                  theme={theme}
+                />
+              );
+            }
+
             const key = buildFileKey(row.section, row.file.path);
             const isActive = activeFileKey === key;
 
@@ -363,6 +481,7 @@ export function Sidebar(props: SidebarProps) {
                 section={row.section}
                 theme={theme}
                 isActive={isActive}
+                depth={row.depth}
                 onSelect={() => selectFile(row.file.path, row.section)}
               />
             );

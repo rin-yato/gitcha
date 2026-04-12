@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import { buildFileTree, categorizeFiles, parseStatusLine } from "./parser";
 import { generateDiff } from "./diff";
+import { buildFileTree, categorizeFiles, parseStatusLine } from "./parser";
 import type { GitStatusFile } from "./types";
 
 describe("parseStatusLine", () => {
