@@ -112,6 +112,64 @@ index 1111111..2222222 100644
 
   const output = JSON.stringify(testSetup.captureSpans().lines);
   expect(output).toContain("feat/b");
+  expect(output).not.toContain("▎");
+});
+
+test("code panel hides scrollbar when diff fits", async () => {
+  testSetup = await testRender(
+    <DiffPane
+      theme={theme}
+      selectedFile="src/app.ts"
+      selectedFileKey="compare:src/app.ts"
+      selectedFileInfo={null}
+      diffContent={`diff --git a/src/app.ts b/src/app.ts
+index 1111111..2222222 100644
+--- a/src/app.ts
++++ b/src/app.ts
+@@ -1 +1 @@
+-a
++b`}
+      diffViewMode="unified"
+      toggleDiffViewMode={() => {}}
+    />,
+    { width: 120, height: 20 },
+  );
+
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
+
+  const output = JSON.stringify(testSetup.captureSpans().lines);
+  expect(output).not.toContain("▎");
+});
+
+test("code panel shows scrollbar when diff overflows", async () => {
+  const lines = Array.from({ length: 30 }, (_, i) => `line ${i + 1}`);
+
+  testSetup = await testRender(
+    <DiffPane
+      theme={theme}
+      selectedFile="src/app.ts"
+      selectedFileKey="compare:src/app.ts"
+      selectedFileInfo={null}
+      diffContent={`diff --git a/src/app.ts b/src/app.ts
+index 1111111..2222222 100644
+--- a/src/app.ts
++++ b/src/app.ts
+@@ -1,30 +1,30 @@
+${lines.map((line) => `-${line}`).join("\n")}
+${lines.map((line) => `+${line} updated`).join("\n")}`}
+      diffViewMode="unified"
+      toggleDiffViewMode={() => {}}
+    />,
+    { width: 120, height: 12 },
+  );
+
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
+
+  const output = JSON.stringify(testSetup.captureSpans().lines);
   expect(output).toContain("▎");
 });
 

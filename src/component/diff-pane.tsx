@@ -51,8 +51,10 @@ function DiffRenderablePane(props: FileDiffViewProps) {
     return Math.round(ratio * (viewportHeight - thumbHeight));
   }, [scrollTop, scrollHeight, viewportHeight, thumbHeight]);
 
+  const showScrollbar = viewportHeight > 0 && scrollHeight > viewportHeight;
+
   return (
-    <box flexGrow={1} flexDirection="row">
+    <box flexGrow={1} flexDirection="row" overflow="hidden">
       <scrollbox
         viewportCulling
         ref={scrollboxRef}
@@ -102,29 +104,31 @@ function DiffRenderablePane(props: FileDiffViewProps) {
         />
       </scrollbox>
 
-      <box
-        width={SCROLLBAR_WIDTH}
-        backgroundColor={`${props.theme.surface}40`}
-        position="relative"
-      >
+      {showScrollbar ? (
         <box
-          position="absolute"
-          top={thumbTop}
           width={SCROLLBAR_WIDTH}
-          height={thumbHeight}
-          backgroundColor={`${props.theme.textMuted}80`}
-        />
-
-        {markers.map((marker, i) => (
-          <text
-            key={i}
-            content="▎"
-            fg={marker.type === "addition" ? props.theme.added : props.theme.removed}
+          backgroundColor={`${props.theme.surface}40`}
+          position="relative"
+        >
+          <box
             position="absolute"
-            top={`${marker.position * 100}%`}
+            top={thumbTop}
+            width={SCROLLBAR_WIDTH}
+            height={thumbHeight}
+            backgroundColor={`${props.theme.textMuted}80`}
           />
-        ))}
-      </box>
+
+          {markers.map((marker, i) => (
+            <text
+              key={i}
+              content="▎"
+              fg={marker.type === "addition" ? props.theme.added : props.theme.removed}
+              position="absolute"
+              top={`${marker.position * 100}%`}
+            />
+          ))}
+        </box>
+      ) : null}
     </box>
   );
 }

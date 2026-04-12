@@ -3,7 +3,7 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -15,7 +15,6 @@ import type { CompareTarget, GitStatusFile } from "@/lib/git";
 import { generateDiff } from "@/lib/git";
 
 import {
-  firstAvailableFile,
   sectionForIndex,
   stagedFileCount,
   visibleFiles as stagingVisibleFiles,
@@ -168,14 +167,14 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
   const [sidebarWidth, setSidebarWidth] = useState(40);
   const previousSidebarWidthRef = useRef(40);
   const scrollPositionsRef = useRef(new Map<string, number>());
-  const hasInitializedRef = useRef(false);
+  const diffLoadRequestRef = useRef(0);
 
   // -- derived state --
   const status = git.status;
   const compareState = git.compareState;
 
   const files = useMemo(() => {
-    if (viewMode === "compare" && compareState) return compareState.files;
+    if (viewMode === "compare") return compareState?.files ?? [];
     return stagingVisibleFiles(status);
   }, [viewMode, compareState, status]);
 
@@ -224,27 +223,67 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
 
   // -- file loading --
   const loadDiff = useCallback(
-    (file: GitStatusFile, section: FileSection | null) => {
+    (file: GitStatusFile, section: FileSection | null, compareBaseRef?: string) => {
       if (!section) {
         setDiffContent(null);
         return;
       }
 
-      const compareBaseRef =
-        viewMode === "compare" && compareState ? compareState.baseRef : undefined;
+      const requestId = ++diffLoadRequestRef.current;
+      const resolvedCompareBaseRef =
+        section === "compare" ? (compareBaseRef ?? compareState?.baseRef) : undefined;
 
       git.client
-        .loadDiffSource(file, section, compareBaseRef)
+        .loadDiffSource(file, section, resolvedCompareBaseRef)
         .then((source) => {
+          if (requestId !== diffLoadRequestRef.current) return;
           const diff = generateDiff(source, file.path);
           setDiffContent(diff || "No changes");
         })
         .catch((e) => {
+          if (requestId !== diffLoadRequestRef.current) return;
           setDiffContent(`Error: ${e instanceof Error ? e.message : "Unknown"}`);
         });
     },
     [viewMode, compareState, git.client],
   );
+
+  useLayoutEffect(() => {
+    if (files.length === 0) {
+      if (selectedIndex !== null || focusedRowIndex !== 0 || diffContent !== null) {
+        flushSync(() => {
+          setSelectedIndex(null);
+          setFocusedRowIndex(0);
+          setSelectionSource("programmatic");
+          setDiffContent(null);
+        });
+      }
+      return;
+    }
+
+    if (selectedIndex !== null && selectedIndex < files.length) return;
+
+    const first = files[0];
+    if (!first) return;
+
+    flushSync(() => {
+      setSelectedIndex(0);
+      setFocusedRowIndex(0);
+      setSelectionSource("programmatic");
+    });
+
+    const section = viewMode === "compare" ? "compare" : sectionForIndex(0, stagedCount);
+    loadDiff(first, section, viewMode === "compare" ? compareState?.baseRef : undefined);
+  }, [
+    compareState?.baseRef,
+    diffContent,
+    files,
+    focusedRowIndex,
+    loadDiff,
+    selectedIndex,
+    stagedCount,
+    viewMode,
+  ]);
 
   // -- selection actions --
   const selectFile = useCallback(
@@ -301,16 +340,17 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
   const enterCompareMode = useCallback(
     (target: CompareTarget) => {
       git.startCompare(target).then((nextState) => {
-        setViewMode("compare");
-        setSelectedIndex(null);
-        setDiffContent(null);
-        setFocusedRowIndex(0);
-        setSelectionSource("programmatic");
-        if (nextState?.files[0]) {
-          setSelectedIndex(0);
+        const first = nextState?.files[0] ?? null;
+        flushSync(() => {
+          setViewMode("compare");
           setFocusedRowIndex(0);
           setSelectionSource("programmatic");
-          loadDiff(nextState.files[0], "compare");
+          setSelectedIndex(first ? 0 : null);
+          setDiffContent(null);
+        });
+
+        if (first && nextState) {
+          loadDiff(first, "compare", nextState.baseRef);
         }
       });
     },
@@ -319,22 +359,35 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
 
   const exitCompareMode = useCallback(() => {
     git.stopCompare();
-    setViewMode("staging");
-    setSelectedIndex(null);
-    setDiffContent(null);
-    setFocusedRowIndex(0);
-    setSelectionSource("programmatic");
-  }, [git]);
+    const first = stagingVisibleFiles(status)[0] ?? null;
+
+    flushSync(() => {
+      setViewMode("staging");
+      setFocusedRowIndex(0);
+      setSelectionSource("programmatic");
+      setSelectedIndex(first ? 0 : null);
+      setDiffContent(null);
+    });
+
+    if (first) {
+      const section = sectionForIndex(0, stagedFileCount(status));
+      loadDiff(first, section);
+    }
+  }, [git, loadDiff, status]);
 
   const selectCompareBranch = useCallback(
     (target: CompareTarget) => {
       git.startCompare(target).then((nextState) => {
-        const first = nextState?.files[0];
-        if (first) {
-          setSelectedIndex(0);
+        const first = nextState?.files[0] ?? null;
+        flushSync(() => {
+          setSelectedIndex(first ? 0 : null);
           setFocusedRowIndex(0);
           setSelectionSource("programmatic");
-          loadDiff(first, "compare");
+          setDiffContent(null);
+        });
+
+        if (first && nextState) {
+          loadDiff(first, "compare", nextState.baseRef);
         }
       });
     },
@@ -375,37 +428,6 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
     }
     setSidebarWidth((w) => Math.min(MAX_SIDEBAR_WIDTH, w + 5));
   }, [isSidebarOpen]);
-
-  // -- effects --
-
-  // Initialize: auto-select first file on first load
-  useEffect(() => {
-    if (hasInitializedRef.current) return;
-    if (!files.length) return;
-
-    hasInitializedRef.current = true;
-
-    const first = firstAvailableFile(status);
-    if (first) {
-      const idx = indexOfFileInSection(files, first.path, first.section, stagedCount, viewMode);
-      if (idx !== -1) {
-        setSelectedIndex(idx);
-        setFocusedRowIndex(idx);
-        setSelectionSource("programmatic");
-        loadDiff({ path: first.path } as GitStatusFile, first.section);
-      }
-    }
-  }, [files.length, status, loadDiff, files, stagedCount, viewMode]);
-
-  // Handle empty state: clear selection when no files
-  useEffect(() => {
-    if (files.length === 0) {
-      setSelectedIndex(null);
-      setDiffContent(null);
-      setFocusedRowIndex(0);
-      setSelectionSource("programmatic");
-    }
-  }, [files.length]);
 
   // -- context value --
   const value = useMemo<ReviewState>(
