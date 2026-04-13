@@ -7,6 +7,7 @@ import {
   buildFileKey,
   getAncestorDirs,
   getFileStatus,
+  getVisualFileOrder,
   parseFileKey,
   splitPath,
   truncateDir,
@@ -103,6 +104,22 @@ describe("sidebar utils", () => {
       expect(srcDir.isDirectory).toBe(true);
       expect(srcDir.name).toBe("src");
       expect(srcDir.children.map((n) => n.name)).toEqual(["app.ts", "index.ts"]);
+    });
+  });
+
+  describe("getVisualFileOrder", () => {
+    test("returns files in tree order", () => {
+      const files: GitStatusFile[] = [
+        { path: "a/b/c/changes.ts", indexStatus: " ", workingTreeStatus: "M" },
+        { path: "a/file-in-a.ts", indexStatus: " ", workingTreeStatus: "M" },
+        { path: "z.ts", indexStatus: " ", workingTreeStatus: "M" },
+      ];
+
+      expect(getVisualFileOrder(files).map((file) => file.path)).toEqual([
+        "a/b/c/changes.ts",
+        "a/file-in-a.ts",
+        "z.ts",
+      ]);
     });
   });
 });
