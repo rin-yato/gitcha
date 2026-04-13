@@ -11,9 +11,10 @@ import {
   useState,
 } from "react";
 
-import { getVisualFileOrder } from "@/component/sidebar/utils";
 import type { CompareTarget, GitStatusFile } from "@/lib/git";
 import { generateDiff } from "@/lib/git";
+
+import { getVisualFileOrder } from "@/component/sidebar/utils";
 
 import {
   sectionForIndex,
@@ -173,11 +174,6 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
   // -- derived state --
   const status = git.status;
   const compareState = git.compareState;
-
-  const files = useMemo(() => {
-    if (viewMode === "compare") return compareState?.files ?? [];
-    return stagingVisibleFiles(status);
-  }, [viewMode, compareState, status]);
 
   const sidebarFiles = useMemo(() => {
     if (viewMode === "compare") {
@@ -355,7 +351,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
   const enterCompareMode = useCallback(
     (target: CompareTarget) => {
       git.startCompare(target).then((nextState) => {
-        const first = nextState?.files[0] ?? null;
+        const first = getVisualFileOrder(nextState?.files ?? [])[0] ?? null;
         flushSync(() => {
           setViewMode("compare");
           setFocusedRowIndex(0);
@@ -393,7 +389,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
   const selectCompareBranch = useCallback(
     (target: CompareTarget) => {
       git.startCompare(target).then((nextState) => {
-        const first = nextState?.files[0] ?? null;
+        const first = getVisualFileOrder(nextState?.files ?? [])[0] ?? null;
         flushSync(() => {
           setSelectedIndex(first ? 0 : null);
           setFocusedRowIndex(0);

@@ -63,7 +63,7 @@ describe("fake git dev project", () => {
           <Probe />
         </ReviewStateProvider>
       </ReviewProvider>,
-      { width: 80, height: 24 },
+      { width: 160, height: 24 },
     );
 
     // Yield to let async state updates (getLocalBranches, getRepoStatus, etc.) complete
@@ -81,9 +81,9 @@ describe("fake git dev project", () => {
     expect(output).toContain("branches=feat/a,feat/b,master");
     expect(output).toContain("base=feat/a");
     expect(output).toContain("mode=compare");
-    expect(output).toContain("file=src/app.ts");
-    expect(output).toContain("diff=Index: src/app.ts");
-    expect(output).toContain("selected=src/app.ts");
+    expect(output).toContain("file=src/ui/panel.renamed.tsx");
+    expect(output).toContain("diff=Index: src/ui/panel.renamed.tsx");
+    expect(output).toContain("selected=src/ui/panel.renamed.tsx");
   });
 
   test("selects the first staging file on exit", async () => {
@@ -94,7 +94,7 @@ describe("fake git dev project", () => {
           <Probe exitAfterEnter />
         </ReviewStateProvider>
       </ReviewProvider>,
-      { width: 80, height: 24 },
+      { width: 160, height: 24 },
     );
 
     await new Promise((resolve) => setTimeout(resolve, 10));

@@ -3,16 +3,17 @@
 import { createCliRenderer } from "@opentui/core";
 import { createRoot, useKeyboard, useRenderer } from "@opentui/react";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { createFakeGitClient } from "@/context/changes/fake-client";
 import { ReviewProvider, useReviewSession } from "@/context/changes/session";
 import { ReviewStateProvider, useReviewState } from "@/context/changes/state";
-import { ThemeProvider, useTheme } from "@/context/theme/provider";
+import { type ThemeMode, ThemeProvider, useTheme } from "@/context/theme/provider";
 
 import type { CommandOption } from "@/component/dialog-command";
 import { DialogCommand } from "@/component/dialog-command";
 import { CompareBranchDialog } from "@/component/dialog-compare-branch";
+import { ThemeDialog } from "@/component/dialog-theme";
 import { DiffPane } from "@/component/diff-pane";
 import { Sidebar } from "@/component/sidebar/index";
 import { DialogProvider, useDialog } from "@/component/ui/dialog";
@@ -101,6 +102,13 @@ function App() {
         slash: "\\",
         run: () => app.toggleSidebar(),
       },
+      {
+        id: "switch-theme",
+        label: "Theme",
+        category: "Appearance",
+        slash: "t",
+        run: () => showThemeDialog(),
+      },
     ];
 
     if (isFakeGit) {
@@ -125,8 +133,8 @@ function App() {
     );
 
     const categories = isFakeGit
-      ? (["View", "Action", "Layout", "Debug"] as const)
-      : (["View", "Action", "Layout"] as const);
+      ? (["View", "Action", "Layout", "Appearance", "Debug"] as const)
+      : (["View", "Action", "Layout", "Appearance"] as const);
 
     const selectOptions = [
       ...suggestedCmds.map((cmd) => ({
@@ -179,6 +187,10 @@ function App() {
     git.defaultCompareTarget,
     app,
   ]);
+
+  const showThemeDialog = useCallback(() => {
+    dialog.replace(<ThemeDialog theme={theme} onClose={() => dialog.clear()} />);
+  }, [dialog, theme]);
 
   useKeyboard((event) => {
     // Don't handle if dialog is open
@@ -268,6 +280,39 @@ function App() {
   );
 }
 
+function AppRoot() {
+  const renderer = useRenderer();
+  const [mode, setMode] = useState<ThemeMode | null>(renderer.themeMode);
+  const client = process.env.USE_FAKE_GIT === "1" ? createFakeGitClient() : undefined;
+
+  useEffect(() => {
+    const handleThemeMode = (nextMode: ThemeMode) => {
+      setMode(nextMode);
+    };
+
+    setMode(renderer.themeMode);
+    renderer.on("theme_mode", handleThemeMode);
+
+    return () => {
+      renderer.off("theme_mode", handleThemeMode);
+    };
+  }, [renderer]);
+
+  return (
+    <ThemeProvider mode={mode ?? undefined}>
+      <ReviewProvider client={client}>
+        <ReviewStateProvider>
+          <DialogProvider>
+            <ToastProvider>
+              <App />
+            </ToastProvider>
+          </DialogProvider>
+        </ReviewStateProvider>
+      </ReviewProvider>
+    </ThemeProvider>
+  );
+}
+
 const renderer = await createCliRenderer({
   exitOnCtrlC: false,
   autoFocus: false,
@@ -301,18 +346,4 @@ renderer.keyInput.on("keypress", (key) => {
   }
 });
 
-const client = process.env.USE_FAKE_GIT === "1" ? createFakeGitClient() : undefined;
-
-createRoot(renderer as never).render(
-  <ThemeProvider>
-    <ReviewProvider client={client}>
-      <ReviewStateProvider>
-        <DialogProvider>
-          <ToastProvider>
-            <App />
-          </ToastProvider>
-        </DialogProvider>
-      </ReviewStateProvider>
-    </ReviewProvider>
-  </ThemeProvider>,
-);
+createRoot(renderer as never).render(<AppRoot />);

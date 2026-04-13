@@ -28,8 +28,8 @@ export function DialogCommand(props: DialogCommandProps) {
   const handleSelect = useCallback(
     (option: DialogSelectOptionValue) => {
       const cmd = props.commands[option.value];
-      cmd?.run();
       dialog.closeTop();
+      cmd?.run();
     },
     [props.commands, dialog],
   );

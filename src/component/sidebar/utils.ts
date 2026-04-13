@@ -1,7 +1,7 @@
 import type { Theme } from "@/context/theme/provider";
 
-import { buildFileTree } from "@/lib/git";
 import type { FileTreeNode, GitStatusFile } from "@/lib/git";
+import { buildFileTree } from "@/lib/git";
 
 import type { FileSection } from "./types";
 

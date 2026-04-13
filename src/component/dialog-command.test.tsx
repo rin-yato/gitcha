@@ -7,7 +7,7 @@ import { act } from "react";
 
 import type { Theme } from "@/context/theme/provider";
 
-import { DialogProvider } from "@/component/ui/dialog";
+import { DialogProvider, useDialog } from "@/component/ui/dialog";
 import type { DialogSelectOption } from "@/component/ui/dialog-select";
 import { buildDialogSelectRows } from "@/component/ui/dialog-select";
 
@@ -483,6 +483,49 @@ describe("DialogCommand", () => {
     await flushInput();
     expect(cmd1.callCount()).toBe(1);
     expect(cmd2.callCount()).toBe(1);
+  });
+
+  test("command can open another dialog", async () => {
+    function Launcher() {
+      const dialog = useDialog();
+
+      const commands: CommandOption[] = [
+        {
+          id: "open-theme",
+          label: "Theme",
+          category: "Appearance",
+          run: () => {
+            dialog.replace(
+              <box>
+                <text content="Theme picker" />
+              </box>,
+            );
+          },
+        },
+      ];
+
+      const commandsMap = Object.fromEntries(commands.map((cmd) => [cmd.id, cmd]));
+      const options = buildTestSelectOptions(commands);
+
+      return <DialogCommand theme={theme} options={options} commands={commandsMap} />;
+    }
+
+    testSetup = await testRender(
+      <DialogProvider>
+        <Launcher />
+      </DialogProvider>,
+      { width: 80, height: 40 },
+    );
+
+    await act(async () => {
+      await testSetup?.renderOnce();
+    });
+
+    testSetup?.mockInput.pressEnter();
+    await flushInput();
+
+    const output = JSON.stringify(getSetup().captureSpans().lines);
+    expect(output).toContain("Theme picker");
   });
 
   test("renders the exact command palette rows from App", async () => {
