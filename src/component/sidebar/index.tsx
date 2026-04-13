@@ -351,6 +351,7 @@ export function Sidebar(props: SidebarProps) {
   const [_scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
   const [collapsedDirs, setCollapsedDirs] = useState<Set<string>>(new Set());
+  const previousActiveFileKeyRef = useRef<string | null>(null);
 
   const staged = getStagedFiles(status);
   const changes = getChangeFiles(status);
@@ -389,9 +390,14 @@ export function Sidebar(props: SidebarProps) {
     [rows, activeFileKey],
   );
 
-  // Auto-expand collapsed ancestor directories when the active file is not visible
+  // Auto-expand collapsed ancestor directories only when the active file changes.
+  // This keeps manual collapse sticky while a file remains selected inside it.
   useLayoutEffect(() => {
     if (!activeFileKey) return;
+    const previousActiveFileKey = previousActiveFileKeyRef.current;
+    previousActiveFileKeyRef.current = activeFileKey;
+
+    if (previousActiveFileKey === activeFileKey) return;
     if (activeRowIndex >= 0) return;
     const parsed = parseFileKey(activeFileKey);
     if (!parsed) return;

@@ -424,3 +424,43 @@ test("sidebar flattens single-child directory chains", async () => {
   expect(output).toContain("changes.ts");
   expect(output).toContain("file-in-a.ts");
 });
+
+test("sidebar keeps manually collapsed dir closed while selected file is inside", async () => {
+  testSetup = await testRender(
+    renderSidebar({
+      status: {
+        branch: "main",
+        aheadCount: 0,
+        behindCount: 0,
+        files: {
+          staged: [],
+          changes: [{ path: "a/b/c/changes.ts", indexStatus: " ", workingTreeStatus: "M" }],
+          untracked: [],
+          conflicted: [],
+        },
+        totalFiles: 1,
+        isRepo: true,
+      },
+      error: null,
+      selectedFileKey: "changes:a/b/c/changes.ts",
+      focusedFileKey: "changes:a/b/c/changes.ts",
+    }),
+    { width: 80, height: 24 },
+  );
+
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
+
+  await act(async () => {
+    await testSetup?.mockMouse.click(3, 4);
+  });
+
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
+
+  const output = JSON.stringify(testSetup.captureSpans().lines);
+  expect(output).toContain("a/b/c");
+  expect(output).not.toContain("changes.ts");
+});
