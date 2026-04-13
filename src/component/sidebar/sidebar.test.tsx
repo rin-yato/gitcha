@@ -274,6 +274,44 @@ test("sidebar renders same path in different sections independently", async () =
   expect(output).toContain("shared.ts");
 });
 
+test("sidebar keeps collapsed directories separate per section", async () => {
+  testSetup = await testRender(
+    renderSidebar({
+      status: {
+        branch: "main",
+        aheadCount: 0,
+        behindCount: 0,
+        files: {
+          staged: [{ path: "src/shared/a.ts", indexStatus: "A", workingTreeStatus: " " }],
+          changes: [{ path: "src/shared/b.ts", indexStatus: " ", workingTreeStatus: "M" }],
+          untracked: [],
+          conflicted: [],
+        },
+        totalFiles: 2,
+        isRepo: true,
+      },
+      error: null,
+    }),
+    { width: 80, height: 24 },
+  );
+
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
+
+  await act(async () => {
+    await testSetup?.mockMouse.click(3, 3);
+  });
+
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
+
+  const output = JSON.stringify(testSetup.captureSpans().lines);
+  expect(output).not.toContain("a.ts");
+  expect(output).toContain("b.ts");
+});
+
 test("sidebar scrolls the selected file into view", async () => {
   // Use zero-padded names so alphabetical sort matches insertion order
   const staged = Array.from({ length: 14 }, (_, i) => ({

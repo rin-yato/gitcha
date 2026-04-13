@@ -15,6 +15,7 @@ import { buildFileTree } from "@/lib/git";
 
 import {
   buildFileKey,
+  buildDirKey,
   getAncestorDirs,
   getFileStatus,
   getStatusColor,
@@ -69,6 +70,7 @@ type SidebarRow =
   | {
       kind: "dir";
       key: string;
+      section: FileSection;
       path: string;
       label: string;
       depth: number;
@@ -100,10 +102,12 @@ function flattenTreeNodes(
   for (const node of nodes) {
     if (node.isDirectory) {
       const flattened = getFlattenedDir(node);
-      const isCollapsed = collapsedDirs.has(flattened.node.path);
+      const dirKey = buildDirKey(section, flattened.node.path);
+      const isCollapsed = collapsedDirs.has(dirKey);
       rows.push({
         kind: "dir",
-        key: `dir:${section}:${flattened.node.path}`,
+        key: `dir:${dirKey}`,
+        section,
         path: flattened.node.path,
         label: flattened.label,
         depth,
@@ -359,13 +363,14 @@ export function Sidebar(props: SidebarProps) {
   const isEmpty = isEmptyRepo(status);
   const activeFileKey = selectedFileKey ?? focusedFileKey;
 
-  const toggleDir = useCallback((path: string) => {
+  const toggleDir = useCallback((section: FileSection, path: string) => {
+    const dirKey = buildDirKey(section, path);
     setCollapsedDirs((prev) => {
       const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
+      if (next.has(dirKey)) {
+        next.delete(dirKey);
       } else {
-        next.add(path);
+        next.add(dirKey);
       }
       return next;
     });
@@ -489,7 +494,7 @@ export function Sidebar(props: SidebarProps) {
                   label={row.label}
                   depth={row.depth}
                   isCollapsed={row.isCollapsed}
-                  onToggle={() => toggleDir(row.path)}
+                  onToggle={() => toggleDir(row.section, row.path)}
                   theme={theme}
                 />
               );

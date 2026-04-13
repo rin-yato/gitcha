@@ -94,6 +94,10 @@ export function buildFileKey(section: FileSection, path: string): string {
   return `${section}:${path}`;
 }
 
+export function buildDirKey(section: FileSection, path: string): string {
+  return buildFileKey(section, path);
+}
+
 function collectVisualFiles(nodes: FileTreeNode[], output: GitStatusFile[]): void {
   for (const node of nodes) {
     if (node.isDirectory) {
