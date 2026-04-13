@@ -1,6 +1,7 @@
 import type { Theme } from "@/context/theme/provider";
 
-import type { GitStatusFile } from "@/lib/git";
+import { buildFileTree } from "@/lib/git";
+import type { FileTreeNode, GitStatusFile } from "@/lib/git";
 
 import type { FileSection } from "./types";
 
@@ -91,6 +92,25 @@ export function getAncestorDirs(filePath: string): string[] {
 
 export function buildFileKey(section: FileSection, path: string): string {
   return `${section}:${path}`;
+}
+
+function collectVisualFiles(nodes: FileTreeNode[], output: GitStatusFile[]): void {
+  for (const node of nodes) {
+    if (node.isDirectory) {
+      collectVisualFiles(node.children, output);
+    } else if (node.fileInfo) {
+      output.push(node.fileInfo);
+    }
+  }
+}
+
+export function getVisualFileOrder(files: GitStatusFile[]): GitStatusFile[] {
+  if (files.length === 0) return [];
+
+  const root = buildFileTree(files);
+  const ordered: GitStatusFile[] = [];
+  collectVisualFiles(root.children, ordered);
+  return ordered;
 }
 
 export function parseFileKey(key: string): {

@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 
+import { getVisualFileOrder } from "@/component/sidebar/utils";
 import type { CompareTarget, GitStatusFile } from "@/lib/git";
 import { generateDiff } from "@/lib/git";
 
@@ -178,29 +179,43 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
     return stagingVisibleFiles(status);
   }, [viewMode, compareState, status]);
 
+  const sidebarFiles = useMemo(() => {
+    if (viewMode === "compare") {
+      return getVisualFileOrder(compareState?.files ?? []);
+    }
+
+    const stagedFiles = getVisualFileOrder(status?.files.staged ?? []);
+    const changedFiles = getVisualFileOrder([
+      ...(status?.files.changes ?? []),
+      ...(status?.files.untracked ?? []),
+    ]);
+
+    return [...stagedFiles, ...changedFiles];
+  }, [viewMode, compareState?.files, status]);
+
   const stagedCount = useMemo(
     () => (viewMode === "compare" ? 0 : stagedFileCount(status)),
     [viewMode, status],
   );
 
   const focusedFile = useMemo(
-    () => fileAtIndex(files, focusedRowIndex),
-    [files, focusedRowIndex],
+    () => fileAtIndex(sidebarFiles, focusedRowIndex),
+    [sidebarFiles, focusedRowIndex],
   );
 
   const selectedFileInfo = useMemo(
-    () => (selectedIndex !== null ? (files[selectedIndex] ?? null) : null),
-    [files, selectedIndex],
+    () => (selectedIndex !== null ? (sidebarFiles[selectedIndex] ?? null) : null),
+    [sidebarFiles, selectedIndex],
   );
 
   const focusedFileKey = useMemo(
-    () => fileKeyFromIndex(files, focusedRowIndex, stagedCount, viewMode),
-    [files, focusedRowIndex, stagedCount, viewMode],
+    () => fileKeyFromIndex(sidebarFiles, focusedRowIndex, stagedCount, viewMode),
+    [sidebarFiles, focusedRowIndex, stagedCount, viewMode],
   );
 
   const selectedFile = useMemo(
-    () => (selectedIndex !== null ? (files[selectedIndex]?.path ?? null) : null),
-    [files, selectedIndex],
+    () => (selectedIndex !== null ? (sidebarFiles[selectedIndex]?.path ?? null) : null),
+    [sidebarFiles, selectedIndex],
   );
 
   const selectedFileSection = useMemo(
@@ -249,7 +264,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
   );
 
   useLayoutEffect(() => {
-    if (files.length === 0) {
+    if (sidebarFiles.length === 0) {
       if (selectedIndex !== null || focusedRowIndex !== 0 || diffContent !== null) {
         flushSync(() => {
           setSelectedIndex(null);
@@ -261,9 +276,9 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
       return;
     }
 
-    if (selectedIndex !== null && selectedIndex < files.length) return;
+    if (selectedIndex !== null && selectedIndex < sidebarFiles.length) return;
 
-    const first = files[0];
+    const first = sidebarFiles[0];
     if (!first) return;
 
     flushSync(() => {
@@ -277,7 +292,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
   }, [
     compareState?.baseRef,
     diffContent,
-    files,
+    sidebarFiles,
     focusedRowIndex,
     loadDiff,
     selectedIndex,
@@ -288,53 +303,53 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
   // -- selection actions --
   const selectFile = useCallback(
     (path: string, section: FileSection = "changes") => {
-      const idx = indexOfFileInSection(files, path, section, stagedCount, viewMode);
+      const idx = indexOfFileInSection(sidebarFiles, path, section, stagedCount, viewMode);
       if (idx !== -1) {
         flushSync(() => {
           setSelectedIndex(idx);
           setFocusedRowIndex(idx);
           setSelectionSource("mouse");
         });
-        const file = files[idx];
+        const file = sidebarFiles[idx];
         if (file) loadDiff(file, section);
       }
     },
-    [files, loadDiff, stagedCount, viewMode],
+    [sidebarFiles, loadDiff, stagedCount, viewMode],
   );
 
   const _focusRow = useCallback(
     (nextIndex: number) => {
-      const clamped = clampIndex(nextIndex, files.length);
+      const clamped = clampIndex(nextIndex, sidebarFiles.length);
       setFocusedRowIndex(clamped);
     },
-    [files.length],
+    [sidebarFiles.length],
   );
 
   const focusPreviousRow = useCallback(() => {
-    const nextIndex = clampIndex(focusedRowIndex - 1, files.length);
+    const nextIndex = clampIndex(focusedRowIndex - 1, sidebarFiles.length);
     flushSync(() => {
       setFocusedRowIndex(nextIndex);
       setSelectedIndex(nextIndex);
       setSelectionSource("keyboard");
     });
-    const file = files[nextIndex];
+    const file = sidebarFiles[nextIndex];
     const section =
       viewMode === "compare" ? "compare" : sectionForIndex(nextIndex, stagedCount);
     if (file) loadDiff(file, section);
-  }, [focusedRowIndex, files, stagedCount, viewMode, loadDiff]);
+  }, [focusedRowIndex, sidebarFiles, stagedCount, viewMode, loadDiff]);
 
   const focusNextRow = useCallback(() => {
-    const nextIndex = clampIndex(focusedRowIndex + 1, files.length);
+    const nextIndex = clampIndex(focusedRowIndex + 1, sidebarFiles.length);
     flushSync(() => {
       setFocusedRowIndex(nextIndex);
       setSelectedIndex(nextIndex);
       setSelectionSource("keyboard");
     });
-    const file = files[nextIndex];
+    const file = sidebarFiles[nextIndex];
     const section =
       viewMode === "compare" ? "compare" : sectionForIndex(nextIndex, stagedCount);
     if (file) loadDiff(file, section);
-  }, [focusedRowIndex, files, stagedCount, viewMode, loadDiff]);
+  }, [focusedRowIndex, sidebarFiles, stagedCount, viewMode, loadDiff]);
 
   // -- view mode actions --
   const enterCompareMode = useCallback(
@@ -442,7 +457,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
       focusedRowIndex,
       focusedFileKey,
       selectionSource,
-      visibleFiles: files,
+      visibleFiles: sidebarFiles,
       focusedFile,
       diffViewMode,
       toggleDiffViewMode,
@@ -477,7 +492,7 @@ export function ReviewStateProvider({ children }: { children: React.ReactNode })
       focusedRowIndex,
       focusedFileKey,
       selectionSource,
-      files,
+      sidebarFiles,
       focusedFile,
       diffViewMode,
       viewMode,
