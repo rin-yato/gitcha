@@ -386,7 +386,41 @@ test("sidebar shows tree structure for nested files", async () => {
   });
 
   const output = JSON.stringify(testSetup.captureSpans().lines);
-  expect(output).toContain("src");
-  expect(output).toContain("features");
+  expect(output).toContain("src/features");
   expect(output).toContain("component-name.ts");
+});
+
+test("sidebar flattens single-child directory chains", async () => {
+  testSetup = await testRender(
+    renderSidebar({
+      status: {
+        branch: "main",
+        aheadCount: 0,
+        behindCount: 0,
+        files: {
+          staged: [],
+          changes: [
+            { path: "a/b/c/changes.ts", indexStatus: " ", workingTreeStatus: "M" },
+            { path: "a/file-in-a.ts", indexStatus: " ", workingTreeStatus: "M" },
+          ],
+          untracked: [],
+          conflicted: [],
+        },
+        totalFiles: 2,
+        isRepo: true,
+      },
+      error: null,
+    }),
+    { width: 80, height: 24 },
+  );
+
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
+
+  const output = JSON.stringify(testSetup.captureSpans().lines);
+  expect(output).toContain("a");
+  expect(output).toContain("b/c");
+  expect(output).toContain("changes.ts");
+  expect(output).toContain("file-in-a.ts");
 });

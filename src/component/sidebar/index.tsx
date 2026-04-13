@@ -70,10 +70,25 @@ type SidebarRow =
       kind: "dir";
       key: string;
       path: string;
-      name: string;
+      label: string;
       depth: number;
       isCollapsed: boolean;
     };
+
+function getFlattenedDir(node: FileTreeNode): { node: FileTreeNode; label: string } {
+  let current = node;
+  let label = node.name;
+
+  while (current.children.length === 1) {
+    const child = current.children[0];
+    if (!child?.isDirectory) break;
+
+    current = child;
+    label = `${label}/${current.name}`;
+  }
+
+  return { node: current, label };
+}
 
 function flattenTreeNodes(
   nodes: FileTreeNode[],
@@ -84,17 +99,20 @@ function flattenTreeNodes(
   const rows: SidebarRow[] = [];
   for (const node of nodes) {
     if (node.isDirectory) {
-      const isCollapsed = collapsedDirs.has(node.path);
+      const flattened = getFlattenedDir(node);
+      const isCollapsed = collapsedDirs.has(flattened.node.path);
       rows.push({
         kind: "dir",
-        key: `dir:${section}:${node.path}`,
-        path: node.path,
-        name: node.name,
+        key: `dir:${section}:${flattened.node.path}`,
+        path: flattened.node.path,
+        label: flattened.label,
         depth,
         isCollapsed,
       });
       if (!isCollapsed) {
-        rows.push(...flattenTreeNodes(node.children, section, depth + 1, collapsedDirs));
+        rows.push(
+          ...flattenTreeNodes(flattened.node.children, section, depth + 1, collapsedDirs),
+        );
       }
     } else if (node.fileInfo) {
       rows.push({
@@ -179,7 +197,7 @@ function SidebarSectionHeader(props: {
 }
 
 function SidebarDirRow(props: {
-  name: string;
+  label: string;
   depth: number;
   isCollapsed: boolean;
   onToggle: () => void;
@@ -202,7 +220,7 @@ function SidebarDirRow(props: {
       <text content={icon} fg={props.theme.textMuted} selectable={false} />
       <text content=" " selectable={false} />
       <text
-        content={props.name}
+        content={props.label}
         fg={props.theme.textMuted}
         selectable={false}
         flexGrow={1}
@@ -462,7 +480,7 @@ export function Sidebar(props: SidebarProps) {
               return (
                 <SidebarDirRow
                   key={row.key}
-                  name={row.name}
+                  label={row.label}
                   depth={row.depth}
                   isCollapsed={row.isCollapsed}
                   onToggle={() => toggleDir(row.path)}
