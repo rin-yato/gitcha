@@ -18,7 +18,6 @@ import {
   getFileVersion,
   getLocalBranches,
   getMergeBase,
-  getRecentCommits,
   getRepoStatus,
   loadChangesDiffSource,
   loadCompareDiffSource,
@@ -32,13 +31,9 @@ import {
 export type ReviewSession = {
   status: GitRepoStatus | null;
   error: string | null;
-  commits: string[];
-  branches: string[];
   compareState: CompareState | null;
-  defaultCompareTarget: CompareTarget | null;
   client: GitClient;
   refreshStatus: () => void;
-  refreshCommits: () => void;
   stageFile: (filePath: string) => void;
   unstageFile: (filePath: string) => void;
   discardChanges: (filePath: string) => void;
@@ -53,7 +48,6 @@ export type ReviewSession = {
 export type GitClient = {
   ctx: RepoContext;
   getRepoStatus: () => Promise<GitRepoStatus>;
-  getRecentCommits: () => Promise<string[]>;
   getLocalBranches: () => Promise<string[]>;
   getCompareTarget: () => Promise<CompareTarget | null>;
   getBranchDiffFiles: (baseRef: string) => Promise<GitStatusFile[]>;
@@ -76,7 +70,6 @@ export function createGitClient(ctx: RepoContext): GitClient {
   return {
     ctx,
     getRepoStatus: () => getRepoStatus(ctx.cwd),
-    getRecentCommits: () => getRecentCommits(12, ctx.cwd),
     getLocalBranches: () => getLocalBranches(ctx.cwd),
     getCompareTarget: () => getCompareTarget(ctx.cwd),
     getBranchDiffFiles: (baseRef: string) => getBranchDiffFiles(baseRef, ctx.cwd),
@@ -133,22 +126,16 @@ const ReviewSessionContext = createContext<ReviewSession | null>(null);
 export function ReviewProvider({
   children,
   repoCwd,
-  client: providedClient,
 }: {
   children: React.ReactNode;
   repoCwd?: string;
-  client?: GitClient;
 }) {
-  const [client, setClient] = useState<GitClient | null>(providedClient ?? null);
+  const [client, setClient] = useState<GitClient | null>(null);
   const [status, setStatus] = useState<GitRepoStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [commits, setCommits] = useState<string[]>([]);
-  const [branches, setBranches] = useState<string[]>([]);
   const [compareState, setCompareState] = useState<CompareState | null>(null);
-  const [defaultCompareTarget, setDefaultCompareTarget] = useState<CompareTarget | null>(null);
 
   useEffect(() => {
-    if (providedClient) return;
     detectRepoContext(repoCwd).then((newCtx) => {
       if (newCtx) {
         setClient(createGitClient(newCtx));
@@ -156,7 +143,7 @@ export function ReviewProvider({
         setError("Not a git repository");
       }
     });
-  }, [repoCwd, providedClient]);
+  }, [repoCwd]);
 
   const refreshStatus = useCallback(() => {
     if (!client) return;
@@ -164,22 +151,6 @@ export function ReviewProvider({
       .getRepoStatus()
       .then(setStatus)
       .catch(() => setStatus(null));
-  }, [client]);
-
-  const refreshCommits = useCallback(() => {
-    if (!client) return;
-    client
-      .getRecentCommits()
-      .then(setCommits)
-      .catch(() => setCommits([]));
-  }, [client]);
-
-  const refreshBranches = useCallback(() => {
-    if (!client) return;
-    client
-      .getLocalBranches()
-      .then(setBranches)
-      .catch(() => {});
   }, [client]);
 
   const refreshCompare = useCallback(() => {
@@ -222,23 +193,13 @@ export function ReviewProvider({
   useEffect(() => {
     if (!client) return;
     refreshStatus();
-    refreshCommits();
-    refreshBranches();
-    client
-      .getCompareTarget()
-      .then(setDefaultCompareTarget)
-      .catch(() => {});
 
     const statusTimer = setInterval(refreshStatus, 5000);
-    const commitsTimer = setInterval(refreshCommits, 10000);
-    const branchesTimer = setInterval(refreshBranches, 15000);
 
     return () => {
       clearInterval(statusTimer);
-      clearInterval(commitsTimer);
-      clearInterval(branchesTimer);
     };
-  }, [client, refreshStatus, refreshCommits, refreshBranches]);
+  }, [client, refreshStatus]);
 
   const value = useMemo<ReviewSession | null>(
     () =>
@@ -246,13 +207,9 @@ export function ReviewProvider({
         ? {
             status,
             error,
-            commits,
-            branches,
             compareState,
-            defaultCompareTarget,
             client,
             refreshStatus,
-            refreshCommits,
             stageFile: (filePath) => runGitAction(() => client.stageFile(filePath)),
             unstageFile: (filePath) => runGitAction(() => client.unstageFile(filePath)),
             discardChanges: (filePath) => runGitAction(() => client.discardChanges(filePath)),
@@ -268,12 +225,8 @@ export function ReviewProvider({
       client,
       status,
       error,
-      commits,
-      branches,
       compareState,
-      defaultCompareTarget,
       refreshStatus,
-      refreshCommits,
       runGitAction,
       startCompare,
       stopCompare,

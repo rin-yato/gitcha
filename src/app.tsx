@@ -5,10 +5,11 @@ import { useCallback, useEffect, useState } from "react";
 import { ReviewDiffProvider, useReviewDiff } from "@/context/diff";
 import { ReviewLayoutProvider, useReviewLayout } from "@/context/layout";
 import { ReviewSelectionProvider, useReviewSelection } from "@/context/selection";
-import { createFakeGitClient } from "@/context/session/fake-client";
-import { ReviewProvider, useReviewSession } from "@/context/session/session";
-import { type ThemeMode, ThemeProvider, useTheme } from "@/context/theme/provider";
+import { type GitClient, ReviewProvider, useReviewSession } from "@/context/session/session";
+import { type Theme, type ThemeMode, ThemeProvider, useTheme } from "@/context/theme/provider";
 import { ReviewViewProvider, useReviewView } from "@/context/view";
+
+import type { CompareTarget } from "@/lib/git";
 
 import {
   buildCommandMap,
@@ -21,7 +22,67 @@ import { ThemeDialog } from "@/component/dialog-theme";
 import { DiffPane } from "@/component/diff-pane";
 import { Sidebar } from "@/component/sidebar/index";
 import { DialogProvider, useDialog } from "@/component/ui/dialog";
+import { Overlay } from "@/component/ui/overlay";
 import { Toast, ToastProvider } from "@/component/ui/toast";
+
+type CompareBranchData = {
+  branches: string[];
+  defaultCompareTarget: CompareTarget | null;
+};
+
+function CompareBranchDialogLoader(props: {
+  client: GitClient;
+  currentBranch: string | null;
+  activeCompareTarget: CompareTarget | null;
+  theme: Theme;
+  onSelect: (target: CompareTarget) => void;
+  onClose: () => void;
+}) {
+  const [data, setData] = useState<CompareBranchData | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    void Promise.all([
+      props.client.getLocalBranches().catch(() => []),
+      props.client.getCompareTarget().catch(() => null),
+    ]).then(([branches, defaultCompareTarget]) => {
+      if (controller.signal.aborted) return;
+      setData({ branches, defaultCompareTarget });
+    });
+
+    return () => controller.abort();
+  }, [props.client]);
+
+  const defaultCompareTarget = props.activeCompareTarget ?? data?.defaultCompareTarget ?? null;
+
+  useKeyboard((event) => {
+    if (!data && event.name === "escape") {
+      props.onClose();
+    }
+  });
+
+  if (!data) {
+    return (
+      <Overlay>
+        <box paddingX={2} paddingY={1} backgroundColor={props.theme.surface}>
+          <text content="Loading branches..." fg={props.theme.textMuted} selectable={false} />
+        </box>
+      </Overlay>
+    );
+  }
+
+  return (
+    <CompareBranchDialog
+      theme={props.theme}
+      branches={data.branches}
+      currentBranch={props.currentBranch}
+      defaultCompareTarget={defaultCompareTarget}
+      onSelect={props.onSelect}
+      onClose={props.onClose}
+    />
+  );
+}
 
 function App() {
   const renderer = useRenderer();
@@ -48,31 +109,23 @@ function App() {
 
   const showCompareBranchDialog = useCallback(() => {
     dialog.replace(
-      <CompareBranchDialog
-        theme={theme}
-        branches={git.branches}
+      <CompareBranchDialogLoader
+        client={git.client}
         currentBranch={git.status?.branch ?? null}
-        defaultCompareTarget={
-          git.compareState?.baseRef
+        activeCompareTarget={
+          git.compareState
             ? { ref: git.compareState.baseRef, label: git.compareState.baseLabel }
-            : git.defaultCompareTarget
+            : null
         }
+        theme={theme}
         onSelect={(target) => {
           dialog.clear();
-          view.enterCompareMode(target);
+          void view.enterCompareMode(target);
         }}
         onClose={() => dialog.clear()}
       />,
     );
-  }, [
-    dialog,
-    theme,
-    git.branches,
-    git.status?.branch,
-    git.compareState,
-    git.defaultCompareTarget,
-    view,
-  ]);
+  }, [dialog, git.client, git.compareState, git.status?.branch, theme, view]);
 
   const showCommandPalette = useCallback(() => {
     const commands = buildCommandOptions({
@@ -202,7 +255,6 @@ function App() {
 export function AppRoot() {
   const renderer = useRenderer();
   const [mode, setMode] = useState<ThemeMode | null>(renderer.themeMode);
-  const client = process.env.USE_FAKE_GIT === "1" ? createFakeGitClient() : undefined;
 
   useEffect(() => {
     const handleThemeMode = (nextMode: ThemeMode) => {
@@ -219,7 +271,7 @@ export function AppRoot() {
 
   return (
     <ThemeProvider mode={mode ?? undefined}>
-      <ReviewProvider client={client}>
+      <ReviewProvider>
         <ReviewSelectionProvider>
           <ReviewDiffProvider>
             <ReviewViewProvider>

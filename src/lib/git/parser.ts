@@ -1,4 +1,6 @@
-import { execGit, isGitRepo } from "./commands";
+import { groupBy } from "remeda";
+
+import { execGit } from "./commands";
 import type {
   CategorizedFiles,
   FileTreeNode,
@@ -86,140 +88,154 @@ export function categorizeFiles(files: GitStatusFile[]): CategorizedFiles {
   return result;
 }
 
+export type ParsedStatusBranch = {
+  branch: string;
+  upstream?: string;
+  aheadCount: number;
+  behindCount: number;
+};
+
+export function parseStatusBranchLine(line: string): ParsedStatusBranch | null {
+  if (!line.startsWith("## ")) return null;
+
+  const rest = line.slice(3);
+
+  if (rest.startsWith("No commits yet on ")) {
+    return {
+      branch: rest.slice("No commits yet on ".length),
+      aheadCount: 0,
+      behindCount: 0,
+    };
+  }
+
+  if (rest.startsWith("HEAD (no branch)")) {
+    return {
+      branch: "HEAD",
+      aheadCount: 0,
+      behindCount: 0,
+    };
+  }
+
+  const countsStart = rest.indexOf(" [");
+  const branchPart = countsStart === -1 ? rest : rest.slice(0, countsStart);
+  const countsPart = countsStart === -1 ? "" : rest.slice(countsStart + 2, -1);
+
+  const [branch, upstream] = branchPart.split("...", 2) as [string, string?];
+  const aheadMatch = countsPart.match(/ahead (\d+)/);
+  const behindMatch = countsPart.match(/behind (\d+)/);
+
+  return {
+    branch,
+    upstream,
+    aheadCount: aheadMatch ? Number(aheadMatch[1]) : 0,
+    behindCount: behindMatch ? Number(behindMatch[1]) : 0,
+  };
+}
+
 /**
  * Build a hierarchical tree structure from flat file list
  */
 export function buildFileTree(files: GitStatusFile[]): FileTreeNode {
-  const root: FileTreeNode = {
+  type PathEntry = { parts: string[]; file: GitStatusFile };
+
+  const buildNodes = (entries: PathEntry[], prefix: string[] = []): FileTreeNode[] => {
+    const groups = groupBy(entries, (entry) => entry.parts[0] ?? "");
+
+    return Object.entries(groups)
+      .map(([name, groupedEntries]) => {
+        const childEntries = groupedEntries.flatMap((entry) =>
+          entry.parts.length > 1 ? [{ parts: entry.parts.slice(1), file: entry.file }] : [],
+        );
+        const pathParts = [...prefix, name];
+        const fileInfo = groupedEntries.find((entry) => entry.parts.length === 1)?.file;
+
+        return {
+          name,
+          path: pathParts.join("/"),
+          isDirectory: childEntries.length > 0,
+          fileInfo,
+          children: buildNodes(childEntries, pathParts),
+        } satisfies FileTreeNode;
+      })
+      .toSorted((left, right) => {
+        if (left.isDirectory !== right.isDirectory) {
+          return left.isDirectory ? -1 : 1;
+        }
+
+        return left.name.localeCompare(right.name);
+      });
+  };
+
+  return {
     name: "",
     path: "",
     isDirectory: true,
-    children: [],
+    children: buildNodes(files.map((file) => ({ parts: file.path.split("/"), file }))),
   };
-
-  for (const file of files) {
-    const parts = file.path.split("/");
-    let current = root;
-
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i]!;
-      const isLast = i === parts.length - 1;
-      const currentPath = parts.slice(0, i + 1).join("/");
-
-      let child: FileTreeNode | undefined = current.children.find((c) => c.name === part);
-
-      if (!child) {
-        const newChild: FileTreeNode = {
-          name: part,
-          path: currentPath,
-          isDirectory: !isLast,
-          children: [],
-          fileInfo: isLast ? file : undefined,
-        };
-        current.children.push(newChild);
-        child = newChild;
-      }
-
-      current = child;
-    }
-  }
-
-  // Sort: directories first, then alphabetically
-  const sortNodes = (nodes: FileTreeNode[]): FileTreeNode[] => {
-    return nodes
-      .sort((a, b) => {
-        if (a.isDirectory && !b.isDirectory) return -1;
-        if (!a.isDirectory && b.isDirectory) return 1;
-        return a.name.localeCompare(b.name);
-      })
-      .map((node) => ({
-        ...node,
-        children: sortNodes(node.children),
-      }));
-  };
-
-  root.children = sortNodes(root.children);
-  return root;
-}
-
-/**
- * Get current branch and upstream info
- */
-export async function getBranchInfo(cwd?: string): Promise<{
-  branch: string;
-  upstream?: string;
-  ahead: number;
-  behind: number;
-}> {
-  try {
-    const branch = (await execGit(["rev-parse", "--abbrev-ref", "HEAD"], { cwd })).trim();
-
-    let upstream: string | undefined;
-    let ahead = 0;
-    let behind = 0;
-
-    try {
-      const upstreamOutput = (
-        await execGit(["rev-parse", "--abbrev-ref", "@{upstream}"], { cwd })
-      ).trim();
-      upstream = upstreamOutput;
-
-      const countOutput = (
-        await execGit(["rev-list", "--left-right", "--count", "HEAD...@{upstream}"], { cwd })
-      ).trim();
-      const [aheadStr, behindStr] = countOutput.split("\t") as [string, string];
-      ahead = parseInt(aheadStr, 10) || 0;
-      behind = parseInt(behindStr, 10) || 0;
-    } catch {
-      // No upstream configured
-    }
-
-    return { branch, upstream, ahead, behind };
-  } catch {
-    return { branch: "unknown", ahead: 0, behind: 0 };
-  }
 }
 
 /**
  * Get complete repository status
  */
 export async function getRepoStatus(cwd?: string): Promise<GitRepoStatus> {
-  if (!(await isGitRepo(cwd))) {
-    return {
-      branch: "",
-      aheadCount: 0,
-      behindCount: 0,
-      files: { staged: [], changes: [], untracked: [], conflicted: [] },
-      totalFiles: 0,
-      isRepo: false,
-    };
+  const emptyStatus: GitRepoStatus = {
+    branch: "",
+    upstream: undefined,
+    aheadCount: 0,
+    behindCount: 0,
+    files: { staged: [], changes: [], untracked: [], conflicted: [] },
+    totalFiles: 0,
+    isRepo: false,
+  };
+
+  const statusOutput = await execGit(
+    ["status", "--porcelain=v1", "--branch", "--untracked-files=all"],
+    {
+      cwd,
+    },
+  ).catch(() => null);
+
+  if (statusOutput === null) {
+    return emptyStatus;
   }
 
-  const statusOutput = await execGit(["status", "--porcelain=v1", "--untracked-files=all"], {
-    cwd,
-  });
-  const files: GitStatusFile[] = [];
+  const parsedStatus = statusOutput
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .reduce<{
+      branch: string;
+      upstream?: string;
+      aheadCount: number;
+      behindCount: number;
+      files: GitStatusFile[];
+    }>(
+      (acc, line) => {
+        if (line.startsWith("## ")) {
+          const branchInfo = parseStatusBranchLine(line);
+          return branchInfo ? { ...acc, ...branchInfo } : acc;
+        }
 
-  if (statusOutput) {
-    const lines = statusOutput.split(/\r?\n/).filter(Boolean);
-    for (const line of lines) {
-      const parsed = parseStatusLine(line);
-      if (parsed) {
-        files.push(parsed);
-      }
-    }
-  }
+        const parsed = parseStatusLine(line);
+        return parsed ? { ...acc, files: [...acc.files, parsed] } : acc;
+      },
+      {
+        branch: "",
+        upstream: undefined,
+        aheadCount: 0,
+        behindCount: 0,
+        files: [],
+      },
+    );
 
-  const categorized = categorizeFiles(files);
-  const branchInfo = await getBranchInfo(cwd);
+  const categorized = categorizeFiles(parsedStatus.files);
 
   return {
-    branch: branchInfo.branch,
-    upstream: branchInfo.upstream,
-    aheadCount: branchInfo.ahead,
-    behindCount: branchInfo.behind,
+    branch: parsedStatus.branch,
+    upstream: parsedStatus.upstream,
+    aheadCount: parsedStatus.aheadCount,
+    behindCount: parsedStatus.behindCount,
     files: categorized,
-    totalFiles: files.length,
+    totalFiles: parsedStatus.files.length,
     isRepo: true,
   };
 }
