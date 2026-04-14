@@ -2,11 +2,19 @@ import { useKeyboard, useRenderer } from "@opentui/react";
 
 import { useCallback, useEffect, useState } from "react";
 
-import { createFakeGitClient } from "@/context/changes/fake-client";
-import { ReviewProvider, useReviewSession } from "@/context/changes/session";
-import { ReviewStateProvider, useReviewState } from "@/context/changes/state";
+import { ReviewDiffProvider, useReviewDiff } from "@/context/diff";
+import { ReviewLayoutProvider, useReviewLayout } from "@/context/layout";
+import { ReviewSelectionProvider, useReviewSelection } from "@/context/selection";
+import { createFakeGitClient } from "@/context/session/fake-client";
+import { ReviewProvider, useReviewSession } from "@/context/session/session";
 import { type ThemeMode, ThemeProvider, useTheme } from "@/context/theme/provider";
+import { ReviewViewProvider, useReviewView } from "@/context/view";
 
+import {
+  buildCommandMap,
+  buildCommandOptions,
+  buildCommandSelectOptions,
+} from "@/component/app-commands";
 import { DialogCommand } from "@/component/dialog-command";
 import { CompareBranchDialog } from "@/component/dialog-compare-branch";
 import { ThemeDialog } from "@/component/dialog-theme";
@@ -15,27 +23,24 @@ import { Sidebar } from "@/component/sidebar/index";
 import { DialogProvider, useDialog } from "@/component/ui/dialog";
 import { Toast, ToastProvider } from "@/component/ui/toast";
 
-import {
-  buildCommandMap,
-  buildCommandOptions,
-  buildCommandSelectOptions,
-} from "@/component/app-commands";
-
 function App() {
   const renderer = useRenderer();
   const theme = useTheme();
   const git = useReviewSession();
-  const app = useReviewState();
+  const selection = useReviewSelection();
+  const diff = useReviewDiff();
+  const view = useReviewView();
+  const layout = useReviewLayout();
   const dialog = useDialog();
 
   const refresh = useCallback(() => {
-    if (app.viewMode === "compare") {
+    if (view.viewMode === "compare") {
       git.refreshCompare();
       return;
     }
 
     git.refreshStatus();
-  }, [app.viewMode, git]);
+  }, [git, view.viewMode]);
 
   const showThemeDialog = useCallback(() => {
     dialog.replace(<ThemeDialog theme={theme} onClose={() => dialog.clear()} />);
@@ -54,7 +59,7 @@ function App() {
         }
         onSelect={(target) => {
           dialog.clear();
-          app.enterCompareMode(target);
+          view.enterCompareMode(target);
         }}
         onClose={() => dialog.clear()}
       />,
@@ -66,7 +71,7 @@ function App() {
     git.status?.branch,
     git.compareState,
     git.defaultCompareTarget,
-    app,
+    view,
   ]);
 
   const showCommandPalette = useCallback(() => {
@@ -74,7 +79,16 @@ function App() {
       refresh,
       showCompareBranchDialog,
       showThemeDialog,
-      app,
+      app: {
+        toggleDiffViewMode: diff.toggleDiffViewMode,
+        exitCompareMode: view.exitCompareMode,
+        stageSelectedFile: selection.stageSelectedFile,
+        unstageSelectedFile: selection.unstageSelectedFile,
+        discardSelectedFile: selection.discardSelectedFile,
+        shrinkSidebar: layout.shrinkSidebar,
+        growSidebar: layout.growSidebar,
+        toggleSidebar: layout.toggleSidebar,
+      },
     });
 
     dialog.replace(
@@ -84,7 +98,17 @@ function App() {
         commands={buildCommandMap(commands)}
       />,
     );
-  }, [app, dialog, refresh, showCompareBranchDialog, showThemeDialog, theme]);
+  }, [
+    dialog,
+    diff,
+    layout,
+    refresh,
+    selection,
+    showCompareBranchDialog,
+    showThemeDialog,
+    theme,
+    view,
+  ]);
 
   useKeyboard((event) => {
     if (dialog.stack.length > 0) return;
@@ -95,14 +119,14 @@ function App() {
         return;
       case "up":
       case "k":
-        app.focusPreviousRow();
+        selection.focusPreviousRow();
         return;
       case "down":
       case "j":
-        app.focusNextRow();
+        selection.focusNextRow();
         return;
       case "space":
-        app.toggleDiffViewMode();
+        diff.toggleDiffViewMode();
         return;
       case "r":
         refresh();
@@ -111,26 +135,26 @@ function App() {
         showCompareBranchDialog();
         return;
       case "s":
-        app.stageSelectedFile();
+        selection.stageSelectedFile();
         return;
       case "u":
-        app.unstageSelectedFile();
+        selection.unstageSelectedFile();
         return;
       case "x":
-        app.discardSelectedFile();
+        selection.discardSelectedFile();
         return;
       case "[":
-        app.shrinkSidebar();
+        layout.shrinkSidebar();
         return;
       case "]":
-        app.growSidebar();
+        layout.growSidebar();
         return;
       case "\\":
-        app.toggleSidebar();
+        layout.toggleSidebar();
         return;
       case "escape":
-        if (app.viewMode === "compare") {
-          app.exitCompareMode();
+        if (view.viewMode === "compare") {
+          view.exitCompareMode();
         } else {
           renderer.destroy();
         }
@@ -150,24 +174,24 @@ function App() {
         theme={theme}
         status={git.status}
         error={git.error}
-        selectedFileKey={app.selectedFileKey}
-        focusedFileKey={app.focusedFileKey}
-        selectionSource={app.selectionSource}
-        selectFile={app.selectFile}
-        viewMode={app.viewMode}
+        selectedFileKey={selection.selectedFileKey}
+        focusedFileKey={selection.focusedFileKey}
+        selectionSource={selection.selectionSource}
+        selectFile={selection.selectFile}
+        viewMode={view.viewMode}
         compareState={git.compareState}
-        isOpen={app.isSidebarOpen}
-        width={app.sidebarWidth}
+        isOpen={layout.isSidebarOpen}
+        width={layout.sidebarWidth}
       />
 
       <DiffPane
         theme={theme}
-        selectedFile={app.selectedFile}
-        selectedFileKey={app.selectedFileKey}
-        selectedFileInfo={app.selectedFileInfo}
-        diffContent={app.diffContent}
-        diffViewMode={app.diffViewMode}
-        toggleDiffViewMode={app.toggleDiffViewMode}
+        selectedFile={selection.selectedFile}
+        selectedFileKey={selection.selectedFileKey}
+        selectedFileInfo={selection.selectedFileInfo}
+        diffContent={diff.diffContent}
+        diffViewMode={diff.diffViewMode}
+        toggleDiffViewMode={diff.toggleDiffViewMode}
       />
 
       <Toast theme={theme} />
@@ -196,13 +220,19 @@ export function AppRoot() {
   return (
     <ThemeProvider mode={mode ?? undefined}>
       <ReviewProvider client={client}>
-        <ReviewStateProvider>
-          <DialogProvider>
-            <ToastProvider>
-              <App />
-            </ToastProvider>
-          </DialogProvider>
-        </ReviewStateProvider>
+        <ReviewSelectionProvider>
+          <ReviewDiffProvider>
+            <ReviewViewProvider>
+              <ReviewLayoutProvider>
+                <DialogProvider>
+                  <ToastProvider>
+                    <App />
+                  </ToastProvider>
+                </DialogProvider>
+              </ReviewLayoutProvider>
+            </ReviewViewProvider>
+          </ReviewDiffProvider>
+        </ReviewSelectionProvider>
       </ReviewProvider>
     </ThemeProvider>
   );

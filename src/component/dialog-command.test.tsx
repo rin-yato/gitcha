@@ -105,7 +105,6 @@ describe("DialogCommand", () => {
   let testSetup: Awaited<ReturnType<typeof testRender>> | null = null;
 
   afterEach(() => {
-    (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
     if (testSetup) {
       act(() => {
         testSetup?.renderer.destroy();
@@ -149,8 +148,9 @@ describe("DialogCommand", () => {
       { width: 80, height: 40 },
     );
 
-    await testSetup.renderOnce();
-    (globalThis as any).IS_REACT_ACT_ENVIRONMENT = false;
+    await act(async () => {
+      await testSetup!.renderOnce();
+    });
 
     return testSetup;
   }
@@ -160,9 +160,16 @@ describe("DialogCommand", () => {
     return testSetup;
   }
 
-  async function flushInput(delayMs = 20) {
-    await new Promise((resolve) => setTimeout(resolve, delayMs));
-    await testSetup?.renderOnce();
+  async function driveInput(action: () => void) {
+    await act(async () => {
+      action();
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    await act(async () => {
+      await testSetup?.renderOnce();
+    });
   }
 
   test("renders all commands", async () => {
@@ -266,10 +273,8 @@ describe("DialogCommand", () => {
 
     await renderDialogForInput(commands);
 
-    testSetup?.mockInput.pressArrow("down");
-    await flushInput();
-    testSetup?.mockInput.pressEnter();
-    await flushInput();
+    await driveInput(() => testSetup?.mockInput.pressArrow("down"));
+    await driveInput(() => testSetup?.mockInput.pressEnter());
 
     expect(first.callCount()).toBe(0);
     expect(second.callCount()).toBe(1);
@@ -289,12 +294,9 @@ describe("DialogCommand", () => {
 
     await renderDialogForInput(commands);
 
-    testSetup?.mockInput.pressKey("n", { ctrl: true });
-    await flushInput();
-    testSetup?.mockInput.pressKey("p", { ctrl: true });
-    await flushInput();
-    testSetup?.mockInput.pressEnter();
-    await flushInput();
+    await driveInput(() => testSetup?.mockInput.pressKey("n", { ctrl: true }));
+    await driveInput(() => testSetup?.mockInput.pressKey("p", { ctrl: true }));
+    await driveInput(() => testSetup?.mockInput.pressEnter());
 
     expect(first.callCount()).toBe(1);
     expect(second.callCount()).toBe(0);
@@ -338,57 +340,40 @@ describe("DialogCommand", () => {
 
     await renderDialogForInput(commands);
 
-    testSetup?.mockInput.pressEnter();
-    await flushInput();
+    await driveInput(() => testSetup?.mockInput.pressEnter());
     expect(cmd1.callCount()).toBe(1);
 
-    testSetup?.mockInput.pressArrow("down");
-    await flushInput();
-    testSetup?.mockInput.pressEnter();
-    await flushInput();
+    await driveInput(() => testSetup?.mockInput.pressArrow("down"));
+    await driveInput(() => testSetup?.mockInput.pressEnter());
     expect(cmd3.callCount()).toBe(1);
 
-    testSetup?.mockInput.pressArrow("down");
-    await flushInput();
-    testSetup?.mockInput.pressEnter();
-    await flushInput();
+    await driveInput(() => testSetup?.mockInput.pressArrow("down"));
+    await driveInput(() => testSetup?.mockInput.pressEnter());
     expect(cmd4.callCount()).toBe(1);
 
-    testSetup?.mockInput.pressArrow("down");
-    await flushInput();
-    testSetup?.mockInput.pressEnter();
-    await flushInput();
+    await driveInput(() => testSetup?.mockInput.pressArrow("down"));
+    await driveInput(() => testSetup?.mockInput.pressEnter());
     expect(cmd2.callCount()).toBe(1);
     expect(cmd4.callCount()).toBe(1);
 
-    testSetup?.mockInput.pressArrow("down");
-    await flushInput();
-    testSetup?.mockInput.pressEnter();
-    await flushInput();
+    await driveInput(() => testSetup?.mockInput.pressArrow("down"));
+    await driveInput(() => testSetup?.mockInput.pressEnter());
     expect(cmd5.callCount()).toBe(1);
 
-    testSetup?.mockInput.pressArrow("down");
-    await flushInput();
-    testSetup?.mockInput.pressEnter();
-    await flushInput();
+    await driveInput(() => testSetup?.mockInput.pressArrow("down"));
+    await driveInput(() => testSetup?.mockInput.pressEnter());
     expect(cmd6.callCount()).toBe(1);
 
-    testSetup?.mockInput.pressArrow("down");
-    await flushInput();
-    testSetup?.mockInput.pressEnter();
-    await flushInput();
+    await driveInput(() => testSetup?.mockInput.pressArrow("down"));
+    await driveInput(() => testSetup?.mockInput.pressEnter());
     expect(cmd7.callCount()).toBe(1);
 
-    testSetup?.mockInput.pressArrow("down");
-    await flushInput();
-    testSetup?.mockInput.pressEnter();
-    await flushInput();
+    await driveInput(() => testSetup?.mockInput.pressArrow("down"));
+    await driveInput(() => testSetup?.mockInput.pressEnter());
     expect(cmd8.callCount()).toBe(1);
 
-    testSetup?.mockInput.pressArrow("down");
-    await flushInput();
-    testSetup?.mockInput.pressEnter();
-    await flushInput();
+    await driveInput(() => testSetup?.mockInput.pressArrow("down"));
+    await driveInput(() => testSetup?.mockInput.pressEnter());
     expect(cmd9.callCount()).toBe(1);
   });
 
@@ -403,13 +388,10 @@ describe("DialogCommand", () => {
 
     await renderDialogForInput(commands, ["refresh"]);
 
-    testSetup?.mockInput.pressArrow("down");
-    await flushInput();
-    testSetup?.mockInput.pressArrow("down");
-    await flushInput();
+    await driveInput(() => testSetup?.mockInput.pressArrow("down"));
+    await driveInput(() => testSetup?.mockInput.pressArrow("down"));
 
-    testSetup?.mockInput.pressEnter();
-    await flushInput();
+    await driveInput(() => testSetup?.mockInput.pressEnter());
     expect(exitCompare.callCount()).toBe(1);
   });
 
@@ -424,15 +406,12 @@ describe("DialogCommand", () => {
 
     await renderDialogForInput(commands);
 
-    testSetup?.mockInput.pressEnter();
-    await flushInput();
+    await driveInput(() => testSetup?.mockInput.pressEnter());
     expect(cmd1.callCount()).toBe(1);
 
-    testSetup?.mockInput.pressArrow("down");
-    await flushInput();
+    await driveInput(() => testSetup?.mockInput.pressArrow("down"));
 
-    testSetup?.mockInput.pressEnter();
-    await flushInput();
+    await driveInput(() => testSetup?.mockInput.pressEnter());
 
     expect(cmd1.callCount()).toBe(1);
     expect(cmd2.callCount()).toBe(1);
@@ -449,11 +428,9 @@ describe("DialogCommand", () => {
 
     await renderDialogForInput(commands);
 
-    testSetup?.mockInput.pressArrow("down");
-    await flushInput();
+    await driveInput(() => testSetup?.mockInput.pressArrow("down"));
 
-    testSetup?.mockInput.pressEnter();
-    await flushInput();
+    await driveInput(() => testSetup?.mockInput.pressEnter());
 
     expect(refresh.callCount()).toBe(0);
     expect(exitCompare.callCount()).toBe(1);
@@ -470,17 +447,13 @@ describe("DialogCommand", () => {
 
     await renderDialogForInput(commands);
 
-    testSetup?.mockInput.pressArrow("down");
-    await flushInput();
-    testSetup?.mockInput.pressEnter();
-    await flushInput();
+    await driveInput(() => testSetup?.mockInput.pressArrow("down"));
+    await driveInput(() => testSetup?.mockInput.pressEnter());
     expect(cmd1.callCount()).toBe(0);
     expect(cmd2.callCount()).toBe(1);
 
-    testSetup?.mockInput.pressArrow("down");
-    await flushInput();
-    testSetup?.mockInput.pressEnter();
-    await flushInput();
+    await driveInput(() => testSetup?.mockInput.pressArrow("down"));
+    await driveInput(() => testSetup?.mockInput.pressEnter());
     expect(cmd1.callCount()).toBe(1);
     expect(cmd2.callCount()).toBe(1);
   });
@@ -521,8 +494,7 @@ describe("DialogCommand", () => {
       await testSetup?.renderOnce();
     });
 
-    testSetup?.mockInput.pressEnter();
-    await flushInput();
+    await driveInput(() => testSetup?.mockInput.pressEnter());
 
     const output = JSON.stringify(getSetup().captureSpans().lines);
     expect(output).toContain("Theme picker");

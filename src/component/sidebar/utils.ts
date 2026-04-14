@@ -1,9 +1,8 @@
+import { buildFileKey, type FileSection } from "@/context/selection/utils";
 import type { Theme } from "@/context/theme/provider";
 
 import type { FileTreeNode, GitStatusFile } from "@/lib/git";
 import { buildFileTree } from "@/lib/git";
-
-import type { FileSection } from "./types";
 
 // Status icons - minimal, single character
 const STATUS_ICONS: Record<string, string> = {
@@ -90,10 +89,6 @@ export function getAncestorDirs(filePath: string): string[] {
   return dirs;
 }
 
-export function buildFileKey(section: FileSection, path: string): string {
-  return `${section}:${path}`;
-}
-
 export function buildDirKey(section: FileSection, path: string): string {
   return buildFileKey(section, path);
 }
@@ -115,21 +110,4 @@ export function getVisualFileOrder(files: GitStatusFile[]): GitStatusFile[] {
   const ordered: GitStatusFile[] = [];
   collectVisualFiles(root.children, ordered);
   return ordered;
-}
-
-export function parseFileKey(key: string): {
-  section: FileSection;
-  path: string;
-} | null {
-  const colonIdx = key.indexOf(":");
-  if (colonIdx === -1) return null;
-
-  const section = key.slice(0, colonIdx) as FileSection;
-  const path = key.slice(colonIdx + 1);
-
-  if (!["staged", "changes", "compare"].includes(section)) {
-    return null;
-  }
-
-  return { section, path };
 }

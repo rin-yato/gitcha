@@ -7,20 +7,20 @@ import type { ScrollBoxRenderable } from "@opentui/core";
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import type { FileSection, SelectionSource, ViewMode } from "@/context/changes/state";
+import type { SelectionSource } from "@/context/selection";
+import { buildFileKey, type FileSection, parseFileKey } from "@/context/selection/utils";
 import type { Theme } from "@/context/theme/provider";
+import type { ViewMode } from "@/context/view";
 
 import type { CompareState, FileTreeNode, GitRepoStatus, GitStatusFile } from "@/lib/git";
 import { buildFileTree } from "@/lib/git";
 
 import {
-  buildFileKey,
   buildDirKey,
   getAncestorDirs,
   getFileStatus,
   getStatusColor,
   getStatusIcon,
-  parseFileKey,
   splitPath,
 } from "./utils";
 

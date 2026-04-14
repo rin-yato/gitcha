@@ -2,7 +2,7 @@ import type { DiffRenderable, ScrollBoxRenderable } from "@opentui/core";
 
 import { useMemo, useRef, useState } from "react";
 
-import type { DiffViewMode } from "@/context/changes/state";
+import type { DiffViewMode } from "@/context/diff";
 import type { Theme } from "@/context/theme/provider";
 import { createSyntaxStyle, detectFiletype, treeSitterClient } from "@/context/theme/syntax";
 

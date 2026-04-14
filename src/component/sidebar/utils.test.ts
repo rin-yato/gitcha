@@ -4,11 +4,9 @@ import type { GitStatusFile } from "@/lib/git";
 import { buildFileTree } from "@/lib/git";
 
 import {
-  buildFileKey,
   getAncestorDirs,
   getFileStatus,
   getVisualFileOrder,
-  parseFileKey,
   splitPath,
   truncateDir,
 } from "./utils";
@@ -30,22 +28,6 @@ describe("sidebar utils", () => {
       dir: "src/component",
     });
     expect(splitPath("file.ts")).toEqual({ name: "file.ts", dir: null });
-  });
-
-  test("buildFileKey includes section", () => {
-    expect(buildFileKey("changes", "src/app.ts")).toBe("changes:src/app.ts");
-  });
-
-  test("parseFileKey round trips valid keys", () => {
-    expect(parseFileKey("staged:src/app.ts")).toEqual({
-      section: "staged",
-      path: "src/app.ts",
-    });
-  });
-
-  test("parseFileKey rejects invalid keys", () => {
-    expect(parseFileKey("badkey")).toBeNull();
-    expect(parseFileKey("other:src/app.ts")).toBeNull();
   });
 
   test("truncateDir keeps short paths unchanged", () => {

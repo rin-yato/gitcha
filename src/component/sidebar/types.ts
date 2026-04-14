@@ -1,8 +1,7 @@
+import type { FileSection } from "@/context/selection/utils";
 import type { Theme } from "@/context/theme/provider";
 
 import type { GitStatusFile } from "@/lib/git";
-
-export type FileSection = "staged" | "changes" | "compare";
 
 export type FileItemProps = {
   id: string;

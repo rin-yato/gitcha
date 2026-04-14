@@ -1,3 +1,5 @@
+import { flushSync } from "@opentui/react";
+
 import { useCallback } from "react";
 
 import type { Theme } from "@/context/theme/provider";
@@ -28,7 +30,9 @@ export function DialogCommand(props: DialogCommandProps) {
   const handleSelect = useCallback(
     (option: DialogSelectOptionValue) => {
       const cmd = props.commands[option.value];
-      dialog.closeTop();
+      flushSync(() => {
+        dialog.closeTop();
+      });
       cmd?.run();
     },
     [props.commands, dialog],
@@ -42,7 +46,6 @@ export function DialogCommand(props: DialogCommandProps) {
         placeholder="Search commands..."
         options={props.options}
         onSelect={handleSelect}
-        onClose={() => dialog.closeTop()}
         width={76}
         height={24}
       />
