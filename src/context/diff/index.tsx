@@ -47,8 +47,14 @@ export function ReviewDiffProvider({ children }: { children: React.ReactNode }) 
       return;
     }
 
-    git.client
-      .loadDiffSource(file, selection.selectedFileSection, compareBaseRef)
+    const section = selection.selectedFileSection;
+    if (!section) {
+      setDiffContent(null);
+      return;
+    }
+
+    void git.client
+      .loadDiffSource(file, section, compareBaseRef)
       .then((source) => {
         if (requestId !== diffLoadRequestRef.current) return;
         const diff = generateDiff(source, file.path);

@@ -23,5 +23,6 @@
     "paths": {
       "@/*": ["./src/*"]
     }
-  }
+  },
+  "exclude": ["benchmarks/repos", "dist"]
 }

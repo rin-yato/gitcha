@@ -155,7 +155,7 @@ export function ReviewProvider({
   );
 
   useEffect(() => {
-    detectRepoContext(repoCwd).then((newCtx) => {
+    void detectRepoContext(repoCwd).then((newCtx) => {
       if (newCtx) {
         setClient(createGitClient(newCtx));
       } else {
@@ -211,9 +211,11 @@ export function ReviewProvider({
 
   useEffect(() => {
     if (!client) return;
-    refreshStatus();
+    void client.getRepoStatus().then(setStatus);
 
-    const statusTimer = setInterval(refreshStatus, 5000);
+    const statusTimer = setInterval(() => {
+      void refreshStatus();
+    }, 5000);
 
     return () => {
       clearInterval(statusTimer);

@@ -34,7 +34,6 @@ renderer.keyInput.on("keypress", (key) => {
 
   if (key.name === "c" && key.ctrl) {
     renderer.destroy();
-    process.exit(0);
   }
 });
 

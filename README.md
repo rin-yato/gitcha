@@ -78,3 +78,19 @@ src/
 ├── constants/        # Constants
 │   └── theme.ts
 └── index.tsx         # Main application entry
+## Perf
+
+```sh
+bun run bench
+bun run bench:repo
+bun run bench --json --out=benchmarks/latest.json
+bun run bench:reset-fixture
+```
+
+Benchmark flow:
+
+1. `bun run bench:repo` benchmarks the cached `https://github.com/anomalyco/opentui` repo.
+2. `bun run bench --json --out=benchmarks/latest.json` stores a machine-readable report.
+3. `bun run bench:reset-fixture` removes the cached repo and fixture state if you want a fresh clone.
+
+The benchmark cache now lives in your user cache directory, outside the repo tree, so test and typecheck runs stay isolated.
