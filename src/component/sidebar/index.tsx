@@ -12,8 +12,13 @@ import { buildFileKey, type FileSection, parseFileKey } from "@/context/selectio
 import type { Theme } from "@/context/theme/provider";
 import type { ViewMode } from "@/context/view";
 
-import type { CompareState, FileTreeNode, GitRepoStatus, GitStatusFile } from "@/lib/git";
-import { buildFileTree } from "@/lib/git";
+import type {
+  CompareState,
+  FileTreeNode,
+  FileTreeSnapshot,
+  GitRepoStatus,
+  GitStatusFile,
+} from "@/lib/git";
 
 import {
   buildDirKey,
@@ -38,6 +43,11 @@ export type SidebarProps = {
   selectFile: (path: string, section: FileSection) => void;
   viewMode: ViewMode;
   compareState: CompareState | null;
+  fileTrees: {
+    staged: FileTreeSnapshot;
+    changes: FileTreeSnapshot;
+    compare: FileTreeSnapshot;
+  };
   isOpen: boolean;
   width: number;
 };
@@ -45,19 +55,6 @@ export type SidebarProps = {
 // ---------------------------------------------------------------------------
 // Pure helpers
 // ---------------------------------------------------------------------------
-
-function getStagedFiles(status: GitRepoStatus | null): GitStatusFile[] {
-  return status?.files.staged ?? [];
-}
-
-function getChangeFiles(status: GitRepoStatus | null): GitStatusFile[] {
-  if (!status) return [];
-  return [...status.files.changes, ...status.files.untracked];
-}
-
-function getCompareFiles(compareState: CompareState | null): GitStatusFile[] {
-  return compareState?.files ?? [];
-}
 
 function isEmptyRepo(status: GitRepoStatus | null): boolean {
   if (!status?.isRepo) return true;
@@ -134,15 +131,29 @@ function flattenTreeNodes(
 function buildSidebarRows(args: {
   theme: Theme;
   viewMode: ViewMode;
-  staged: GitStatusFile[];
-  changes: GitStatusFile[];
-  compareFiles: GitStatusFile[];
+  stagedTree: FileTreeNode;
+  changesTree: FileTreeNode;
+  compareTree: FileTreeNode;
+  stagedCount: number;
+  changesCount: number;
+  compareCount: number;
   isEmpty: boolean;
   collapsedDirs: Set<string>;
 }): SidebarRow[] {
-  const { theme, viewMode, staged, changes, compareFiles, isEmpty, collapsedDirs } = args;
+  const {
+    theme,
+    viewMode,
+    stagedTree,
+    changesTree,
+    compareTree,
+    stagedCount,
+    changesCount,
+    compareCount,
+    isEmpty,
+    collapsedDirs,
+  } = args;
   if (viewMode === "compare") {
-    if (compareFiles.length === 0) {
+    if (compareCount === 0) {
       return [];
     }
 
@@ -151,10 +162,10 @@ function buildSidebarRows(args: {
         kind: "section",
         key: "section:compare",
         label: "Changes",
-        count: compareFiles.length,
+        count: compareCount,
         countColor: theme.modified,
       },
-      ...flattenTreeNodes(buildFileTree(compareFiles).children, "compare", 0, collapsedDirs),
+      ...flattenTreeNodes(compareTree.children, "compare", 0, collapsedDirs),
     ];
   }
 
@@ -165,18 +176,18 @@ function buildSidebarRows(args: {
       kind: "section",
       key: "section:staged",
       label: "Staged",
-      count: staged.length,
+      count: stagedCount,
       countColor: theme.added,
     },
-    ...flattenTreeNodes(buildFileTree(staged).children, "staged", 0, collapsedDirs),
+    ...flattenTreeNodes(stagedTree.children, "staged", 0, collapsedDirs),
     {
       kind: "section",
       key: "section:changes",
       label: "Changes",
-      count: changes.length,
+      count: changesCount,
       countColor: theme.modified,
     },
-    ...flattenTreeNodes(buildFileTree(changes).children, "changes", 0, collapsedDirs),
+    ...flattenTreeNodes(changesTree.children, "changes", 0, collapsedDirs),
   ];
 }
 
@@ -347,6 +358,7 @@ export function Sidebar(props: SidebarProps) {
     selectFile,
     viewMode,
     compareState,
+    fileTrees,
     isOpen,
     width,
   } = props;
@@ -357,11 +369,9 @@ export function Sidebar(props: SidebarProps) {
   const [collapsedDirs, setCollapsedDirs] = useState<Set<string>>(new Set());
   const previousActiveFileKeyRef = useRef<string | null>(null);
 
-  const staged = getStagedFiles(status);
-  const changes = getChangeFiles(status);
-  const compareFiles = getCompareFiles(compareState);
   const isEmpty = isEmptyRepo(status);
   const activeFileKey = selectedFileKey ?? focusedFileKey;
+  const treeSnapshots = fileTrees;
 
   const toggleDir = useCallback((section: FileSection, path: string) => {
     const dirKey = buildDirKey(section, path);
@@ -381,13 +391,16 @@ export function Sidebar(props: SidebarProps) {
       buildSidebarRows({
         theme,
         viewMode,
-        staged,
-        changes,
-        compareFiles,
+        stagedTree: treeSnapshots.staged.tree,
+        changesTree: treeSnapshots.changes.tree,
+        compareTree: treeSnapshots.compare.tree,
+        stagedCount: treeSnapshots.staged.orderedFiles.length,
+        changesCount: treeSnapshots.changes.orderedFiles.length,
+        compareCount: treeSnapshots.compare.orderedFiles.length,
         isEmpty,
         collapsedDirs,
       }),
-    [theme, viewMode, staged, changes, compareFiles, isEmpty, collapsedDirs],
+    [theme, viewMode, treeSnapshots, isEmpty, collapsedDirs],
   );
 
   const activeRowIndex = useMemo(

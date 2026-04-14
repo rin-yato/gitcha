@@ -174,6 +174,58 @@ export function buildFileTree(files: GitStatusFile[]): FileTreeNode {
   };
 }
 
+export type FileTreeSnapshot = {
+  tree: FileTreeNode;
+  orderedFiles: GitStatusFile[];
+};
+
+export function collectFileTreeFiles(nodes: FileTreeNode[]): GitStatusFile[] {
+  return nodes.flatMap((node) => {
+    if (node.isDirectory) {
+      return collectFileTreeFiles(node.children);
+    }
+
+    return node.fileInfo ? [node.fileInfo] : [];
+  });
+}
+
+export function buildFileTreeSnapshot(files: GitStatusFile[]): FileTreeSnapshot {
+  const tree = buildFileTree(files);
+  return {
+    tree,
+    orderedFiles: collectFileTreeFiles(tree.children),
+  };
+}
+
+type ParsedRepoStatus = {
+  branch: string;
+  upstream?: string;
+  aheadCount: number;
+  behindCount: number;
+  files: GitStatusFile[];
+};
+
+function parseRepoStatusLines(lines: string[]): ParsedRepoStatus {
+  const branchLine = lines.find((line) => line.startsWith("## "));
+  const branchInfo = branchLine ? parseStatusBranchLine(branchLine) : null;
+  const files: GitStatusFile[] = [];
+
+  for (const line of lines) {
+    if (line.startsWith("## ")) continue;
+
+    const parsed = parseStatusLine(line);
+    if (parsed) files.push(parsed);
+  }
+
+  return {
+    branch: branchInfo?.branch ?? "",
+    upstream: branchInfo?.upstream,
+    aheadCount: branchInfo?.aheadCount ?? 0,
+    behindCount: branchInfo?.behindCount ?? 0,
+    files,
+  };
+}
+
 /**
  * Get complete repository status
  */
@@ -199,33 +251,7 @@ export async function getRepoStatus(cwd?: string): Promise<GitRepoStatus> {
     return emptyStatus;
   }
 
-  const parsedStatus = statusOutput
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .reduce<{
-      branch: string;
-      upstream?: string;
-      aheadCount: number;
-      behindCount: number;
-      files: GitStatusFile[];
-    }>(
-      (acc, line) => {
-        if (line.startsWith("## ")) {
-          const branchInfo = parseStatusBranchLine(line);
-          return branchInfo ? { ...acc, ...branchInfo } : acc;
-        }
-
-        const parsed = parseStatusLine(line);
-        return parsed ? { ...acc, files: [...acc.files, parsed] } : acc;
-      },
-      {
-        branch: "",
-        upstream: undefined,
-        aheadCount: 0,
-        behindCount: 0,
-        files: [],
-      },
-    );
+  const parsedStatus = parseRepoStatusLines(statusOutput.split(/\r?\n/).filter(Boolean));
 
   const categorized = categorizeFiles(parsedStatus.files);
 

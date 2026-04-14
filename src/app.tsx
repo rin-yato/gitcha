@@ -233,6 +233,7 @@ function App() {
         selectFile={selection.selectFile}
         viewMode={view.viewMode}
         compareState={git.compareState}
+        fileTrees={git.fileTrees}
         isOpen={layout.isSidebarOpen}
         width={layout.sidebarWidth}
       />

@@ -13,8 +13,6 @@ import {
 
 import type { GitStatusFile } from "@/lib/git";
 
-import { getVisualFileOrder } from "@/component/sidebar/utils";
-
 import { useReviewSession } from "../session/session";
 import type { ViewMode } from "../view";
 import {
@@ -25,7 +23,6 @@ import {
   fileKeyFromIndex,
   indexOfFileInSection,
   sectionForIndex,
-  stagedFileCount,
 } from "./utils";
 
 export type SelectionSource = "keyboard" | "mouse" | "programmatic";
@@ -60,26 +57,22 @@ export function ReviewSelectionProvider({ children }: { children: React.ReactNod
   const [selectionSource, setSelectionSource] = useState<SelectionSource>("programmatic");
   const scrollPositionsRef = useRef(new Map<string, number>());
 
-  const status = git.status;
-  const compareState = git.compareState;
   const viewMode: ViewMode = git.compareState ? "compare" : "staging";
+  const { fileTrees } = git;
 
-  const sidebarFiles = useMemo(() => {
-    if (viewMode === "compare") {
-      return getVisualFileOrder(compareState?.files ?? []);
-    }
+  const fileTreeFiles = useMemo(
+    () =>
+      viewMode === "compare"
+        ? fileTrees.compare.orderedFiles
+        : [...fileTrees.staged.orderedFiles, ...fileTrees.changes.orderedFiles],
+    [fileTrees, viewMode],
+  );
 
-    const stagedFiles = getVisualFileOrder(status?.files.staged ?? []);
-    const changedFiles = getVisualFileOrder([
-      ...(status?.files.changes ?? []),
-      ...(status?.files.untracked ?? []),
-    ]);
-    return [...stagedFiles, ...changedFiles];
-  }, [compareState?.files, status, viewMode]);
+  const sidebarFiles = fileTreeFiles;
 
   const stagedCount = useMemo(
-    () => (viewMode === "compare" ? 0 : stagedFileCount(status)),
-    [status, viewMode],
+    () => (viewMode === "compare" ? 0 : fileTrees.staged.orderedFiles.length),
+    [fileTrees.staged.orderedFiles.length, viewMode],
   );
 
   const focusedFile = useMemo(

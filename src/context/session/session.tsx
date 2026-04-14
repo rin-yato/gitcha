@@ -5,11 +5,13 @@ import type {
   CompareState,
   CompareTarget,
   FileDiffSource,
+  FileTreeSnapshot,
   GitRepoStatus,
   GitStatusFile,
   RepoContext,
 } from "@/lib/git";
 import {
+  buildFileTreeSnapshot,
   commitChanges as commitGitChanges,
   detectRepoContext,
   discardChanges as discardGitChanges,
@@ -32,6 +34,11 @@ export type ReviewSession = {
   status: GitRepoStatus | null;
   error: string | null;
   compareState: CompareState | null;
+  fileTrees: {
+    staged: FileTreeSnapshot;
+    changes: FileTreeSnapshot;
+    compare: FileTreeSnapshot;
+  };
   client: GitClient;
   refreshStatus: () => void;
   stageFile: (filePath: string) => void;
@@ -135,6 +142,18 @@ export function ReviewProvider({
   const [error, setError] = useState<string | null>(null);
   const [compareState, setCompareState] = useState<CompareState | null>(null);
 
+  const fileTrees = useMemo(
+    () => ({
+      staged: buildFileTreeSnapshot(status?.files.staged ?? []),
+      changes: buildFileTreeSnapshot([
+        ...(status?.files.changes ?? []),
+        ...(status?.files.untracked ?? []),
+      ]),
+      compare: buildFileTreeSnapshot(compareState?.files ?? []),
+    }),
+    [compareState, status],
+  );
+
   useEffect(() => {
     detectRepoContext(repoCwd).then((newCtx) => {
       if (newCtx) {
@@ -208,6 +227,7 @@ export function ReviewProvider({
             status,
             error,
             compareState,
+            fileTrees,
             client,
             refreshStatus,
             stageFile: (filePath) => runGitAction(() => client.stageFile(filePath)),
@@ -226,6 +246,7 @@ export function ReviewProvider({
       status,
       error,
       compareState,
+      fileTrees,
       refreshStatus,
       runGitAction,
       startCompare,

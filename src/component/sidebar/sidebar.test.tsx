@@ -6,7 +6,8 @@ import { act } from "react";
 
 import type { Theme } from "@/context/theme/provider";
 
-import type { GitRepoStatus } from "@/lib/git";
+import type { GitRepoStatus, GitStatusFile } from "@/lib/git";
+import { buildFileTreeSnapshot } from "@/lib/git";
 
 import { Sidebar } from "./index";
 
@@ -40,6 +41,24 @@ const baseProps = {
   isOpen: true,
 };
 
+function createFileTrees(status: GitRepoStatus): Parameters<typeof Sidebar>[0]["fileTrees"] {
+  return {
+    staged: buildFileTreeSnapshot(status.files.staged),
+    changes: buildFileTreeSnapshot([...status.files.changes, ...status.files.untracked]),
+    compare: buildFileTreeSnapshot([] as GitStatusFile[]),
+  };
+}
+
+function createCompareFileTrees(
+  compareFiles: GitStatusFile[],
+): Parameters<typeof Sidebar>[0]["fileTrees"] {
+  return {
+    staged: buildFileTreeSnapshot([]),
+    changes: buildFileTreeSnapshot([]),
+    compare: buildFileTreeSnapshot(compareFiles),
+  };
+}
+
 let testSetup: Awaited<ReturnType<typeof testRender>> | null = null;
 
 afterEach(() => {
@@ -52,16 +71,23 @@ afterEach(() => {
 });
 
 function renderSidebar(props: Partial<Parameters<typeof Sidebar>[0]> = {}) {
+  const status = props.status ?? cleanStatus;
+  const fileTrees =
+    props.fileTrees ??
+    (props.viewMode === "compare" && props.compareState
+      ? createCompareFileTrees(props.compareState.files)
+      : createFileTrees(status));
   return (
     <Sidebar
       theme={theme}
       width={40}
-      status={cleanStatus}
+      status={status}
       error={null}
       selectedFileKey={null}
       focusedFileKey={null}
       selectionSource="programmatic"
       selectFile={() => {}}
+      fileTrees={fileTrees}
       {...baseProps}
       {...props}
     />
@@ -132,7 +158,7 @@ test("sidebar shows compare mode header", async () => {
 
   const output = JSON.stringify(testSetup.captureSpans().lines);
   expect(output).toContain("Compare");
-  expect(output).toContain("Changes");
+  expect(output).toContain("app.ts");
 });
 
 test("sidebar shows error message", async () => {
