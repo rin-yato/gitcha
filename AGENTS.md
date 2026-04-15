@@ -1,41 +1,61 @@
 # Changes AGENTS.md
 
-## Dev Commands
+## Agent Workflow
 
-```sh
-bun test              # Bun test runner (USE THIS to verify changes)
-bun run ci            # biome check && tsc --noEmit
-bun run fix           # biome check --write --unsafe
-bun run build         # Compiles to dist/changes (Bun compile)
-bun run install       # Builds if needed, installs to ~/.local/bin/changes
-bun run bench         # Writes startup timing JSON for comparison
-bun run bench:latest  # Stores the latest benchmark results for comparison `latest.json`
-bun run bench:compare # Compares the latest benchmark results to the previous stored results, showing diffs
-```
+- Start by inspecting the relevant source files, tests, and configs before editing.
+- Prefer the smallest correct change.
+- Preserve any unrelated local changes already in the worktree.
+- Use `apply_patch` for manual file edits.
+- Add or update tests when behavior changes.
+- Run the narrowest useful verification first, then the broader check before handing off.
+- Do not use `bun run dev`; it is interactive and blocks the session.
 
-**Never run `bun run dev`** — this starts an interactive TUI app that will block. If you need 
-to see the current state, or test an issue/bug, you need to run the test command. If no test is suitable for your investigation
-that mean our test case isn't good enough. You should first add the test to verify what you expect and run them.
+## Repository Map
 
-## Key Quirks
+- `src/component/` - UI components and feature surfaces.
+- `src/context/` - shared state, providers, and app-level hooks.
+- `src/lib/` - git/fs/tree-sitter utilities and other non-UI logic.
+- `src/themes/` - theme data and theme types.
+- `scripts/` - build, install, and benchmark scripts.
 
-- **JSX import source**: Uses `@opentui/react`, not `react`. tsconfig sets `jsxImportSource: "@opentui/react"`
-- **Real git only**: the app always uses the current repository context; there is no fake-git dev mode.
-- **Build bundles tree-sitter worker**: `scripts/build.ts` copies `node_modules/@opentui/core/parser.worker.js` into the binary using Bun's compile feature
-- **Biome import order**: Organized groups in biome.json: `@opentui/**` → `@/libs/**` → `@/hooks/**` → etc.
-- **Component file names**: Prefer kebab-case for new component files and folders (for example `diff-pane/diff-content.tsx`), matching the existing project naming pattern.
+## Commands
 
-## Style
+Run commands from the repository root with `bun run <script>` unless noted otherwise.
 
-- Prefer `const`, pure helpers, and immutable transforms in new code. Avoid `let` and in-place mutation when a functional alternative is practical; `remeda` or `better-result` can help keep control flow functional.
+### Verification
 
-## Perf
+- `bun test` - run the full test suite. Use this for behavior changes and before final handoff.
+- `bun run ci` - run Biome check and TypeScript typecheck (`biome check && tsc --noEmit`).
+- `bun run fix` - auto-fix formatting and lint issues (`biome check --write --unsafe`).
 
-- Use `bun run bench:repo` to capture startup timing baselines. The default fixture repo is `https://github.com/anomalyco/opentui` and is cached in your user cache directory, outside the repo tree.
-- Use `bun run bench:json --out=benchmarks/latest.json` for a machine-readable report.
-- Use `bun run bench:reset-fixture` to drop the cached repo and fixture state.
-- Keep measurements focused on repo detection, status refresh, file-tree build, and first diff load.
+### Build and Install
 
-## Path Alias
+- `bun run build` - compile the CLI to `dist/changes`.
+- `bun run install` - build if needed, copy the binary to `~/.local/bin/changes`, and create the `ch` alias symlink.
 
-`@/*` → `./src/*`
+### Benchmarks
+
+- `bun run bench` - run the startup benchmark with the default fixture.
+- `bun run bench:repo` - benchmark the default `https://github.com/anomalyco/opentui` fixture explicitly.
+- `bun run bench:json --out=benchmarks/latest.json` - write a machine-readable benchmark report.
+- `bun run bench:latest` - refresh `benchmarks/latest.json` with the current results.
+- `bun run bench:compare` - compare current results against `benchmarks/latest.json`.
+- `bun run bench:reset-fixture` - clear the cached benchmark repository and fixture state.
+
+## Code Conventions
+
+- TypeScript is strict; keep types explicit where inference is unclear.
+- Prefer `const`, pure helpers, and immutable transforms.
+- Avoid `let` and in-place mutation unless it meaningfully simplifies the code.
+- Keep functions small and local unless the logic is clearly reusable.
+- Use `@/` path aliases for imports under `src/`.
+- JSX uses `@opentui/react` as the import source, not `react`.
+- Follow Biome import ordering and formatting.
+- Prefer kebab-case for new component files and folders.
+- Keep comments brief and only for non-obvious logic.
+
+## Project Notes
+
+- The app always works against the current real git repository context
+- The build bundles the Tree-sitter worker, so `bun run build` should be used to verify changes that touch parser or build wiring.
+- For perf work, focus on repo detection, status refresh, file-tree construction, and first diff load.
