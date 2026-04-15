@@ -1,9 +1,13 @@
 #!/usr/bin/env bun
 
-import { createCliRenderer } from "@opentui/core";
+import { addDefaultParsers, createCliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
 
-import { AppRoot } from "./app";
+import { parsers } from "@/lib/tree-sitter";
+
+import { AppRoot } from "@/app";
+
+addDefaultParsers(parsers);
 
 const renderer = await createCliRenderer({
   exitOnCtrlC: false,

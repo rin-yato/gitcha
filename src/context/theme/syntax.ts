@@ -1,4 +1,4 @@
-import { getTreeSitterClient, parseColor, pathToFiletype, SyntaxStyle } from "@opentui/core";
+import { parseColor, pathToFiletype, SyntaxStyle } from "@opentui/core";
 
 import type { Theme } from "./provider";
 
@@ -43,5 +43,3 @@ export function createSyntaxStyle(theme: Theme): SyntaxStyle {
     "punctuation.delimiter": { fg: parseColor(theme.syntaxPunctuation || theme.textMuted) },
   });
 }
-
-export const treeSitterClient = getTreeSitterClient();

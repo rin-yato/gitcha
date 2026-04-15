@@ -3,8 +3,7 @@ import type { DiffRenderable, ScrollBoxRenderable } from "@opentui/core";
 import { useMemo, useRef, useState } from "react";
 
 import type { DiffViewMode } from "@/context/diff";
-import type { Theme } from "@/context/theme/provider";
-import { createSyntaxStyle, detectFiletype, treeSitterClient } from "@/context/theme/syntax";
+import { createSyntaxStyle, detectFiletype, type Theme } from "@/context/theme";
 
 import type { GitStatusFile } from "@/lib/git";
 import { computeScrollbarMarkers, parseDiffPositions } from "@/lib/git";
@@ -85,7 +84,6 @@ function DiffRenderablePane(props: FileDiffViewProps) {
           view={props.viewMode}
           filetype={props.filetype}
           syntaxStyle={props.syntaxStyle as never}
-          treeSitterClient={treeSitterClient as never}
           showLineNumbers
           wrapMode="word"
           fg={props.theme.text}
