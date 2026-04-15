@@ -1,4 +1,4 @@
-import "../test-setup";
+import "../../test-setup";
 
 import { afterEach, expect, test } from "bun:test";
 
@@ -8,7 +8,7 @@ import { act } from "react";
 
 import type { Theme } from "@/context/theme/provider";
 
-import { DiffPane } from "./diff-pane";
+import { DiffPane } from "./index";
 
 const theme: Theme = {
   background: "#000000",

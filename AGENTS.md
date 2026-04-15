@@ -23,6 +23,7 @@ that mean our test case isn't good enough. You should first add the test to veri
 - **Real git only**: the app always uses the current repository context; there is no fake-git dev mode.
 - **Build bundles tree-sitter worker**: `scripts/build.ts` copies `node_modules/@opentui/core/parser.worker.js` into the binary using Bun's compile feature
 - **Biome import order**: Organized groups in biome.json: `@opentui/**` → `@/libs/**` → `@/hooks/**` → etc.
+- **Component file names**: Prefer kebab-case for new component files and folders (for example `diff-pane/diff-content.tsx`), matching the existing project naming pattern.
 
 ## Style
 
