@@ -24,6 +24,8 @@ Run commands from the repository root with `bun run <script>` unless noted other
 
 ### Verification
 
+Always run `bun run fix`, instead of `bun run ci` or `bun run check`. This way it does both checks and fix any simple format or lint issues.
+
 - `bun test` - run the full test suite. Use this for behavior changes and before final handoff.
 - `bun run ci` - run Biome check and TypeScript typecheck (`biome check && tsc --noEmit`).
 - `bun run fix` - auto-fix formatting and lint issues (`biome check --write --unsafe`).
