@@ -1,0 +1,532 @@
+import type { MouseEvent as OtuiMouseEvent, RenderContext, SyntaxStyle } from "@opentui/core";
+import {
+  BoxRenderable,
+  type CodeOptions,
+  CodeRenderable,
+  type ColorInput,
+  parseColor,
+  Renderable,
+  type RenderableOptions,
+  type RGBA,
+  TextRenderable,
+} from "@opentui/core";
+
+export interface DiffLineClickInfo {
+  visualLineIndex: number;
+  logicalLineNumber?: number;
+  side: "left" | "right" | "unified";
+  type: "add" | "remove" | "context" | "empty";
+  content: string;
+}
+
+export interface DiffLineRenderableOptions extends RenderableOptions<DiffLineRenderable> {
+  content: string;
+  lineNumber?: number;
+  type: "add" | "remove" | "context" | "empty";
+  side: "left" | "right" | "unified";
+  showLineNumber?: boolean;
+  lineBg?: ColorInput;
+  lineFg?: ColorInput;
+  signText?: string;
+  signColor?: ColorInput;
+  gutterBg?: ColorInput;
+  gutterFg?: ColorInput;
+  gutterWidth?: number;
+  visualLineIndex?: number;
+  onClick?: (info: DiffLineClickInfo) => void;
+  filetype?: string;
+  syntaxStyle?: SyntaxStyle;
+  selectionBg?: ColorInput;
+  selectionFg?: ColorInput;
+  wrapMode?: "none" | "char" | "word";
+  truncate?: boolean;
+}
+
+export class DiffLineRenderable extends Renderable {
+  private _content: string;
+  private _lineNumber?: number;
+  private _type: "add" | "remove" | "context" | "empty";
+  private _side: "left" | "right" | "unified";
+  private _showLineNumber: boolean;
+  private _lineBg: RGBA;
+  private _lineFg: RGBA;
+  private _signText?: string;
+  private _signColor?: RGBA;
+  private _gutterBg: RGBA;
+  private _gutterFg: RGBA;
+  private _gutterWidth: number;
+  private _visualLineIndex: number;
+  private _onClick?: (info: DiffLineClickInfo) => void;
+  private _filetype?: string;
+  private _syntaxStyle?: SyntaxStyle;
+  private _selectionBg?: RGBA;
+  private _selectionFg?: RGBA;
+  private _wrapMode: "none" | "char" | "word";
+  private _truncate: boolean;
+
+  // Child components
+  private _gutterBox?: BoxRenderable;
+  private _gutterText?: TextRenderable;
+  private _signBox?: BoxRenderable;
+  private _signTextRenderable?: TextRenderable;
+  private _contentCode?: CodeRenderable;
+  private _contentBox?: BoxRenderable;
+
+  constructor(ctx: RenderContext, options: DiffLineRenderableOptions) {
+    super(ctx, {
+      ...options,
+      flexDirection: "row",
+      alignItems: "stretch",
+      minHeight: options.minHeight ?? 1,
+      width: options.width ?? "100%",
+    });
+
+    this._content = options.content;
+    this._lineNumber = options.lineNumber;
+    this._type = options.type;
+    this._side = options.side;
+    this._showLineNumber = options.showLineNumber ?? true;
+    this._lineBg = parseColor(options.lineBg ?? "transparent");
+    this._lineFg = parseColor(options.lineFg ?? "#e6edf3");
+    this._signText = options.signText;
+    this._signColor = options.signColor ? parseColor(options.signColor) : undefined;
+    this._gutterBg = parseColor(options.gutterBg ?? "#161b22");
+    this._gutterFg = parseColor(options.gutterFg ?? "#6b7280");
+    this._gutterWidth = options.gutterWidth ?? 5;
+    this._visualLineIndex = options.visualLineIndex ?? 0;
+    this._onClick = options.onClick;
+    this._filetype = options.filetype;
+    this._syntaxStyle = options.syntaxStyle;
+    this._selectionBg = options.selectionBg ? parseColor(options.selectionBg) : undefined;
+    this._selectionFg = options.selectionFg ? parseColor(options.selectionFg) : undefined;
+    this._wrapMode = options.wrapMode ?? "none";
+    this._truncate = options.truncate ?? this._wrapMode === "none";
+    this.onMouseUp = this.handleMouseUp.bind(this);
+
+    // Build child components
+    this.buildChildren();
+  }
+
+  private buildChildren(): void {
+    this.clearChildren();
+
+    // Gutter (line number area)
+    if (this._showLineNumber && this._gutterWidth > 0) {
+      this._gutterBox = new BoxRenderable(this.ctx, {
+        id: `${this.id}-gutter`,
+        width: this._gutterWidth,
+        minHeight: 1,
+        backgroundColor: this._gutterBg,
+        justifyContent: "flex-start",
+        alignItems: "flex-start",
+        paddingRight: 1,
+      });
+
+      const lineNumStr =
+        this._lineNumber !== undefined && this._type !== "empty"
+          ? this._lineNumber.toString()
+          : "";
+
+      this._gutterText = new TextRenderable(this.ctx, {
+        id: `${this.id}-gutter-text`,
+        content: lineNumStr,
+        fg: this.getGutterForegroundColor(),
+        selectionBg: this._selectionBg,
+        selectable: false,
+      });
+
+      this._gutterBox.add(this._gutterText);
+      this.add(this._gutterBox);
+    }
+
+    // Sign (+/-)
+    if (this._signText) {
+      this._signBox = new BoxRenderable(this.ctx, {
+        id: `${this.id}-sign`,
+        width: 1,
+        minHeight: 1,
+        backgroundColor: this._lineBg,
+        justifyContent: "flex-start",
+        alignItems: "flex-start",
+      });
+
+      this._signTextRenderable = new TextRenderable(this.ctx, {
+        id: `${this.id}-sign-text`,
+        content: this._signText,
+        fg: this.getSignForegroundColor(),
+        selectionBg: this._selectionBg,
+        selectable: false,
+      });
+
+      this._signBox.add(this._signTextRenderable);
+      this.add(this._signBox);
+    }
+
+    // Content area - use CodeRenderable for syntax highlighting if filetype is provided
+    if (this._filetype && this._syntaxStyle && this._content.length > 0) {
+      const codeOptions: CodeOptions = {
+        id: `${this.id}-content`,
+        content: this._content,
+        filetype: this._filetype,
+        syntaxStyle: this._syntaxStyle,
+        fg: this._lineFg,
+        flexGrow: 1,
+        width: "100%",
+        wrapMode: this._wrapMode,
+        truncate: this._truncate,
+        drawUnstyledText: true,
+        ...(this._selectionBg !== undefined && { selectionBg: this._selectionBg }),
+        ...(this._selectionFg !== undefined && { selectionFg: this._selectionFg }),
+      };
+
+      this._contentCode = new CodeRenderable(this.ctx, codeOptions);
+      this._contentBox = new BoxRenderable(this.ctx, {
+        id: `${this.id}-content-box`,
+        flexGrow: 1,
+        minHeight: 1,
+        backgroundColor: this._lineBg,
+      });
+      this._contentBox.add(this._contentCode);
+      this.add(this._contentBox);
+    } else {
+      // Plain text fallback
+      this._contentBox = new BoxRenderable(this.ctx, {
+        id: `${this.id}-content`,
+        flexGrow: 1,
+        minHeight: 1,
+        backgroundColor: this._lineBg,
+      });
+
+      const contentText = new TextRenderable(this.ctx, {
+        id: `${this.id}-content-text`,
+        content: this._content,
+        fg: this._lineFg,
+        wrapMode: this._wrapMode,
+        truncate: this._truncate,
+      });
+
+      this._contentBox.add(contentText);
+      this.add(this._contentBox);
+    }
+  }
+
+  private clearChildren(): void {
+    if (this._gutterBox) {
+      this.remove(this._gutterBox.id);
+      this._gutterBox.destroy();
+      this._gutterBox = undefined;
+      this._gutterText = undefined;
+    }
+    if (this._signBox) {
+      this.remove(this._signBox.id);
+      this._signBox.destroy();
+      this._signBox = undefined;
+      this._signTextRenderable = undefined;
+    }
+    if (this._contentCode) {
+      this.remove(this._contentCode.id);
+      this._contentCode.destroy();
+      this._contentCode = undefined;
+    }
+    if (this._contentBox) {
+      this.remove(this._contentBox.id);
+      this._contentBox.destroy();
+      this._contentBox = undefined;
+    }
+  }
+
+  private handleMouseUp(event: OtuiMouseEvent): void {
+    if (event.button === 0 && this._onClick) {
+      const info: DiffLineClickInfo = {
+        visualLineIndex: this._visualLineIndex,
+        logicalLineNumber: this._lineNumber,
+        side: this._side,
+        type: this._type,
+        content: this._content,
+      };
+      this._onClick(info);
+      event.stopPropagation();
+    }
+  }
+
+  // Getters and setters for reactive properties
+
+  get content(): string {
+    return this._content;
+  }
+
+  set content(value: string) {
+    if (this._content !== value) {
+      this._content = value;
+      this.buildChildren();
+      this.requestRender();
+    }
+  }
+
+  get lineNumber(): number | undefined {
+    return this._lineNumber;
+  }
+
+  set lineNumber(value: number | undefined) {
+    if (this._lineNumber !== value) {
+      this._lineNumber = value;
+      if (this._gutterText) {
+        this._gutterText.content = value !== undefined ? value.toString() : "";
+      }
+      this.requestRender();
+    }
+  }
+
+  get type(): "add" | "remove" | "context" | "empty" {
+    return this._type;
+  }
+
+  set type(value: "add" | "remove" | "context" | "empty") {
+    if (this._type !== value) {
+      this._type = value;
+      this.buildChildren();
+      this.requestRender();
+    }
+  }
+
+  get side(): "left" | "right" | "unified" {
+    return this._side;
+  }
+
+  set side(value: "left" | "right" | "unified") {
+    if (this._side !== value) {
+      this._side = value;
+      this.requestRender();
+    }
+  }
+
+  get showLineNumber(): boolean {
+    return this._showLineNumber;
+  }
+
+  set showLineNumber(value: boolean) {
+    if (this._showLineNumber !== value) {
+      this._showLineNumber = value;
+      this.buildChildren();
+      this.requestRender();
+    }
+  }
+
+  get lineBg(): RGBA {
+    return this._lineBg;
+  }
+
+  set lineBg(value: ColorInput) {
+    const parsed = parseColor(value);
+    if (!this._lineBg.equals(parsed)) {
+      this._lineBg = parsed;
+      this.syncChildColors();
+      this.requestRender();
+    }
+  }
+
+  get lineFg(): RGBA {
+    return this._lineFg;
+  }
+
+  set lineFg(value: ColorInput) {
+    const parsed = parseColor(value);
+    if (!this._lineFg.equals(parsed)) {
+      this._lineFg = parsed;
+      this.syncChildColors();
+      this.requestRender();
+    }
+  }
+
+  get signText(): string | undefined {
+    return this._signText;
+  }
+
+  set signText(value: string | undefined) {
+    if (this._signText !== value) {
+      this._signText = value;
+      this.buildChildren();
+      this.requestRender();
+    }
+  }
+
+  get signColor(): RGBA | undefined {
+    return this._signColor;
+  }
+
+  set signColor(value: ColorInput | undefined) {
+    const parsed = value ? parseColor(value) : undefined;
+    if (
+      (this._signColor === undefined && parsed !== undefined) ||
+      (this._signColor !== undefined && parsed === undefined) ||
+      (this._signColor && parsed && !this._signColor.equals(parsed))
+    ) {
+      this._signColor = parsed;
+      this.syncChildColors();
+      this.requestRender();
+    }
+  }
+
+  get gutterBg(): RGBA {
+    return this._gutterBg;
+  }
+
+  set gutterBg(value: ColorInput) {
+    const parsed = parseColor(value);
+    if (!this._gutterBg.equals(parsed)) {
+      this._gutterBg = parsed;
+      this.syncChildColors();
+      this.requestRender();
+    }
+  }
+
+  get gutterFg(): RGBA {
+    return this._gutterFg;
+  }
+
+  set gutterFg(value: ColorInput) {
+    const parsed = parseColor(value);
+    if (!this._gutterFg.equals(parsed)) {
+      this._gutterFg = parsed;
+      this.syncChildColors();
+      this.requestRender();
+    }
+  }
+
+  get gutterWidth(): number {
+    return this._gutterWidth;
+  }
+
+  set gutterWidth(value: number) {
+    if (this._gutterWidth !== value) {
+      this._gutterWidth = value;
+      this.buildChildren();
+      this.requestRender();
+    }
+  }
+
+  get visualLineIndex(): number {
+    return this._visualLineIndex;
+  }
+
+  set visualLineIndex(value: number) {
+    this._visualLineIndex = value;
+  }
+
+  get onClick(): ((info: DiffLineClickInfo) => void) | undefined {
+    return this._onClick;
+  }
+
+  set onClick(value: ((info: DiffLineClickInfo) => void) | undefined) {
+    this._onClick = value;
+  }
+
+  get filetype(): string | undefined {
+    return this._filetype;
+  }
+
+  set filetype(value: string | undefined) {
+    if (this._filetype !== value) {
+      this._filetype = value;
+      this.buildChildren();
+      this.requestRender();
+    }
+  }
+
+  get syntaxStyle(): SyntaxStyle | undefined {
+    return this._syntaxStyle;
+  }
+
+  set syntaxStyle(value: SyntaxStyle | undefined) {
+    if (this._syntaxStyle !== value) {
+      this._syntaxStyle = value;
+      if (this._contentCode && value) {
+        this._contentCode.syntaxStyle = value;
+      }
+      this.requestRender();
+    }
+  }
+
+  get selectionBg(): RGBA | undefined {
+    return this._selectionBg;
+  }
+
+  set selectionBg(value: ColorInput | undefined) {
+    const parsed = value ? parseColor(value) : undefined;
+    if (
+      (this._selectionBg === undefined && parsed !== undefined) ||
+      (this._selectionBg !== undefined && parsed === undefined) ||
+      (this._selectionBg && parsed && !this._selectionBg.equals(parsed))
+    ) {
+      this._selectionBg = parsed;
+      if (this._contentCode) {
+        this._contentCode.selectionBg = parsed;
+      }
+      this.syncChildColors();
+      this.requestRender();
+    }
+  }
+
+  get selectionFg(): RGBA | undefined {
+    return this._selectionFg;
+  }
+
+  set selectionFg(value: ColorInput | undefined) {
+    const parsed = value ? parseColor(value) : undefined;
+    if (
+      (this._selectionFg === undefined && parsed !== undefined) ||
+      (this._selectionFg !== undefined && parsed === undefined) ||
+      (this._selectionFg && parsed && !this._selectionFg.equals(parsed))
+    ) {
+      this._selectionFg = parsed;
+      if (this._contentCode) {
+        this._contentCode.selectionFg = parsed;
+      }
+      this.syncChildColors();
+      this.requestRender();
+    }
+  }
+
+  get wrapMode(): "none" | "char" | "word" {
+    return this._wrapMode;
+  }
+
+  set wrapMode(value: "none" | "char" | "word") {
+    if (this._wrapMode !== value) {
+      this._wrapMode = value;
+      this.buildChildren();
+      this.requestRender();
+    }
+  }
+
+  get truncate(): boolean {
+    return this._truncate;
+  }
+
+  set truncate(value: boolean) {
+    if (this._truncate !== value) {
+      this._truncate = value;
+      this.buildChildren();
+      this.requestRender();
+    }
+  }
+
+  public override destroy(): void {
+    this.clearChildren();
+    super.destroy();
+  }
+
+  private getGutterForegroundColor(): RGBA {
+    return this._selectionFg ?? this._gutterFg;
+  }
+
+  private getSignForegroundColor(): RGBA {
+    return this._selectionFg ?? this._signColor ?? this._lineFg;
+  }
+
+  private syncChildColors(): void {
+    if (this._gutterText) this._gutterText.fg = this.getGutterForegroundColor();
+    if (this._signTextRenderable) this._signTextRenderable.fg = this.getSignForegroundColor();
+    if (this._contentBox) this._contentBox.backgroundColor = this._lineBg;
+  }
+}

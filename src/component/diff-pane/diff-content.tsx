@@ -1,11 +1,12 @@
-import type { DiffRenderable } from "@opentui/core";
-
 import { memo, useCallback, useRef } from "react";
 
+import { dequal } from "dequal";
+
+import type { SlottableDiffRenderable } from "../slottable-diff";
 import type { DiffContentProps } from "./types";
 
 export const DiffContent = memo(function DiffContent(props: DiffContentProps) {
-  const diffRenderableRef = useRef<DiffRenderable | null>(null);
+  const diffRenderableRef = useRef<SlottableDiffRenderable | null>(null);
 
   const handleSizeChange = useCallback(() => {
     if (!diffRenderableRef.current) return;
@@ -13,17 +14,19 @@ export const DiffContent = memo(function DiffContent(props: DiffContentProps) {
   }, [props.onHeightChange]);
 
   return (
-    <diff
-      id={props.fileKey}
-      syncScroll={true}
+    <slottable-diff
+      width="100%"
+      height="100%"
+      virtualize
+      syncScroll
+      wrapMode="word"
+      showLineNumbers
       ref={diffRenderableRef}
       onSizeChange={handleSizeChange}
       diff={props.diffContent}
       view={props.viewMode}
       filetype={props.filetype}
-      syntaxStyle={props.syntaxStyle as never}
-      showLineNumbers
-      wrapMode="word"
+      syntaxStyle={props.syntaxStyle}
       fg={props.theme.text}
       selectionBg={`${props.theme.accent}16`}
       addedBg={`${props.theme.added}12`}
@@ -37,6 +40,7 @@ export const DiffContent = memo(function DiffContent(props: DiffContentProps) {
       removedSignColor={props.theme.removed}
       addedLineNumberBg={`${props.theme.added}16`}
       removedLineNumberBg={`${props.theme.removed}16`}
+      onScrollStateChange={props.onScrollStateChange}
     />
   );
-});
+}, dequal);

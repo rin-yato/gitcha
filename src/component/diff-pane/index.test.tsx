@@ -8,6 +8,8 @@ import { act } from "react";
 
 import type { Theme } from "@/context/theme/provider";
 
+import "../slottable-diff";
+
 import { DiffPane } from "./index";
 
 const theme: Theme = {
