@@ -1,220 +1,229 @@
 {
-  "repoUrl": "https://github.com/anomalyco/opentui",
   "repoPath": "/Users/yato/Library/Caches/changes/benchmarks/opentui",
+  "repoCwd": "packages/core",
+  "repoUrl": "https://github.com/anomalyco/opentui",
   "repoBaseCommit": "7755aef5f92b6ed24949d0eb952ad996f1c59ddb",
   "repoCommit": "72aa752de00390f29c9a922cc3f09bcdf8ce6d62",
   "fixtureMode": "benchmarks/fixtures/opentui.fixture.json",
   "fixtureResetCommits": 15,
-  "cwd": "/Users/yato/Library/Caches/changes/benchmarks/opentui",
   "runs": 5,
+  "startup": {
+    "bootstrapStartedMs": 0.023375000000001478,
+    "rendererStartedMs": 0.07295899999999733,
+    "rendererReadyMs": 4.727542,
+    "renderCalledMs": 4.747667000000007,
+    "firstPaintMs": 5.5817499999999995,
+    "bootstrapResolvedMs": 36.86274999999999,
+    "totalMs": 36.87541700000001
+  },
   "results": [
     {
       "name": "bench.detectRepoContext",
-      "durationMs": 17.791708999999997,
+      "durationMs": 16.77125000000001,
       "ok": true,
       "run": 1
     },
     {
       "name": "bench.getRepoStatus",
-      "durationMs": 23.725916999999995,
+      "durationMs": 20.736959,
       "ok": true,
       "run": 1
     },
     {
       "name": "bench.buildFileTree.staged",
-      "durationMs": 1.0499579999999895,
+      "durationMs": 1.0733749999999986,
       "ok": true,
       "run": 1
     },
     {
       "name": "bench.buildFileTree.changes",
-      "durationMs": 0.03408300000000963,
+      "durationMs": 0.03283299999999656,
       "ok": true,
       "run": 1
     },
     {
       "name": "bench.loadDiffSource",
-      "durationMs": 18.69795900000001,
+      "durationMs": 17.892792,
       "ok": true,
       "run": 1
     },
     {
       "name": "bench.generateDiff",
-      "durationMs": 4.473791000000006,
+      "durationMs": 4.307332999999986,
       "ok": true,
       "run": 1
     },
     {
       "name": "bench.parseDiffPositions",
-      "durationMs": 0.2192500000000166,
+      "durationMs": 0.22075000000000955,
       "ok": true,
       "run": 1
     },
     {
       "name": "bench.detectRepoContext",
-      "durationMs": 16.581417000000016,
+      "durationMs": 14.726666999999992,
       "ok": true,
       "run": 2
     },
     {
       "name": "bench.getRepoStatus",
-      "durationMs": 22.68074999999999,
+      "durationMs": 20.803750000000008,
       "ok": true,
       "run": 2
     },
     {
       "name": "bench.buildFileTree.staged",
-      "durationMs": 0.25141700000000355,
+      "durationMs": 0.28162499999999113,
       "ok": true,
       "run": 2
     },
     {
       "name": "bench.buildFileTree.changes",
-      "durationMs": 0.01099999999999568,
+      "durationMs": 0.01587500000002251,
       "ok": true,
       "run": 2
     },
     {
       "name": "bench.loadDiffSource",
-      "durationMs": 18.560000000000002,
+      "durationMs": 17.97075000000001,
       "ok": true,
       "run": 2
     },
     {
       "name": "bench.generateDiff",
-      "durationMs": 2.9700829999999883,
+      "durationMs": 2.502834000000007,
       "ok": true,
       "run": 2
     },
     {
       "name": "bench.parseDiffPositions",
-      "durationMs": 0.16058400000000006,
+      "durationMs": 0.15945899999999824,
       "ok": true,
       "run": 2
     },
     {
       "name": "bench.detectRepoContext",
-      "durationMs": 17.374042000000003,
+      "durationMs": 15.420749999999998,
       "ok": true,
       "run": 3
     },
     {
       "name": "bench.getRepoStatus",
-      "durationMs": 21.879999999999995,
+      "durationMs": 19.647458,
       "ok": true,
       "run": 3
     },
     {
       "name": "bench.buildFileTree.staged",
-      "durationMs": 0.23108299999998394,
+      "durationMs": 0.1954589999999996,
       "ok": true,
       "run": 3
     },
     {
       "name": "bench.buildFileTree.changes",
-      "durationMs": 0.009499999999974307,
+      "durationMs": 0.004750000000001364,
       "ok": true,
       "run": 3
     },
     {
       "name": "bench.loadDiffSource",
-      "durationMs": 19.00604199999998,
+      "durationMs": 17.986084000000005,
       "ok": true,
       "run": 3
     },
     {
       "name": "bench.generateDiff",
-      "durationMs": 2.527750000000026,
+      "durationMs": 2.137167000000005,
       "ok": true,
       "run": 3
     },
     {
       "name": "bench.parseDiffPositions",
-      "durationMs": 0.06725000000000136,
+      "durationMs": 0.07254199999999855,
       "ok": true,
       "run": 3
     },
     {
       "name": "bench.detectRepoContext",
-      "durationMs": 16.42958299999998,
+      "durationMs": 14.656124999999975,
       "ok": true,
       "run": 4
     },
     {
       "name": "bench.getRepoStatus",
-      "durationMs": 22.08379199999996,
+      "durationMs": 19.559500000000014,
       "ok": true,
       "run": 4
     },
     {
       "name": "bench.buildFileTree.staged",
-      "durationMs": 0.16170899999997346,
+      "durationMs": 0.16741700000000037,
       "ok": true,
       "run": 4
     },
     {
       "name": "bench.buildFileTree.changes",
-      "durationMs": 0.0050420000000030996,
+      "durationMs": 0.0035410000000410946,
       "ok": true,
       "run": 4
     },
     {
       "name": "bench.loadDiffSource",
-      "durationMs": 17.526917000000026,
+      "durationMs": 15.636750000000006,
       "ok": true,
       "run": 4
     },
     {
       "name": "bench.generateDiff",
-      "durationMs": 1.9199160000000006,
+      "durationMs": 2.183166999999969,
       "ok": true,
       "run": 4
     },
     {
       "name": "bench.parseDiffPositions",
-      "durationMs": 0.061666999999999916,
+      "durationMs": 0.07683300000002191,
       "ok": true,
       "run": 4
     },
     {
       "name": "bench.detectRepoContext",
-      "durationMs": 17.060084000000018,
+      "durationMs": 13.610083000000031,
       "ok": true,
       "run": 5
     },
     {
       "name": "bench.getRepoStatus",
-      "durationMs": 22.669083999999998,
+      "durationMs": 18.979499999999973,
       "ok": true,
       "run": 5
     },
     {
       "name": "bench.buildFileTree.staged",
-      "durationMs": 0.16537500000004002,
+      "durationMs": 0.14791700000000674,
       "ok": true,
       "run": 5
     },
     {
       "name": "bench.buildFileTree.changes",
-      "durationMs": 0.003915999999946962,
+      "durationMs": 0.0035829999999918982,
       "ok": true,
       "run": 5
     },
     {
       "name": "bench.loadDiffSource",
-      "durationMs": 18.646582999999964,
+      "durationMs": 20.339,
       "ok": true,
       "run": 5
     },
     {
       "name": "bench.generateDiff",
-      "durationMs": 1.9667499999999905,
+      "durationMs": 2.1872909999999592,
       "ok": true,
       "run": 5
     },
     {
       "name": "bench.parseDiffPositions",
-      "durationMs": 0.06675000000001319,
+      "durationMs": 0.068916999999999,
       "ok": true,
       "run": 5
     }
@@ -223,58 +232,58 @@
     {
       "name": "bench.detectRepoContext",
       "runs": 5,
-      "minMs": 16.42958299999998,
-      "medianMs": 17.060084000000018,
-      "meanMs": 17.047367,
-      "maxMs": 17.791708999999997
+      "minMs": 13.610083000000031,
+      "medianMs": 14.726666999999992,
+      "meanMs": 15.036975000000002,
+      "maxMs": 16.77125000000001
     },
     {
       "name": "bench.getRepoStatus",
       "runs": 5,
-      "minMs": 21.879999999999995,
-      "medianMs": 22.669083999999998,
-      "meanMs": 22.607908599999988,
-      "maxMs": 23.725916999999995
+      "minMs": 18.979499999999973,
+      "medianMs": 19.647458,
+      "meanMs": 19.9454334,
+      "maxMs": 20.803750000000008
     },
     {
       "name": "bench.buildFileTree.staged",
       "runs": 5,
-      "minMs": 0.16170899999997346,
-      "medianMs": 0.23108299999998394,
-      "meanMs": 0.3719083999999981,
-      "maxMs": 1.0499579999999895
+      "minMs": 0.14791700000000674,
+      "medianMs": 0.1954589999999996,
+      "meanMs": 0.3731585999999993,
+      "maxMs": 1.0733749999999986
     },
     {
       "name": "bench.buildFileTree.changes",
       "runs": 5,
-      "minMs": 0.003915999999946962,
-      "medianMs": 0.009499999999974307,
-      "meanMs": 0.012708199999985936,
-      "maxMs": 0.03408300000000963
+      "minMs": 0.0035410000000410946,
+      "medianMs": 0.004750000000001364,
+      "meanMs": 0.012116400000010685,
+      "maxMs": 0.03283299999999656
     },
     {
       "name": "bench.loadDiffSource",
       "runs": 5,
-      "minMs": 17.526917000000026,
-      "medianMs": 18.646582999999964,
-      "meanMs": 18.487500199999996,
-      "maxMs": 19.00604199999998
+      "minMs": 15.636750000000006,
+      "medianMs": 17.97075000000001,
+      "meanMs": 17.965075200000005,
+      "maxMs": 20.339
     },
     {
       "name": "bench.generateDiff",
       "runs": 5,
-      "minMs": 1.9199160000000006,
-      "medianMs": 2.527750000000026,
-      "meanMs": 2.771658000000002,
-      "maxMs": 4.473791000000006
+      "minMs": 2.137167000000005,
+      "medianMs": 2.1872909999999592,
+      "meanMs": 2.6635583999999852,
+      "maxMs": 4.307332999999986
     },
     {
       "name": "bench.parseDiffPositions",
       "runs": 5,
-      "minMs": 0.061666999999999916,
-      "medianMs": 0.06725000000000136,
-      "meanMs": 0.11510020000000623,
-      "maxMs": 0.2192500000000166
+      "minMs": 0.068916999999999,
+      "medianMs": 0.07683300000002191,
+      "meanMs": 0.11970020000000545,
+      "maxMs": 0.22075000000000955
     }
   ]
 }

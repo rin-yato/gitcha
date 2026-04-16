@@ -52,9 +52,15 @@ export type ReviewSession = {
   refreshCompare: () => void;
 };
 
+export type ReviewBootstrap = {
+  client: GitClient | null;
+  status: GitRepoStatus | null;
+  error: string | null;
+};
+
 export type GitClient = {
   ctx: RepoContext;
-  getRepoStatus: () => Promise<GitRepoStatus>;
+  getRepoStatus: (options?: { includeUntracked?: boolean }) => Promise<GitRepoStatus>;
   getLocalBranches: () => Promise<string[]>;
   getCompareTarget: () => Promise<CompareTarget | null>;
   getBranchDiffFiles: (baseRef: string) => Promise<GitStatusFile[]>;
@@ -76,7 +82,7 @@ export type GitClient = {
 export function createGitClient(ctx: RepoContext): GitClient {
   return {
     ctx,
-    getRepoStatus: () => getRepoStatus(ctx.cwd),
+    getRepoStatus: (options) => getRepoStatus(ctx.cwd, options),
     getLocalBranches: () => getLocalBranches(ctx.cwd),
     getCompareTarget: () => getCompareTarget(ctx.cwd),
     getBranchDiffFiles: (baseRef: string) => getBranchDiffFiles(baseRef, ctx.cwd),
@@ -98,6 +104,26 @@ export function createGitClient(ctx: RepoContext): GitClient {
     commitChanges: (message: string) => commitGitChanges(message, ctx.cwd),
     pushChanges: () => pushGitChanges(ctx.cwd),
     pullChanges: () => pullGitChanges(ctx.cwd),
+  };
+}
+
+export async function bootstrapReviewSession(repoCwd?: string): Promise<ReviewBootstrap> {
+  const ctx = await detectRepoContext(repoCwd);
+  if (!ctx) {
+    return {
+      client: null,
+      status: null,
+      error: "Not a git repository",
+    };
+  }
+
+  const client = createGitClient(ctx);
+  const status = await client.getRepoStatus({ includeUntracked: false }).catch(() => null);
+
+  return {
+    client,
+    status,
+    error: status ? null : "Failed to load git status",
   };
 }
 
@@ -133,9 +159,11 @@ const ReviewSessionContext = createContext<ReviewSession | null>(null);
 export function ReviewProvider({
   children,
   repoCwd,
+  bootstrap,
 }: {
   children: React.ReactNode;
   repoCwd?: string;
+  bootstrap?: Promise<ReviewBootstrap>;
 }) {
   const [client, setClient] = useState<GitClient | null>(null);
   const [status, setStatus] = useState<GitRepoStatus | null>(null);
@@ -155,14 +183,27 @@ export function ReviewProvider({
   );
 
   useEffect(() => {
-    void detectRepoContext(repoCwd).then((newCtx) => {
-      if (newCtx) {
-        setClient(createGitClient(newCtx));
-      } else {
-        setError("Not a git repository");
-      }
+    if (bootstrap) {
+      let cancelled = false;
+
+      void bootstrap.then((nextBootstrap) => {
+        if (cancelled) return;
+        setClient(nextBootstrap.client);
+        setStatus(nextBootstrap.status);
+        setError(nextBootstrap.error);
+      });
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void bootstrapReviewSession(repoCwd).then((nextBootstrap) => {
+      setClient(nextBootstrap.client);
+      setStatus(nextBootstrap.status);
+      setError(nextBootstrap.error);
     });
-  }, [repoCwd]);
+  }, [bootstrap, repoCwd]);
 
   const refreshStatus = useCallback(() => {
     if (!client) return;
@@ -211,7 +252,6 @@ export function ReviewProvider({
 
   useEffect(() => {
     if (!client) return;
-    void client.getRepoStatus().then(setStatus);
 
     const statusTimer = setInterval(() => {
       void refreshStatus();
@@ -259,8 +299,8 @@ export function ReviewProvider({
 
   if (!value) {
     return (
-      <box>
-        <text content={error ?? "Loading..."} />
+      <box width="100%" height="100%" justifyContent="center" alignItems="center">
+        <text content={error ?? "Loading..."} selectable={false} />
       </box>
     );
   }

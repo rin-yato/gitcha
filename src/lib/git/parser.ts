@@ -190,6 +190,10 @@ export function collectFileTreeFiles(nodes: FileTreeNode[]): GitStatusFile[] {
 }
 
 export function buildFileTreeSnapshot(files: GitStatusFile[]): FileTreeSnapshot {
+  if (files.length === 0) {
+    return EMPTY_FILE_TREE_SNAPSHOT;
+  }
+
   const tree = buildFileTree(files);
   return {
     tree,
@@ -197,12 +201,26 @@ export function buildFileTreeSnapshot(files: GitStatusFile[]): FileTreeSnapshot 
   };
 }
 
+const EMPTY_FILE_TREE_SNAPSHOT: FileTreeSnapshot = {
+  tree: {
+    name: "",
+    path: "",
+    isDirectory: true,
+    children: [],
+  },
+  orderedFiles: [],
+};
+
 type ParsedRepoStatus = {
   branch: string;
   upstream?: string;
   aheadCount: number;
   behindCount: number;
   files: GitStatusFile[];
+};
+
+export type GetRepoStatusOptions = {
+  includeUntracked?: boolean;
 };
 
 function parseRepoStatusLines(lines: string[]): ParsedRepoStatus {
@@ -229,7 +247,10 @@ function parseRepoStatusLines(lines: string[]): ParsedRepoStatus {
 /**
  * Get complete repository status
  */
-export async function getRepoStatus(cwd?: string): Promise<GitRepoStatus> {
+export async function getRepoStatus(
+  cwd?: string,
+  options: GetRepoStatusOptions = {},
+): Promise<GitRepoStatus> {
   const emptyStatus: GitRepoStatus = {
     branch: "",
     upstream: undefined,
@@ -240,8 +261,14 @@ export async function getRepoStatus(cwd?: string): Promise<GitRepoStatus> {
     isRepo: false,
   };
 
+  const includeUntracked = options.includeUntracked ?? true;
   const statusOutput = await execGit(
-    ["status", "--porcelain=v1", "--branch", "--untracked-files=all"],
+    [
+      "status",
+      "--porcelain=v1",
+      "--branch",
+      `--untracked-files=${includeUntracked ? "all" : "no"}`,
+    ],
     {
       cwd,
     },

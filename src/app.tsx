@@ -5,7 +5,12 @@ import { useCallback, useEffect, useState } from "react";
 import { ReviewDiffProvider, useReviewDiff } from "@/context/diff";
 import { ReviewLayoutProvider, useReviewLayout } from "@/context/layout";
 import { ReviewSelectionProvider, useReviewSelection } from "@/context/selection";
-import { type GitClient, ReviewProvider, useReviewSession } from "@/context/session/session";
+import {
+  type GitClient,
+  type ReviewBootstrap,
+  ReviewProvider,
+  useReviewSession,
+} from "@/context/session/session";
 import { type Theme, type ThemeMode, ThemeProvider, useTheme } from "@/context/theme/provider";
 import { ReviewViewProvider, useReviewView } from "@/context/view";
 
@@ -28,6 +33,10 @@ import { Toast, ToastProvider } from "@/component/ui/toast";
 type CompareBranchData = {
   branches: string[];
   defaultCompareTarget: CompareTarget | null;
+};
+
+type AppRootProps = {
+  bootstrap: Promise<ReviewBootstrap>;
 };
 
 function CompareBranchDialogLoader(props: {
@@ -253,7 +262,7 @@ function App() {
   );
 }
 
-export function AppRoot() {
+export function AppRootWithBootstrap({ bootstrap }: AppRootProps) {
   const renderer = useRenderer();
   const [mode, setMode] = useState<ThemeMode | null>(renderer.themeMode);
 
@@ -272,7 +281,7 @@ export function AppRoot() {
 
   return (
     <ThemeProvider mode={mode ?? undefined}>
-      <ReviewProvider>
+      <ReviewProvider bootstrap={bootstrap}>
         <ReviewSelectionProvider>
           <ReviewDiffProvider>
             <ReviewViewProvider>
