@@ -21,6 +21,7 @@ const result = await Bun.build({
   define: {
     OTUI_TREE_SITTER_WORKER_PATH: `"${bunfsRoot}${workerRelativePath}"`,
   },
+  minify: true,
 });
 
 if (!result.success) {

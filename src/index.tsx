@@ -1,14 +1,28 @@
-#!/usr/bin/env bun
-
 import { addDefaultParsers, createCliRenderer } from "@opentui/core";
-import { createRoot } from "@opentui/react";
+import { createRoot, extend } from "@opentui/react";
 
+import { bootstrapReviewSession } from "@/context/session/session";
+
+import { createStartupBenchmarkRecorder } from "@/lib/startup-benchmark";
 import { parsers } from "@/lib/tree-sitter";
 
-import { AppRoot } from "@/app";
+import { SlottableDiffRenderable } from "./component/slottable-diff";
+import { AppRootWithBootstrap } from "@/app";
 
 addDefaultParsers(parsers);
 
+extend({
+  "slottable-diff": SlottableDiffRenderable,
+});
+
+const startupBenchmarkPath = process.env.CHANGES_STARTUP_BENCHMARK_PATH;
+const benchmark = startupBenchmarkPath
+  ? createStartupBenchmarkRecorder(startupBenchmarkPath)
+  : null;
+
+benchmark?.markBootstrapStarted();
+const bootstrap = bootstrapReviewSession();
+benchmark?.markRendererStarted();
 const renderer = await createCliRenderer({
   exitOnCtrlC: false,
   autoFocus: false,
@@ -20,20 +34,17 @@ const renderer = await createCliRenderer({
   },
 });
 
+benchmark?.markRendererReady();
+
 renderer.keyInput.on("keypress", (key) => {
-  // Toggle with backtick key
-  if (key.name === "`") {
+  if (key.name === "`" || (key.ctrl && key.name === "l")) {
     renderer.console.toggle();
+    return;
   }
 
-  // Or with a modifier
-  if (key.ctrl && key.name === "l") {
-    renderer.console.toggle();
-  }
-
-  // handle copy selection
   if (key.name === "y" && key.ctrl) {
     renderer.copyToClipboardOSC52(renderer.getSelection()?.getSelectedText() ?? "");
+    return;
   }
 
   if (key.name === "c" && key.ctrl) {
@@ -41,4 +52,22 @@ renderer.keyInput.on("keypress", (key) => {
   }
 });
 
-createRoot(renderer as never).render(<AppRoot />);
+benchmark?.markRenderCalled();
+createRoot(renderer as never).render(<AppRootWithBootstrap bootstrap={bootstrap} />);
+benchmark?.markFirstPaint();
+
+async function finalizeStartupBenchmark() {
+  if (!benchmark) return;
+
+  try {
+    await bootstrap;
+    benchmark.markBootstrapResolved();
+  } catch (error) {
+    benchmark.markBootstrapRejected(error);
+  }
+
+  await benchmark.writeSnapshot();
+  renderer.destroy();
+}
+
+void finalizeStartupBenchmark();
