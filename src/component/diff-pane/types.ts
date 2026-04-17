@@ -1,10 +1,10 @@
-import type { DiffRenderable, ScrollBoxRenderable } from "@opentui/core";
-
 import type { DiffViewMode } from "@/context/diff";
 import type { Theme } from "@/context/theme";
 import type { createSyntaxStyle } from "@/context/theme/syntax";
 
 import type { GitStatusFile } from "@/lib/git";
+
+import type { ChangesRenderable } from "@/renderables/changes-renderable";
 
 export interface DiffPaneProps {
   theme: Theme;
@@ -32,7 +32,11 @@ export interface DiffContentProps {
   theme: Theme;
   filetype: string;
   syntaxStyle: ReturnType<typeof createSyntaxStyle>;
-  onHeightChange: (height: number) => void;
+  onScrollStateChange: (
+    scrollTop: number,
+    viewportHeight: number,
+    scrollHeight: number,
+  ) => void;
 }
 
 export interface ScrollbarProps {
@@ -58,8 +62,7 @@ export interface DiffHeaderProps {
   theme: Theme;
 }
 
-export type DiffRenderableRef = DiffRenderable | null;
-export type ScrollBoxRenderableRef = ScrollBoxRenderable | null;
+export type DiffRenderableRef = ChangesRenderable | null;
 
 export interface ScrollState {
   scrollTop: number;
