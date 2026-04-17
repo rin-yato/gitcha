@@ -1,25 +1,19 @@
-import type { DiffRenderable } from "@opentui/core";
+import { memo, useRef } from "react";
 
-import { memo, useCallback, useRef } from "react";
-
-import type { DiffContentProps } from "./types";
+import type { DiffContentProps, DiffRenderableRef } from "./types";
 
 export const DiffContent = memo(function DiffContent(props: DiffContentProps) {
-  const diffRenderableRef = useRef<DiffRenderable | null>(null);
-
-  const handleSizeChange = useCallback(() => {
-    if (!diffRenderableRef.current) return;
-    props.onHeightChange(diffRenderableRef.current.height);
-  }, [props.onHeightChange]);
+  const diffRenderableRef = useRef<DiffRenderableRef>(null);
 
   return (
-    <diff
+    <changes
       id={props.fileKey}
       syncScroll={true}
       ref={diffRenderableRef}
-      onSizeChange={handleSizeChange}
+      onScrollStateChange={props.onScrollStateChange}
       diff={props.diffContent}
       view={props.viewMode}
+      virtualizationOverscan={8}
       filetype={props.filetype}
       syntaxStyle={props.syntaxStyle as never}
       showLineNumbers

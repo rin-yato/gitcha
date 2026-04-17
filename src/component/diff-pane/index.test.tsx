@@ -204,3 +204,80 @@ rename to src/ui/panel.renamed.tsx
   expect(output).toContain("Renamed");
   expect(output).toContain("src/ui/panel.tsx");
 });
+
+test("code panel updates unified viewport content when scrolled", async () => {
+  const lines = Array.from({ length: 80 }, (_, i) => `line ${i + 1}`);
+
+  testSetup = await testRender(
+    <DiffPane
+      theme={theme}
+      selectedFile="src/app.ts"
+      selectedFileKey="compare:src/app.ts"
+      selectedFileInfo={null}
+      diffContent={`diff --git a/src/app.ts b/src/app.ts
+index 1111111..2222222 100644
+--- a/src/app.ts
++++ b/src/app.ts
+@@ -1,80 +1,80 @@
+${lines.map((line) => `-${line}`).join("\n")}
+${lines.map((line) => `+${line} updated`).join("\n")}`}
+      diffViewMode="unified"
+      toggleDiffViewMode={() => {}}
+    />,
+    { width: 120, height: 12 },
+  );
+
+  await act(async () => {
+    await testSetup?.renderOnce();
+    for (let i = 0; i < 4; i += 1) {
+      await testSetup?.mockMouse.scroll(118, 6, "down");
+      await testSetup?.renderOnce();
+    }
+  });
+
+  const textLines = testSetup
+    .captureSpans()
+    .lines.map((line) => line.spans.map((span) => span.text).join(""));
+
+  expect(textLines.some((line) => line.includes("line 5"))).toBe(true);
+  expect(textLines.some((line) => /line 1(?!\d)/.test(line) && line.includes(" - "))).toBe(
+    false,
+  );
+});
+
+test("code panel selection keeps text after scrolling off screen", async () => {
+  const lines = Array.from({ length: 60 }, (_, i) => `line ${i + 1}`);
+
+  testSetup = await testRender(
+    <DiffPane
+      theme={theme}
+      selectedFile="src/app.ts"
+      selectedFileKey="compare:src/app.ts"
+      selectedFileInfo={null}
+      diffContent={`diff --git a/src/app.ts b/src/app.ts
+index 1111111..2222222 100644
+--- a/src/app.ts
++++ b/src/app.ts
+@@ -1,60 +1,60 @@
+${lines.map((line) => `-${line}`).join("\n")}
+${lines.map((line) => `+${line} updated`).join("\n")}`}
+      diffViewMode="unified"
+      toggleDiffViewMode={() => {}}
+    />,
+    { width: 120, height: 12 },
+  );
+
+  await act(async () => {
+    await testSetup?.renderOnce();
+    await testSetup?.mockMouse.drag(8, 5, 22, 6);
+    await testSetup?.renderOnce();
+    for (let i = 0; i < 2; i += 1) {
+      await testSetup?.mockMouse.scroll(118, 6, "down");
+      await testSetup?.renderOnce();
+    }
+  });
+
+  const selectedText = testSetup?.renderer.getSelection()?.getSelectedText() ?? "";
+  expect(selectedText.length).toBeGreaterThan(0);
+  expect(selectedText).toContain("line");
+});

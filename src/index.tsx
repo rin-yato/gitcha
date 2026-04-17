@@ -4,6 +4,7 @@ import { addDefaultParsers, createCliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
 
 import { parsers } from "@/lib/tree-sitter";
+import "@/renderables/register";
 
 import { AppRoot } from "@/app";
 
