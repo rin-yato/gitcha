@@ -349,7 +349,6 @@ export class ChangesRenderable extends Renderable {
   }
 
   private updateAutoScroll(mouseX: number, mouseY: number): void {
-    this._autoScrollMouseX = mouseX;
     this._autoScrollMouseY = mouseY;
     this._cachedAutoScrollSpeed = this.getAutoScrollSpeed(mouseX, mouseY);
 
@@ -363,7 +362,6 @@ export class ChangesRenderable extends Renderable {
 
   private startAutoScroll(mouseX: number, mouseY: number): void {
     this.stopAutoScroll();
-    this._autoScrollMouseX = mouseX;
     this._autoScrollMouseY = mouseY;
     this._cachedAutoScrollSpeed = this.getAutoScrollSpeed(mouseX, mouseY);
     this._isAutoScrolling = true;
@@ -819,6 +817,8 @@ export class ChangesRenderable extends Renderable {
     );
   }
 
+  private cachedLayoutContent = "";
+
   private createOrUpdateLayoutCodeRenderable(content: string): LayoutCodeRenderable {
     if (!this.layoutCodeRenderable) {
       const codeOptions: CodeOptions = {
@@ -840,8 +840,12 @@ export class ChangesRenderable extends Renderable {
 
       this.layoutCodeRenderable = new LayoutCodeRenderable(this.ctx, codeOptions);
       this.layoutCodeRenderable.selectable = true;
+      this.cachedLayoutContent = content;
     } else {
-      this.layoutCodeRenderable.content = content;
+      if (this.cachedLayoutContent !== content) {
+        this.layoutCodeRenderable.content = content;
+        this.cachedLayoutContent = content;
+      }
       this.layoutCodeRenderable.filetype = this._filetype;
       this.layoutCodeRenderable.wrapMode = this.getEffectiveWrapMode();
       this.layoutCodeRenderable.syntaxStyle =
@@ -1203,6 +1207,7 @@ export class ChangesRenderable extends Renderable {
     this._diff = value;
     this.cachedWrapWidth = -1;
     this.cachedSliceSignature = "";
+    this.cachedLayoutContent = "";
     this.rowStarts = [];
     this.rowCounts = [];
     this.parseDiff();

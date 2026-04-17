@@ -109,9 +109,10 @@ export function Toast({ theme }: { theme: Theme }) {
       paddingRight={2}
       paddingTop={1}
       paddingBottom={1}
-      backgroundColor={theme.surface}
-      border
+      border={["left", "right"]}
+      borderStyle="heavy"
       borderColor={borderColor}
+      backgroundColor={theme.surface}
       zIndex={4000}
       flexDirection="column"
     >

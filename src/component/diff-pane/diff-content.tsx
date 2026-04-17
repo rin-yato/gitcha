@@ -1,9 +1,21 @@
-import { memo, useRef } from "react";
+import { useRenderer } from "@opentui/react";
 
+import { memo, useCallback, useRef } from "react";
+
+import { copySelection } from "@/lib/clipboard";
+
+import { useToast } from "../ui/toast";
 import type { DiffContentProps, DiffRenderableRef } from "./types";
 
 export const DiffContent = memo(function DiffContent(props: DiffContentProps) {
+  const renderer = useRenderer();
+  const toast = useToast();
+
   const diffRenderableRef = useRef<DiffRenderableRef>(null);
+
+  const handleMouseUp = useCallback(() => {
+    copySelection(renderer, toast);
+  }, [renderer, toast]);
 
   return (
     <changes
@@ -31,6 +43,7 @@ export const DiffContent = memo(function DiffContent(props: DiffContentProps) {
       removedSignColor={props.theme.removed}
       addedLineNumberBg={`${props.theme.added}16`}
       removedLineNumberBg={`${props.theme.removed}16`}
+      onMouseUp={handleMouseUp}
     />
   );
 });
