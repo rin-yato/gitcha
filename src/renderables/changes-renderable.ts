@@ -5,7 +5,6 @@ import {
   DiffRenderable,
   type LineColorConfig,
   LineNumberRenderable,
-  measureText,
   parseColor,
   Renderable,
   type RenderableOptions,
@@ -144,10 +143,6 @@ class LayoutCodeRenderable extends DetachedCodeRenderable {
 }
 
 class ViewportCodeRenderable extends DetachedCodeRenderable {
-  public clearHighlights(): void {
-    this.textBuffer.clearAllHighlights();
-  }
-
   public clearSelectionRange(): void {
     this.textBufferView.resetSelection();
     this.textBufferView.resetLocalSelection();
@@ -215,6 +210,12 @@ export class ChangesRenderable extends Renderable {
   private rowCounts: number[] = [];
   private totalVirtualRows = 0;
   private currentSlice: SliceWindow | null = null;
+  private layoutLineInfoHandler: (() => void) | null = null;
+  private lastNotifiedScrollState: {
+    scrollTop: number;
+    viewportHeight: number;
+    scrollHeight: number;
+  } | null = null;
 
   constructor(ctx: RenderContext, options: ChangesRenderableOptions) {
     super(ctx, {
@@ -362,7 +363,27 @@ export class ChangesRenderable extends Renderable {
   }
 
   private notifyScrollState(): void {
-    this._onScrollStateChange?.(this._scrollTop, this.height, this.scrollHeight);
+    const nextState = {
+      scrollTop: this._scrollTop,
+      viewportHeight: this.height,
+      scrollHeight: this.scrollHeight,
+    };
+
+    if (
+      this.lastNotifiedScrollState &&
+      this.lastNotifiedScrollState.scrollTop === nextState.scrollTop &&
+      this.lastNotifiedScrollState.viewportHeight === nextState.viewportHeight &&
+      this.lastNotifiedScrollState.scrollHeight === nextState.scrollHeight
+    ) {
+      return;
+    }
+
+    this.lastNotifiedScrollState = nextState;
+    this._onScrollStateChange?.(
+      nextState.scrollTop,
+      nextState.viewportHeight,
+      nextState.scrollHeight,
+    );
   }
 
   private parseDiff(): void {
@@ -549,67 +570,7 @@ export class ChangesRenderable extends Renderable {
     return this.x + this.getVisibleSideWidth();
   }
 
-  private countWrappedRows(content: string, width: number): number {
-    if (width <= 0) {
-      return 1;
-    }
-
-    if (content.length === 0) {
-      return 1;
-    }
-
-    const effectiveWidth = Math.max(1, width);
-    const wrapMode = this.getEffectiveWrapMode();
-
-    if (wrapMode === "none") {
-      return 1;
-    }
-
-    const expanded = content.replace(/\t/g, "    ");
-
-    if (wrapMode === "char") {
-      const charWidth = measureText({ text: expanded }).width;
-      return Math.max(1, Math.ceil(charWidth / effectiveWidth));
-    }
-
-    let rowCount = 1;
-    let currentWidth = 0;
-    const words = expanded.split(/(\s+)/);
-
-    for (const word of words) {
-      if (word.length === 0) {
-        continue;
-      }
-
-      const wordWidth = measureText({ text: word }).width;
-
-      if (/^\s+$/.test(word)) {
-        currentWidth = Math.min(effectiveWidth, currentWidth + wordWidth);
-        continue;
-      }
-
-      if (wordWidth > effectiveWidth) {
-        if (currentWidth > 0) {
-          rowCount += 1;
-          currentWidth = 0;
-        }
-        rowCount += Math.max(1, Math.ceil(wordWidth / effectiveWidth)) - 1;
-        currentWidth = wordWidth % effectiveWidth;
-        continue;
-      }
-
-      if (currentWidth > 0 && currentWidth + wordWidth > effectiveWidth) {
-        rowCount += 1;
-        currentWidth = wordWidth;
-      } else {
-        currentWidth += wordWidth;
-      }
-    }
-
-    return Math.max(1, rowCount);
-  }
-
-  private ensureRowLayout(): void {
+  private ensureRowLayout(layoutRenderable: LayoutCodeRenderable): void {
     const model = this.getUnifiedModel();
     if (!model) {
       this.rowStarts = [];
@@ -623,30 +584,54 @@ export class ChangesRenderable extends Renderable {
       return;
     }
 
+    const lineInfo = layoutRenderable.lineInfo;
+    const lineSources = lineInfo.lineSources ?? [];
+    const totalRows = Math.max(layoutRenderable.virtualLineCount, lineSources.length, 1);
+
     if (
       this.cachedWrapWidth === contentWidth &&
-      this.rowCounts.length === model.logicalLines.length
+      this.rowCounts.length === model.logicalLines.length &&
+      this.totalVirtualRows === totalRows
     ) {
       return;
     }
 
     this.cachedWrapWidth = contentWidth;
-    this.rowCounts = new Array(model.logicalLines.length);
-    this.rowStarts = new Array(model.logicalLines.length);
+    this.rowCounts = new Array(model.logicalLines.length).fill(0);
+    this.rowStarts = new Array(model.logicalLines.length).fill(-1);
 
-    let totalRows = 0;
+    for (let visualRow = 0; visualRow < lineSources.length; visualRow += 1) {
+      const logicalLine = lineSources[visualRow];
+      if (
+        logicalLine === undefined ||
+        logicalLine < 0 ||
+        logicalLine >= model.logicalLines.length
+      ) {
+        continue;
+      }
 
-    for (let i = 0; i < model.logicalLines.length; i += 1) {
-      this.rowStarts[i] = totalRows;
-      const rowCount = this.countWrappedRows(
-        model.logicalLines[i]?.content ?? "",
-        contentWidth,
-      );
-      this.rowCounts[i] = rowCount;
-      totalRows += rowCount;
+      if (this.rowStarts[logicalLine] === -1) {
+        this.rowStarts[logicalLine] = visualRow;
+      }
+      this.rowCounts[logicalLine] = (this.rowCounts[logicalLine] ?? 0) + 1;
     }
 
-    this.totalVirtualRows = Math.max(totalRows, 1);
+    let nextRow = 0;
+    for (let i = 0; i < model.logicalLines.length; i += 1) {
+      const startRow = this.rowStarts[i] ?? -1;
+      const rowCount = this.rowCounts[i] ?? 0;
+
+      if (startRow === -1 || rowCount === 0) {
+        this.rowStarts[i] = nextRow;
+        this.rowCounts[i] = 1;
+        nextRow += 1;
+        continue;
+      }
+
+      nextRow = startRow + rowCount;
+    }
+
+    this.totalVirtualRows = Math.max(totalRows, nextRow, 1);
     this._scrollTop = Math.min(this._scrollTop, this.maxScrollTop);
   }
 
@@ -670,7 +655,7 @@ export class ChangesRenderable extends Renderable {
     return result;
   }
 
-  private computeSliceWindow(): SliceWindow {
+  private computeSliceWindow(visibleStartRow: number, visibleEndRow: number): SliceWindow {
     const model = this.getUnifiedModel();
     if (!model || model.logicalLines.length === 0) {
       return {
@@ -683,37 +668,51 @@ export class ChangesRenderable extends Renderable {
       };
     }
 
-    this.ensureRowLayout();
-
-    const overscan = Math.max(0, this._virtualizationOverscan);
-    const viewportHeight = Math.max(1, this.height);
-    const visibleStartRow = Math.max(0, this._scrollTop);
-    const visibleEndRow = Math.min(this.totalVirtualRows, visibleStartRow + viewportHeight);
-    const windowStartRow = Math.max(0, visibleStartRow - overscan);
-    const windowEndRow = Math.min(this.totalVirtualRows, visibleEndRow + overscan);
-    const startLine = this.findStartLineForRow(windowStartRow);
+    const slicePadding = Math.max(this._virtualizationOverscan, this.height * 2);
+    const targetStartRow = Math.max(0, visibleStartRow - slicePadding);
+    const targetEndRow = Math.min(this.totalVirtualRows, visibleEndRow + slicePadding);
+    const startLine = this.findStartLineForRow(targetStartRow);
     let endLine = startLine;
 
     while (endLine < model.logicalLines.length) {
       const lineStart = this.rowStarts[endLine] ?? 0;
-      const lineEnd = lineStart + (this.rowCounts[endLine] ?? 1);
-      if (lineStart >= windowEndRow) {
+      if (lineStart >= targetEndRow && endLine > startLine) {
         break;
       }
       endLine += 1;
-      if (lineEnd >= windowEndRow) {
+      const nextLineStart = this.rowStarts[endLine] ?? this.totalVirtualRows;
+      if (nextLineStart >= targetEndRow) {
         break;
       }
     }
 
+    const sliceStartRow = this.rowStarts[startLine] ?? 0;
+    const sliceEndRow =
+      endLine < model.logicalLines.length
+        ? (this.rowStarts[endLine] ?? this.totalVirtualRows)
+        : this.totalVirtualRows;
+
     return {
       startLine,
       endLine: Math.max(startLine + 1, endLine),
-      windowStartRow,
-      windowEndRow,
-      windowHeight: Math.max(1, windowEndRow - windowStartRow),
+      windowStartRow: sliceStartRow,
+      windowEndRow: Math.max(sliceStartRow + 1, sliceEndRow),
+      windowHeight: Math.max(1, sliceEndRow - sliceStartRow),
       totalRows: this.totalVirtualRows,
     };
+  }
+
+  private shouldReuseCurrentSlice(visibleStartRow: number, visibleEndRow: number): boolean {
+    if (!this.currentSlice) {
+      return false;
+    }
+
+    const reuseMargin = Math.max(this._virtualizationOverscan, Math.floor(this.height / 2));
+
+    return (
+      visibleStartRow >= this.currentSlice.windowStartRow + reuseMargin &&
+      visibleEndRow <= this.currentSlice.windowEndRow - reuseMargin
+    );
   }
 
   private createOrUpdateLayoutCodeRenderable(content: string): LayoutCodeRenderable {
@@ -869,8 +868,12 @@ export class ChangesRenderable extends Renderable {
     };
   }
 
-  private sliceHasChanged(slice: SliceWindow): boolean {
-    const signature = `${slice.startLine}:${slice.endLine}:${slice.windowStartRow}:${slice.windowEndRow}:${this.width}:${this.height}`;
+  private sliceSignature(slice: SliceWindow): string {
+    return `${slice.startLine}:${slice.endLine}:${slice.windowStartRow}:${slice.windowEndRow}:${this.width}:${this.height}`;
+  }
+
+  private sliceWindowChanged(slice: SliceWindow): boolean {
+    const signature = this.sliceSignature(slice);
     if (this.cachedSliceSignature === signature) {
       return false;
     }
@@ -912,6 +915,28 @@ export class ChangesRenderable extends Renderable {
     }
 
     return { lineColors, lineSigns, lineNumbers };
+  }
+
+  private attachLayoutListener(): void {
+    if (!this.layoutCodeRenderable || this.layoutLineInfoHandler) {
+      return;
+    }
+
+    this.layoutLineInfoHandler = () => {
+      this.cachedWrapWidth = -1;
+      this.rebuildUnifiedSlice(true);
+    };
+
+    this.layoutCodeRenderable.on("line-info-change", this.layoutLineInfoHandler);
+  }
+
+  private detachLayoutListener(): void {
+    if (!this.layoutCodeRenderable || !this.layoutLineInfoHandler) {
+      return;
+    }
+
+    this.layoutCodeRenderable.off("line-info-change", this.layoutLineInfoHandler);
+    this.layoutLineInfoHandler = null;
   }
 
   private applyVisibleSelection(): void {
@@ -957,6 +982,7 @@ export class ChangesRenderable extends Renderable {
   }
 
   private buildFallbackView(): void {
+    this.detachLayoutListener();
     this.ensureRemoved(this.visibleSide);
     this.ensureRemoved(this.layoutCodeRenderable);
     this.currentSlice = null;
@@ -974,45 +1000,63 @@ export class ChangesRenderable extends Renderable {
       return;
     }
 
-    this.ensureRowLayout();
     const layoutRenderable = this.createOrUpdateLayoutCodeRenderable(model.content);
 
+    this.detachLayoutListener();
     layoutRenderable.applyViewportSize(this.getContentWidth(), Math.max(1, this.height));
     layoutRenderable.syncViewport(this._scrollTop);
+    this.attachLayoutListener();
+    this.ensureRowLayout(layoutRenderable);
     this.ensureRemoved(this.fallbackDiffRenderable);
 
-    const slice = this.computeSliceWindow();
-    const sliceChanged = force || this.sliceHasChanged(slice);
+    const visibleStartRow = Math.max(0, this._scrollTop);
+    const visibleEndRow = Math.min(
+      this.totalVirtualRows,
+      visibleStartRow + Math.max(1, this.height),
+    );
+    const slice =
+      !force && this.shouldReuseCurrentSlice(visibleStartRow, visibleEndRow)
+        ? this.currentSlice!
+        : this.computeSliceWindow(visibleStartRow, visibleEndRow);
+
+    const sliceChanged = this.sliceWindowChanged(slice);
     this.currentSlice = slice;
 
-    const visibleContent = this.buildSliceContent(slice);
-    const visibleRenderable = this.createOrUpdateVisibleCodeRenderable(visibleContent);
-    visibleRenderable.width = this.getContentWidth();
-    visibleRenderable.height = slice.windowHeight;
-    visibleRenderable.applyViewportSize(this.getContentWidth(), slice.windowHeight);
-    visibleRenderable.scrollY = 0;
-    visibleRenderable.scrollX = 0;
-
-    const visibleSide = this.createOrUpdateVisibleSide();
-
-    const visibleMaps = this.buildVisibleMaps(slice);
-    visibleSide.setLineColors(visibleMaps.lineColors);
-    visibleSide.setLineSigns(visibleMaps.lineSigns);
-    visibleSide.setLineNumbers(visibleMaps.lineNumbers);
-    visibleSide.setHideLineNumbers(new Set<number>());
-    visibleSide.width = this.width;
-    visibleSide.height = slice.windowHeight;
-    visibleSide.top = slice.windowStartRow - this._scrollTop;
-
     if (sliceChanged) {
-      visibleRenderable.clearHighlights();
+      const visibleContent = this.buildSliceContent(slice);
+      const visibleRenderable = this.createOrUpdateVisibleCodeRenderable(visibleContent);
+      visibleRenderable.width = this.getContentWidth();
+      visibleRenderable.height = slice.windowHeight;
+      visibleRenderable.applyViewportSize(this.getContentWidth(), slice.windowHeight);
+      visibleRenderable.scrollY = 0;
+      visibleRenderable.scrollX = 0;
+
+      const visibleSide = this.createOrUpdateVisibleSide();
+      const visibleMaps = this.buildVisibleMaps(slice);
+      visibleSide.setLineColors(visibleMaps.lineColors);
+      visibleSide.setLineSigns(visibleMaps.lineSigns);
+      visibleSide.setLineNumbers(visibleMaps.lineNumbers);
+      visibleSide.setHideLineNumbers(new Set<number>());
+      visibleSide.width = this.width;
+      visibleSide.height = slice.windowHeight;
+      visibleSide.top = this.computeVisibleSideTop(slice, visibleStartRow);
+    } else {
+      const visibleSide = this.visibleSide;
+      if (visibleSide) {
+        visibleSide.top = this.computeVisibleSideTop(slice, visibleStartRow);
+      }
     }
 
-    this.ensureAdded(visibleSide);
+    this.ensureAdded(this.visibleSide);
     this._scrollTop = Math.min(this._scrollTop, this.maxScrollTop);
     this.applyVisibleSelection();
     this.notifyScrollState();
     this.requestRender();
+  }
+
+  private computeVisibleSideTop(slice: SliceWindow, visibleStartRow: number): number {
+    const sliceOffset = visibleStartRow - slice.windowStartRow;
+    return -sliceOffset;
   }
 
   private buildUnifiedView(): void {
@@ -1040,6 +1084,7 @@ export class ChangesRenderable extends Renderable {
   }
 
   public override destroyRecursively(): void {
+    this.detachLayoutListener();
     super.destroyRecursively();
   }
 
