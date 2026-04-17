@@ -182,6 +182,14 @@ export class ChangesRenderable extends Renderable {
   private _selectionBg?: RGBA;
   private _selectionFg?: RGBA;
   private _treeSitterClient?: TreeSitterClient;
+  private _autoScrollMouseY = 0;
+  private readonly _autoScrollThreshold = 3;
+  private readonly _autoScrollSpeedSlow = 6;
+  private readonly _autoScrollSpeedMedium = 36;
+  private readonly _autoScrollSpeedFast = 72;
+  private _isAutoScrolling = false;
+  private _cachedAutoScrollSpeed = 3;
+  private _autoScrollAccumulator = 0;
 
   private _showLineNumbers: boolean;
   private _lineNumberFg: RGBA;
@@ -275,17 +283,26 @@ export class ChangesRenderable extends Renderable {
   }
 
   protected override onMouseEvent(event: MouseEvent): void {
-    if (event.type !== "scroll" || !event.scroll) {
+    if (event.type === "scroll" && event.scroll) {
+      const { direction, delta } = event.scroll;
+
+      if (direction === "up") {
+        this.scrollTop -= delta;
+      } else if (direction === "down") {
+        this.scrollTop += delta;
+      }
       return;
     }
 
-    const { direction, delta } = event.scroll;
-
-    if (direction === "up") {
-      this.scrollTop -= delta;
-    } else if (direction === "down") {
-      this.scrollTop += delta;
+    if (event.type === "drag" && event.isDragging) {
+      this.updateAutoScroll(event.x, event.y);
+    } else if (event.type === "up") {
+      this.stopAutoScroll();
     }
+  }
+
+  protected override onUpdate(deltaTime: number): void {
+    this.handleAutoScroll(deltaTime);
   }
 
   public override shouldStartSelection(x: number, y: number): boolean {
@@ -298,7 +315,12 @@ export class ChangesRenderable extends Renderable {
 
   public override onSelectionChanged(selection: Selection | null): boolean {
     if (this._view !== "unified" || !this.layoutCodeRenderable) {
+      this.stopAutoScroll();
       return this.fallbackDiffRenderable?.onSelectionChanged(selection) ?? false;
+    }
+
+    if (!selection?.isActive) {
+      this.stopAutoScroll();
     }
 
     const changed = this.layoutCodeRenderable.applySelectionFromParent(
@@ -324,6 +346,88 @@ export class ChangesRenderable extends Renderable {
     }
 
     return this.fallbackDiffRenderable?.hasSelection() ?? false;
+  }
+
+  private updateAutoScroll(mouseX: number, mouseY: number): void {
+    this._autoScrollMouseX = mouseX;
+    this._autoScrollMouseY = mouseY;
+    this._cachedAutoScrollSpeed = this.getAutoScrollSpeed(mouseX, mouseY);
+
+    const scrollDir = this.getAutoScrollDirection(mouseY);
+    if (scrollDir === 0) {
+      this.stopAutoScroll();
+    } else if (!this._isAutoScrolling) {
+      this.startAutoScroll(mouseX, mouseY);
+    }
+  }
+
+  private startAutoScroll(mouseX: number, mouseY: number): void {
+    this.stopAutoScroll();
+    this._autoScrollMouseX = mouseX;
+    this._autoScrollMouseY = mouseY;
+    this._cachedAutoScrollSpeed = this.getAutoScrollSpeed(mouseX, mouseY);
+    this._isAutoScrolling = true;
+    this.live = true;
+  }
+
+  private stopAutoScroll(): void {
+    const wasAutoScrolling = this._isAutoScrolling;
+    this._isAutoScrolling = false;
+    this._autoScrollAccumulator = 0;
+    if (wasAutoScrolling) {
+      this.live = false;
+    }
+  }
+
+  private handleAutoScroll(deltaTime: number): void {
+    if (!this._isAutoScrolling) return;
+
+    const scrollDir = this.getAutoScrollDirection(this._autoScrollMouseY);
+    if (scrollDir === 0) {
+      this.stopAutoScroll();
+      return;
+    }
+
+    const scrollAmount = this._cachedAutoScrollSpeed * (deltaTime / 1000);
+    this._autoScrollAccumulator += scrollDir * scrollAmount;
+    const integerScroll = Math.trunc(this._autoScrollAccumulator);
+    if (integerScroll !== 0) {
+      this.scrollTop += integerScroll;
+      this._autoScrollAccumulator -= integerScroll;
+      this.ctx.requestSelectionUpdate();
+    }
+  }
+
+  private getAutoScrollDirection(mouseY: number): number {
+    const relativeY = mouseY - this.y;
+    const distToTop = relativeY;
+    const distToBottom = this.height - relativeY;
+
+    if (distToTop <= this._autoScrollThreshold) {
+      return this.scrollTop > 0 ? -1 : 0;
+    } else if (distToBottom <= this._autoScrollThreshold) {
+      return this.scrollTop < this.maxScrollTop ? 1 : 0;
+    }
+    return 0;
+  }
+
+  private getAutoScrollSpeed(mouseX: number, mouseY: number): number {
+    const relativeX = mouseX - this.x;
+    const relativeY = mouseY - this.y;
+
+    const distToLeft = relativeX;
+    const distToRight = this.width - relativeX;
+    const distToTop = relativeY;
+    const distToBottom = this.height - relativeY;
+
+    const minDistance = Math.min(distToLeft, distToRight, distToTop, distToBottom);
+
+    if (minDistance <= 1) {
+      return this._autoScrollSpeedFast;
+    } else if (minDistance <= 2) {
+      return this._autoScrollSpeedMedium;
+    }
+    return this._autoScrollSpeedSlow;
   }
 
   public get scrollTop(): number {
@@ -761,7 +865,6 @@ export class ChangesRenderable extends Renderable {
         syntaxStyle: this._syntaxStyle ?? SyntaxStyle.create(),
         width: this.getContentWidth(),
         height: 1,
-        selectable: false,
         ...(this._fg !== undefined && { fg: this._fg }),
         ...(this._selectionBg !== undefined && { selectionBg: this._selectionBg }),
         ...(this._selectionFg !== undefined && { selectionFg: this._selectionFg }),
@@ -771,7 +874,6 @@ export class ChangesRenderable extends Renderable {
       };
 
       this.visibleCodeRenderable = new ViewportCodeRenderable(this.ctx, codeOptions);
-      this.visibleCodeRenderable.selectable = false;
     } else {
       this.visibleCodeRenderable.content = content;
       this.visibleCodeRenderable.filetype = this._filetype;
@@ -1084,6 +1186,7 @@ export class ChangesRenderable extends Renderable {
   }
 
   public override destroyRecursively(): void {
+    this.stopAutoScroll();
     this.detachLayoutListener();
     super.destroyRecursively();
   }

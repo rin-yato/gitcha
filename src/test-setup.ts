@@ -1,6 +1,6 @@
 import { beforeAll } from "bun:test";
 
-import "@/renderables/register";
+import "@/renderable/register";
 
 beforeAll(() => {
   const globalAct = globalThis as typeof globalThis & {
