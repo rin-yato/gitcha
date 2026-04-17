@@ -4,7 +4,7 @@ import type { createSyntaxStyle } from "@/context/theme/syntax";
 
 import type { GitStatusFile } from "@/lib/git";
 
-import type { ChangesRenderable } from "@/renderables/changes-renderable";
+import type { ChangesRenderable } from "@/renderable/changes";
 
 export interface DiffPaneProps {
   theme: Theme;

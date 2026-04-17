@@ -1,6 +1,6 @@
 import { extend } from "@opentui/react";
 
-import { ChangesRenderable } from "@/renderables/changes-renderable";
+import { ChangesRenderable } from "@/renderable/changes";
 
 extend({
   changes: ChangesRenderable,

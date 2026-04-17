@@ -5,9 +5,10 @@ import { bootstrapReviewSession } from "@/context/session/session";
 
 import { createStartupBenchmarkRecorder } from "@/lib/startup-benchmark";
 import { parsers } from "@/lib/tree-sitter";
-import "@/renderables/register";
 
 import { AppRootWithBootstrap } from "@/app";
+
+import "@/renderable/register";
 
 addDefaultParsers(parsers);
 

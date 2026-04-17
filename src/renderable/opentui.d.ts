@@ -1,4 +1,4 @@
-import type { ChangesRenderable } from "@/renderables/changes-renderable";
+import type { ChangesRenderable } from "@/renderable/changes";
 
 declare module "@opentui/react" {
   interface OpenTUIComponents {
