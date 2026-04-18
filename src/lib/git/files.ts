@@ -45,11 +45,14 @@ export async function loadCompareDiffSource(
   ctx: RepoContext,
   file: GitStatusFile,
   baseRef: string,
+  currentRef?: string | null,
 ): Promise<FileDiffSource> {
   const basePath = file.originalPath ?? file.path;
   const [baseContent, currentContent] = await Promise.all([
     getFileVersion(baseRef, basePath, ctx.cwd),
-    readWorkingFile(ctx, file.path),
+    currentRef
+      ? getFileVersion(currentRef, file.path, ctx.cwd)
+      : readWorkingFile(ctx, file.path),
   ]);
   return { baseContent, currentContent, originalPath: file.originalPath };
 }

@@ -211,9 +211,9 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   const rows = useMemo(() => buildRowsFromGroups(grouped), [grouped]);
 
   const maxHeight = useMemo(() => {
-    if (props.height !== undefined) return Math.max(1, props.height - 6);
+    if (props.height !== undefined) return Math.max(1, props.height - 3);
 
-    const halfScreen = Math.max(1, Math.floor(dimensions.height / 2) - 6);
+    const halfScreen = Math.max(1, Math.floor(dimensions.height / 2) - 3);
     return Math.max(1, Math.min(rows.length, halfScreen));
   }, [dimensions.height, props.height, rows.length]);
 
@@ -395,12 +395,11 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   return (
     <box
       gap={1}
-      paddingBottom={1}
-      width={props.width ?? 76}
-      height={props.height}
+      width={props.width ?? "100%"}
+      height={props.height ?? "100%"}
       backgroundColor={theme.surface}
     >
-      <box paddingLeft={4} paddingRight={4}>
+      <box paddingX={2}>
         <box flexDirection="row" justifyContent="space-between">
           <text fg={theme.text} attributes={1} selectable={false}>
             {props.title}
@@ -438,7 +437,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
           {rows.map((row) => {
             if (row.kind === "group") {
               return (
-                <box key={`group:${row.label}`} paddingTop={1} paddingLeft={4}>
+                <box key={`group:${row.label}`} paddingTop={1} paddingX={2}>
                   <text fg={theme.accent} attributes={1} selectable={false}>
                     {row.label}
                   </text>
@@ -456,8 +455,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                 flexDirection="row"
                 justifyContent="space-between"
                 backgroundColor={isActive ? theme.accent : undefined}
-                paddingLeft={4}
-                paddingRight={4}
+                paddingX={2}
                 onMouseMove={() => setState((current) => ({ ...current, input: "mouse" }))}
                 onMouseDown={() => moveTo(row.index)}
                 onMouseOver={() => {

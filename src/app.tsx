@@ -22,7 +22,7 @@ import {
   buildCommandSelectOptions,
 } from "@/component/app-commands";
 import { DialogCommand } from "@/component/dialog-command";
-import { CompareBranchDialog } from "@/component/dialog-compare-branch";
+import { CompareDialog } from "@/component/dialog-compare";
 import { ThemeDialog } from "@/component/dialog-theme";
 import { DiffPane } from "@/component/diff-pane";
 import { Sidebar } from "@/component/sidebar/index";
@@ -30,8 +30,9 @@ import { DialogProvider, useDialog } from "@/component/ui/dialog";
 import { Overlay } from "@/component/ui/overlay";
 import { Toast, ToastProvider } from "@/component/ui/toast";
 
-type CompareBranchData = {
-  branches: string[];
+type CompareData = {
+  branches: { ref: string; label: string; description?: string }[];
+  commits: { ref: string; label: string; description: string }[];
   defaultCompareTarget: CompareTarget | null;
 };
 
@@ -47,17 +48,26 @@ function CompareBranchDialogLoader(props: {
   onSelect: (target: CompareTarget) => void;
   onClose: () => void;
 }) {
-  const [data, setData] = useState<CompareBranchData | null>(null);
+  const [data, setData] = useState<CompareData | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
 
     void Promise.all([
       props.client.getCompareBranches().catch(() => []),
+      props.client.getRecentCommitSummaries(12).catch(() => []),
       props.client.getCompareTarget().catch(() => null),
-    ]).then(([branches, defaultCompareTarget]) => {
+    ]).then(([branches, commits, defaultCompareTarget]) => {
       if (controller.signal.aborted) return;
-      setData({ branches, defaultCompareTarget });
+      setData({
+        branches: branches.map((branch) => ({ ref: branch, label: branch })),
+        commits: commits.map((commit) => ({
+          ref: commit.ref,
+          label: `${commit.shortRef} ${commit.subject}`,
+          description: commit.subject,
+        })),
+        defaultCompareTarget,
+      });
     });
 
     return () => controller.abort();
@@ -82,10 +92,12 @@ function CompareBranchDialogLoader(props: {
   }
 
   return (
-    <CompareBranchDialog
+    <CompareDialog
       theme={props.theme}
       branches={data.branches}
+      commits={data.commits}
       currentBranch={props.currentBranch}
+      activeCompareTarget={props.activeCompareTarget}
       defaultCompareTarget={defaultCompareTarget}
       onSelect={props.onSelect}
       onClose={props.onClose}
@@ -123,7 +135,11 @@ function App() {
         currentBranch={git.status?.branch ?? null}
         activeCompareTarget={
           git.compareState
-            ? { ref: git.compareState.baseRef, label: git.compareState.baseLabel }
+            ? {
+                mode: git.compareState.mode,
+                ref: git.compareState.targetRef ?? git.compareState.baseRef,
+                label: git.compareState.baseLabel,
+              }
             : null
         }
         theme={theme}

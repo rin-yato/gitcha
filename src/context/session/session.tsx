@@ -2,6 +2,7 @@ import type React from "react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import type {
+  CompareMode,
   CompareState,
   CompareTarget,
   FileDiffSource,
@@ -16,11 +17,14 @@ import {
   detectRepoContext,
   discardChanges as discardGitChanges,
   getBranchDiffFiles,
+  getCommitDiffFiles,
+  getCommitParent,
   getCompareBranches,
   getCompareTarget,
   getFileVersion,
   getLocalBranches,
   getMergeBase,
+  getRecentCommitSummaries,
   getRepoStatus,
   loadChangesDiffSource,
   loadCompareDiffSource,
@@ -66,12 +70,19 @@ export type GitClient = {
   getCompareBranches: () => Promise<string[]>;
   getCompareTarget: () => Promise<CompareTarget | null>;
   getBranchDiffFiles: (baseRef: string) => Promise<GitStatusFile[]>;
+  getCommitDiffFiles: (commitRef: string) => Promise<GitStatusFile[]>;
+  getCommitParent: (commitRef: string) => Promise<string | null>;
+  getRecentCommitSummaries: (
+    limit?: number,
+  ) => Promise<Array<{ ref: string; shortRef: string; subject: string }>>;
   getFileVersion: (ref: string, path: string) => Promise<string | null>;
   getMergeBase: (baseRef: string) => Promise<string>;
   loadDiffSource: (
     file: GitStatusFile,
     section: "staged" | "changes" | "compare",
     compareBaseRef?: string,
+    compareTargetRef?: string | null,
+    compareMode?: CompareMode,
   ) => Promise<FileDiffSource>;
   stageFile: (filePath: string) => Promise<void>;
   unstageFile: (filePath: string) => Promise<void>;
@@ -89,12 +100,19 @@ export function createGitClient(ctx: RepoContext): GitClient {
     getCompareBranches: () => getCompareBranches(ctx.cwd),
     getCompareTarget: () => getCompareTarget(ctx.cwd),
     getBranchDiffFiles: (baseRef: string) => getBranchDiffFiles(baseRef, ctx.cwd),
+    getCommitDiffFiles: (commitRef: string) => getCommitDiffFiles(commitRef, ctx.cwd),
+    getCommitParent: (commitRef: string) => getCommitParent(commitRef, ctx.cwd),
+    getRecentCommitSummaries: (limit = 12) => getRecentCommitSummaries(limit, ctx.cwd),
     getFileVersion: (ref: string, path: string) => getFileVersion(ref, path, ctx.cwd),
     getMergeBase: (baseRef: string) => getMergeBase(baseRef, ctx.cwd),
-    loadDiffSource: async (file, section, compareBaseRef) => {
+    loadDiffSource: async (file, section, compareBaseRef, compareTargetRef, compareMode) => {
       if (section === "compare" && compareBaseRef) {
-        const baseRef = await getMergeBase(compareBaseRef, ctx.cwd);
-        return loadCompareDiffSource(ctx, file, baseRef);
+        if (compareMode === "base-branch") {
+          const baseRef = await getMergeBase(compareBaseRef, ctx.cwd);
+          return loadCompareDiffSource(ctx, file, baseRef, compareTargetRef);
+        }
+
+        return loadCompareDiffSource(ctx, file, compareBaseRef, compareTargetRef);
       }
       if (section === "staged") {
         return loadStagedDiffSource(ctx, file);
@@ -218,8 +236,12 @@ export function ReviewProvider({
 
   const refreshCompare = useCallback(() => {
     if (!client || !compareState) return;
-    client
-      .getBranchDiffFiles(compareState.baseRef)
+    const loader =
+      compareState.mode === "single-commit" && compareState.targetRef
+        ? client.getCommitDiffFiles(compareState.targetRef)
+        : client.getBranchDiffFiles(compareState.baseRef);
+
+    loader
       .then((files) => {
         setCompareState((s) => (s ? { ...s, files } : s));
       })
@@ -230,8 +252,31 @@ export function ReviewProvider({
     async (target: CompareTarget): Promise<CompareState | null> => {
       if (!client) return null;
       try {
-        const files = await client.getBranchDiffFiles(target.ref);
-        const nextState = { baseRef: target.ref, baseLabel: target.label, files };
+        if (target.mode === "single-commit") {
+          const parentRef = (await client.getCommitParent(target.ref)) ?? target.ref;
+          const files = await client.getCommitDiffFiles(target.ref);
+          const nextState = {
+            mode: target.mode,
+            baseRef: parentRef,
+            targetRef: target.ref,
+            baseLabel: target.label,
+            files,
+          };
+          setCompareState(nextState);
+          return nextState;
+        }
+
+        const files =
+          target.mode === "base-commit"
+            ? await client.getCommitDiffFiles(target.ref)
+            : await client.getBranchDiffFiles(target.ref);
+        const nextState = {
+          mode: target.mode,
+          baseRef: target.ref,
+          targetRef: null,
+          baseLabel: target.label,
+          files,
+        };
         setCompareState(nextState);
         return nextState;
       } catch {

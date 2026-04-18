@@ -40,6 +40,10 @@ export function ReviewDiffProvider({ children }: { children: React.ReactNode }) 
     const requestId = ++diffLoadRequestRef.current;
     const compareBaseRef =
       selection.selectedFileSection === "compare" ? git.compareState?.baseRef : undefined;
+    const compareTargetRef =
+      selection.selectedFileSection === "compare" ? git.compareState?.targetRef : undefined;
+    const compareMode =
+      selection.selectedFileSection === "compare" ? git.compareState?.mode : undefined;
 
     const file = selection.focusedFile;
     if (!file) {
@@ -54,7 +58,7 @@ export function ReviewDiffProvider({ children }: { children: React.ReactNode }) 
     }
 
     void git.client
-      .loadDiffSource(file, section, compareBaseRef)
+      .loadDiffSource(file, section, compareBaseRef, compareTargetRef, compareMode)
       .then((source) => {
         if (requestId !== diffLoadRequestRef.current) return;
         const diff = generateDiff(source, file.path);
@@ -67,6 +71,8 @@ export function ReviewDiffProvider({ children }: { children: React.ReactNode }) 
   }, [
     git.client,
     git.compareState?.baseRef,
+    git.compareState?.targetRef,
+    git.compareState?.mode,
     selection.focusedFile,
     selection.selectedFile,
     selection.selectedFileSection,

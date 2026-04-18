@@ -1,6 +1,8 @@
 import type { CompareTarget, GitFileStatus, GitStatusFile } from "./types";
 import { execFile, spawn } from "node:child_process";
 
+const EMPTY_TREE_REF = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+
 /**
  * Execute a git command and return the output
  */
@@ -192,6 +194,30 @@ export async function getRootCommit(cwd?: string): Promise<string | null> {
 }
 
 /**
+ * Get the first parent of a commit, if one exists.
+ */
+export async function getCommitParent(commitRef: string, cwd?: string): Promise<string | null> {
+  const output = (
+    await execGit(["rev-list", "--parents", "-n", "1", commitRef], { cwd })
+  ).trim();
+  const parts = output.split(/\r?\n/)[0]?.split(/\s+/) ?? [];
+  return parts[1] ?? null;
+}
+
+/**
+ * Get the upstream branch for the current branch, if one is configured.
+ */
+async function getCurrentBranchUpstream(cwd?: string): Promise<string | null> {
+  try {
+    return (
+      await execGit(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], { cwd })
+    ).trim();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * List local branch names.
  */
 export async function getLocalBranches(cwd?: string): Promise<string[]> {
@@ -231,6 +257,71 @@ export async function getRecentCommits(limit = 12, cwd?: string): Promise<string
 }
 
 /**
+ * Get changed files between two refs.
+ */
+export async function getDiffFiles(
+  baseRef: string,
+  targetRef: string,
+  cwd?: string,
+): Promise<GitStatusFile[]> {
+  const output = await execGit(["diff", "--name-status", baseRef, targetRef], { cwd });
+
+  if (!output) return [];
+
+  const files: GitStatusFile[] = [];
+  for (const line of output.split(/\r?\n/).filter(Boolean)) {
+    const parsed = parseDiffNameStatusLine(line);
+    if (!parsed) continue;
+
+    files.push({
+      path: parsed.path,
+      originalPath: parsed.originalPath,
+      indexStatus: " " as GitFileStatus,
+      workingTreeStatus: parsed.status as GitFileStatus,
+    });
+  }
+
+  return files;
+}
+
+/**
+ * Get changed files for a single commit against its first parent.
+ */
+export async function getCommitDiffFiles(
+  commitRef: string,
+  cwd?: string,
+): Promise<GitStatusFile[]> {
+  const parentRef = (await getCommitParent(commitRef, cwd)) ?? EMPTY_TREE_REF;
+  return getDiffFiles(parentRef, commitRef, cwd);
+}
+
+/**
+ * Get recent commits with stable refs and labels for selection UIs.
+ */
+export async function getRecentCommitSummaries(
+  limit = 12,
+  cwd?: string,
+): Promise<Array<{ ref: string; shortRef: string; subject: string }>> {
+  const output = await execGit(["log", "--pretty=format:%H%x09%s", "-n", String(limit)], {
+    cwd,
+  });
+
+  return output
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => {
+      const [ref, ...subjectParts] = line.split("\t");
+      const subject = subjectParts.join("\t").trim();
+      return {
+        ref: ref ?? "",
+        shortRef: (ref ?? "").slice(0, 7),
+        subject,
+      };
+    })
+    .filter((entry) => entry.ref.length > 0);
+}
+
+/**
  * Resolve the best default compare target for PR review mode.
  *
  * Uses `git for-each-ref --merged HEAD` to batch-fetch all ancestor branches
@@ -240,20 +331,33 @@ export async function getRecentCommits(limit = 12, cwd?: string): Promise<string
 export async function getCompareTarget(cwd?: string): Promise<CompareTarget | null> {
   const currentBranch = await getCurrentBranch(cwd);
 
-  // Get all branches merged into HEAD in one call
+  const upstreamBranch = await getCurrentBranchUpstream(cwd);
+  if (upstreamBranch) {
+    return { mode: "base-branch", ref: upstreamBranch, label: upstreamBranch };
+  }
+
+  // Get all local and remote branches merged into HEAD in one call.
   const mergedOutput = await execGit(
-    ["for-each-ref", "--format=%(refname:short)", "--merged", "HEAD", "refs/heads/"],
+    [
+      "for-each-ref",
+      "--format=%(refname:short)",
+      "--merged",
+      "HEAD",
+      "refs/heads/",
+      "refs/remotes/",
+    ],
     { cwd },
   );
   const mergedBranches = mergedOutput
     .split(/\r?\n/)
     .filter(Boolean)
     .filter((b) => b !== currentBranch)
+    .filter((branch) => !branch.endsWith("/HEAD"))
     .sort();
 
   if (mergedBranches.length === 0) {
     const rootCommit = await getRootCommit(cwd);
-    return rootCommit ? { ref: rootCommit, label: "root commit" } : null;
+    return rootCommit ? { mode: "base-branch", ref: rootCommit, label: "root commit" } : null;
   }
 
   // Find the closest ancestor by computing distances in parallel
@@ -275,15 +379,15 @@ export async function getCompareTarget(cwd?: string): Promise<CompareTarget | nu
   );
 
   if (best) {
-    return { ref: best.branch, label: best.branch };
+    return { mode: "base-branch", ref: best.branch, label: best.branch };
   }
 
   const rootCommit = await getRootCommit(cwd);
   if (rootCommit) {
-    return { ref: rootCommit, label: "root commit" };
+    return { mode: "base-branch", ref: rootCommit, label: "root commit" };
   }
 
-  return { ref: mergedBranches[0]!, label: mergedBranches[0]! };
+  return { mode: "base-branch", ref: mergedBranches[0]!, label: mergedBranches[0]! };
 }
 
 /**
@@ -332,24 +436,5 @@ export async function getBranchDiffFiles(
   baseBranch: string,
   cwd?: string,
 ): Promise<GitStatusFile[]> {
-  const output = await execGit(["diff", "--name-status", `${baseBranch}...HEAD`], { cwd });
-
-  if (!output) return [];
-
-  const files: GitStatusFile[] = [];
-  const lines = output.split(/\r?\n/).filter(Boolean);
-
-  for (const line of lines) {
-    const parsed = parseDiffNameStatusLine(line);
-    if (parsed) {
-      files.push({
-        path: parsed.path,
-        originalPath: parsed.originalPath,
-        indexStatus: " " as GitFileStatus,
-        workingTreeStatus: parsed.status as GitFileStatus,
-      });
-    }
-  }
-
-  return files;
+  return getDiffFiles(baseBranch, "HEAD", cwd);
 }

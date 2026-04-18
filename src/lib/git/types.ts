@@ -81,19 +81,27 @@ export interface GitRepoStatus {
 /**
  * A comparison target used by compare mode.
  */
-export interface CompareTarget {
-  /** Git ref used for the diff base. */
+export type CompareMode = "base-branch" | "base-commit" | "single-commit";
+
+export type CompareTarget = {
+  /** Which compare tab produced this target. */
+  mode: CompareMode;
+  /** Git ref used as the selection value. */
   ref: string;
   /** Human-readable label shown in the UI. */
   label: string;
-}
+};
 
 /**
  * Branch compare state
  */
 export interface CompareState {
-  /** The base ref being compared against */
+  /** The active compare mode. */
+  mode: CompareMode;
+  /** Base ref used to generate the diff. */
   baseRef: string;
+  /** Target ref for single-commit compare, otherwise null. */
+  targetRef: string | null;
   /** Human-readable label for the base */
   baseLabel: string;
   /** Files changed between baseBranch and HEAD */
