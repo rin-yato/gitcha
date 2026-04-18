@@ -1,0 +1,27 @@
+# Source and build config
+src/
+scripts/
+.github/
+bin/
+*.ts
+*.js
+tsconfig.json
+biome.json
+bun.lockb
+
+# Development files
+.git/
+.gitignore
+.gitattributes
+*.md
+!README.md
+!CHANGELOG.md
+
+# CI/CD
+*.yml
+*.yaml
+
+# Editor and OS
+.idea/
+.vscode/
+.DS_Store

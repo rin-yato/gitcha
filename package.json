@@ -3,9 +3,7 @@
   "version": "0.1.0",
   "description": "A terminal UI for reviewing code changes with syntax highlighting",
   "type": "module",
-  "bin": {
-    "changes": "dist/changes"
-  },
+  "main": "dist/index.js",
   "files": [
     "dist"
   ],
@@ -15,7 +13,7 @@
     "build": "bun run scripts/build.ts",
     "setup": "bun run build && bun run scripts/install.ts",
     "release": "release-it",
-    "preview": "bun run dist/changes",
+    "preview": "bun run dist/index.js",
     "bench": "bun run benchmarks/bench.ts",
     "bench:latest": "bun run benchmarks/bench.ts --json --write-latest",
     "bench:compare": "bun run benchmarks/bench-compare.ts",
@@ -60,15 +58,11 @@
       "release": true,
       "releaseName": "Release v${version}"
     },
-    "npm": false,
     "plugins": {
       "@release-it/conventional-changelog": {
         "preset": "conventionalcommits",
         "infile": "CHANGELOG.md"
       }
-    },
-    "hooks": {
-      "after:bump": "bun run build"
     }
   },
   "keywords": [
