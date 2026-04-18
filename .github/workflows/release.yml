@@ -22,16 +22,16 @@ jobs:
         include:
           - os: ubuntu-latest
             target: bun-linux-x64
-            binary: changes
+            binary: differ
           - os: macos-13
             target: bun-darwin-x64
-            binary: changes
+            binary: differ
           - os: macos-14
             target: bun-darwin-arm64
-            binary: changes
+            binary: differ
           - os: windows-latest
             target: bun-windows-x64
-            binary: changes.exe
+            binary: differ.exe
     steps:
       - uses: actions/checkout@v4
 
@@ -72,7 +72,7 @@ jobs:
         run: bun run scripts/build.ts
 
       - name: Publish to npm
-        run: bun pm publish
+        run: bun publish
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -89,13 +89,13 @@ jobs:
           path: artifacts
 
       - name: Make binaries executable
-        run: chmod +x artifacts/*/changes*
+        run: chmod +x artifacts/*/differ*
 
       - name: Upload release assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for binary in artifacts/*/changes*; do
+          for binary in artifacts/*/differ*; do
             filename=$(basename "$binary")
             echo "Uploading $filename..."
             gh release upload "${{ github.event.release.tag_name }}" "$binary" --clobber

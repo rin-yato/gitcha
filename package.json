@@ -1,12 +1,11 @@
 {
-  "name": "changes",
+  "name": "differ",
   "version": "0.1.0",
   "description": "A terminal UI for reviewing code changes with syntax highlighting",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "changes": "dist/index.js",
-    "ch": "dist/index.js"
+    "differ": "dist/index.js"
   },
   "files": [
     "dist"
@@ -69,7 +68,7 @@
     },
     "plugins": {
       "@release-it/conventional-changelog": {
-        "preset": "conventionalcommits",
+        "preset": "angular",
         "infile": "CHANGELOG.md"
       }
     }
