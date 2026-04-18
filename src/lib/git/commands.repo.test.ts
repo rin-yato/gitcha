@@ -7,6 +7,7 @@ import { join } from "path";
 import {
   execGit,
   getBranchDiffFiles,
+  getCompareBranches,
   getCompareTarget,
   getCurrentBranch,
   getLocalBranches,
@@ -49,6 +50,21 @@ describe("default compare target", () => {
   test("lists local branches", async () => {
     const repo = await createRepo();
     expect(await getLocalBranches(repo)).toEqual(["feat/a", "feat/b", "master"]);
+  });
+
+  test("lists local and remote compare branches", async () => {
+    const repo = await createRepo();
+    await execGit(["remote", "add", "origin", repo], { cwd: repo });
+    await execGit(["fetch", "origin", "master:refs/remotes/origin/master"], { cwd: repo });
+    await execGit(["fetch", "origin", "feat/a:refs/remotes/origin/feat/a"], { cwd: repo });
+
+    expect(await getCompareBranches(repo)).toEqual([
+      "feat/a",
+      "feat/b",
+      "master",
+      "origin/feat/a",
+      "origin/master",
+    ]);
   });
 
   test("returns diff files against the detected parent branch", async () => {

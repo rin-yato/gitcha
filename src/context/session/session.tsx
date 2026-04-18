@@ -16,6 +16,7 @@ import {
   detectRepoContext,
   discardChanges as discardGitChanges,
   getBranchDiffFiles,
+  getCompareBranches,
   getCompareTarget,
   getFileVersion,
   getLocalBranches,
@@ -62,6 +63,7 @@ export type GitClient = {
   ctx: RepoContext;
   getRepoStatus: (options?: { includeUntracked?: boolean }) => Promise<GitRepoStatus>;
   getLocalBranches: () => Promise<string[]>;
+  getCompareBranches: () => Promise<string[]>;
   getCompareTarget: () => Promise<CompareTarget | null>;
   getBranchDiffFiles: (baseRef: string) => Promise<GitStatusFile[]>;
   getFileVersion: (ref: string, path: string) => Promise<string | null>;
@@ -84,6 +86,7 @@ export function createGitClient(ctx: RepoContext): GitClient {
     ctx,
     getRepoStatus: (options) => getRepoStatus(ctx.cwd, options),
     getLocalBranches: () => getLocalBranches(ctx.cwd),
+    getCompareBranches: () => getCompareBranches(ctx.cwd),
     getCompareTarget: () => getCompareTarget(ctx.cwd),
     getBranchDiffFiles: (baseRef: string) => getBranchDiffFiles(baseRef, ctx.cwd),
     getFileVersion: (ref: string, path: string) => getFileVersion(ref, path, ctx.cwd),

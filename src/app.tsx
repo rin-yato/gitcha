@@ -53,7 +53,7 @@ function CompareBranchDialogLoader(props: {
     const controller = new AbortController();
 
     void Promise.all([
-      props.client.getLocalBranches().catch(() => []),
+      props.client.getCompareBranches().catch(() => []),
       props.client.getCompareTarget().catch(() => null),
     ]).then(([branches, defaultCompareTarget]) => {
       if (controller.signal.aborted) return;

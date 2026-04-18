@@ -202,6 +202,25 @@ export async function getLocalBranches(cwd?: string): Promise<string[]> {
 }
 
 /**
+ * List branches that can be used as compare targets.
+ */
+export async function getCompareBranches(cwd?: string): Promise<string[]> {
+  const output = await execGit(
+    ["for-each-ref", "--format=%(refname:short)", "refs/heads/", "refs/remotes/"],
+    { cwd },
+  );
+
+  return [
+    ...new Set(
+      output
+        .split(/\r?\n/)
+        .filter(Boolean)
+        .filter((branch) => !branch.endsWith("/HEAD")),
+    ),
+  ].sort();
+}
+
+/**
  * Get recent commit log lines.
  */
 export async function getRecentCommits(limit = 12, cwd?: string): Promise<string[]> {
