@@ -15,8 +15,11 @@ Bun.build({
   target: "bun",
   outdir,
   entrypoints: ["./src/index.tsx", workerSourcePath],
-  // minify: true,
+  minify: true,
   splitting: true,
+  naming: {
+    entry: "[name].[ext]",
+  },
   define: {
     OTUI_TREE_SITTER_WORKER_PATH: absoluteWorkerPath,
   },

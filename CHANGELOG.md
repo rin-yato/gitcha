@@ -1,0 +1,53 @@
+
+
+## 0.1.0 (2026-04-18)
+
+
+### Features
+
+* add build and install script ([9d04267](https://github.com/rin-yato/changes/commit/9d042676bc183892c91dc4a98c30cb9addd62be6))
+* add ch alias ([ebab3db](https://github.com/rin-yato/changes/commit/ebab3db9360c5d887eabb094157271cf8516a709))
+* add changes renderable ([0803787](https://github.com/rin-yato/changes/commit/08037879d750eaa17a0b4266a9d13f3738942ca0))
+* add formatting ([dd6298d](https://github.com/rin-yato/changes/commit/dd6298da3f7c91ccd83a69139a90fa467bf4a798))
+* add lefthook ([ee1f5b8](https://github.com/rin-yato/changes/commit/ee1f5b826476870aa1e17a95ba7801b47690c8b0))
+* add more parser ([f63b6af](https://github.com/rin-yato/changes/commit/f63b6afac9d067792d77635c9bbbc6de32880137))
+* add more tests ([0583910](https://github.com/rin-yato/changes/commit/0583910a3dd871bd58878d160e9a0b9acffa38df))
+* add more theme ([30bd390](https://github.com/rin-yato/changes/commit/30bd3902551783016c2c2086672321d7502aafcd))
+* add simple test ([400bdcc](https://github.com/rin-yato/changes/commit/400bdccfd0c4bc8c28ab8988a790233d595c7934))
+* add startup benchmark tooling ([c54c91e](https://github.com/rin-yato/changes/commit/c54c91efdc08f8f2f07003d88eaab8211542dc15))
+* add tree view to sidebar file list ([c421a4a](https://github.com/rin-yato/changes/commit/c421a4a1b1abe9c36cd2781fdd2b8e6be91ffe47))
+* allow closing dir ([25c3481](https://github.com/rin-yato/changes/commit/25c34814fd6cbb818f0408604c606cf12edd3312))
+* better exit ([97cb606](https://github.com/rin-yato/changes/commit/97cb6066932fbcf6afa596bf01e33554cd9d2e89))
+* better git and diff ([c99feb9](https://github.com/rin-yato/changes/commit/c99feb93dfab26ed5ae7ea33b9c65d3f5871932b))
+* better sidebar tree navigation ([21d5257](https://github.com/rin-yato/changes/commit/21d5257b255d59d30f5736c83140de794eb7c6e4))
+* changes marker ([e3a0722](https://github.com/rin-yato/changes/commit/e3a0722f4d0f7dbc3003d6029f913da1a1347fe8))
+* dialog-select ([fb394a5](https://github.com/rin-yato/changes/commit/fb394a56cfb8de0e982f1bb81eaca7b15826b77a))
+* dir distinction ([d9637b3](https://github.com/rin-yato/changes/commit/d9637b31fc5f158954870cbe6614365e292ab363))
+* file status in compare mode ([b19a436](https://github.com/rin-yato/changes/commit/b19a436b1920023b9ff5cbecf62151ec298f7d5d))
+* flat files ([9e94538](https://github.com/rin-yato/changes/commit/9e945389e53d55c318f3cf9e03e0ea47d0d975ff))
+* flatten dir ([ba2316e](https://github.com/rin-yato/changes/commit/ba2316e811f86f9ba98ddd14772b8dbff1d80937))
+* hola ([67130ed](https://github.com/rin-yato/changes/commit/67130edd3177bab9232a0d89add2d92d7e7a15d4))
+* improve dialog-select ([adeeccb](https://github.com/rin-yato/changes/commit/adeeccbe35c86a4ebd4640ab1d11fbbf2c2f23b5))
+* improve diff-pane scrollbar and rename ([86df862](https://github.com/rin-yato/changes/commit/86df86241d04615fcd6f92690094a17bfc97bdc3))
+* improve sidebar ([d6e7104](https://github.com/rin-yato/changes/commit/d6e710433e48d7d2fd5c6d2b631d95ca986bdee9))
+* include origin branches for compare ([5d2ecba](https://github.com/rin-yato/changes/commit/5d2ecba26a2f29e4f6b742bbe8b1d171a5675101))
+* more compare target ([72f3766](https://github.com/rin-yato/changes/commit/72f37664cb1c818f8b4eee933fc6b29ed9a1f230))
+* move thru section ([2666a21](https://github.com/rin-yato/changes/commit/2666a2128c4c37e3e8dcfa0fc62b4d76e665af8d))
+* refactor and show untracked files ([449bc50](https://github.com/rin-yato/changes/commit/449bc50e5d4a38d76ec995712d1d9c48da582a12))
+* remove junk ui ([7bcfc3b](https://github.com/rin-yato/changes/commit/7bcfc3ba9cb51aef2a7495dc9aedd2eb353349c1))
+* resizable panels ([87bc441](https://github.com/rin-yato/changes/commit/87bc441106f6fc645c558fd755c5dc6a6484d705))
+* simple git cmd and integration ([03dcfb0](https://github.com/rin-yato/changes/commit/03dcfb068f5754902a76bbe254ba93ba4e15e840))
+* solid integration ([3aba030](https://github.com/rin-yato/changes/commit/3aba0300385e08460b199662bc87961b3426106a))
+* toggle sidebar ([be37244](https://github.com/rin-yato/changes/commit/be372441377b8ae1886a3e272e127aea9888b638))
+* update build and install script ([b8847b3](https://github.com/rin-yato/changes/commit/b8847b3026ad5e2e7ddcb7d36095062a4ea101f1))
+* update build and install script ([d8d9ada](https://github.com/rin-yato/changes/commit/d8d9adadcf5256285ab7882a68b985df17af1a74))
+* update command prompt ([59643cb](https://github.com/rin-yato/changes/commit/59643cb36740ca133ad3f1d035542dd97caf6cdb))
+* update compare ([a4a9307](https://github.com/rin-yato/changes/commit/a4a930750587ec2f749eb48d7dcf9267fb7ac095))
+* update formatter ([4869260](https://github.com/rin-yato/changes/commit/486926013f9329b21eccede96b2e0c3203201818))
+
+
+### Bug Fixes
+
+* parser ([32b5d80](https://github.com/rin-yato/changes/commit/32b5d8075b4999cdd0a8d264fa46b1880f9c6bf9))
+* review provider and sidebar selection ([c6639e0](https://github.com/rin-yato/changes/commit/c6639e064dcd6f817b873ca9bd0bef6ab613ee9a))
+* sidebar doubled selection ([8017d01](https://github.com/rin-yato/changes/commit/8017d01116c5b4dfbd8342d585f4823e09665927))
