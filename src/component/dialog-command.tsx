@@ -1,12 +1,9 @@
-import { flushSync } from "@opentui/react";
-
 import { useCallback } from "react";
 
 import type { Theme } from "@/context/theme/provider";
 
 import { useDialog } from "@/component/ui/dialog";
 import { DialogSelect, type DialogSelectOption } from "@/component/ui/dialog-select";
-import { Overlay } from "@/component/ui/overlay";
 
 type DialogSelectOptionValue = DialogSelectOption<string>;
 
@@ -30,25 +27,20 @@ export function DialogCommand(props: DialogCommandProps) {
   const handleSelect = useCallback(
     (option: DialogSelectOptionValue) => {
       const cmd = props.commands[option.value];
-      flushSync(() => {
-        dialog.closeTop();
-      });
       cmd?.run();
     },
     [props.commands, dialog],
   );
 
   return (
-    <Overlay>
-      <DialogSelect
-        theme={props.theme}
-        title="Commands"
-        placeholder="Search commands..."
-        options={props.options}
-        onSelect={handleSelect}
-        width={76}
-        height={24}
-      />
-    </Overlay>
+    <DialogSelect
+      theme={props.theme}
+      title="Commands"
+      placeholder="Search commands..."
+      options={props.options}
+      onSelect={handleSelect}
+      width={76}
+      height={24}
+    />
   );
 }

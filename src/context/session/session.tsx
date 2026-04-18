@@ -31,6 +31,8 @@ import {
   loadStagedDiffSource,
   pullChanges as pullGitChanges,
   pushChanges as pushGitChanges,
+  searchCompareBranches,
+  searchCompareCommits,
   stageFile as stageGitFile,
   unstageFile as unstageGitFile,
 } from "@/lib/git";
@@ -74,7 +76,11 @@ export type GitClient = {
   getCommitParent: (commitRef: string) => Promise<string | null>;
   getRecentCommitSummaries: (
     limit?: number,
-  ) => Promise<Array<{ ref: string; shortRef: string; subject: string }>>;
+  ) => Promise<Array<{ ref: string; shortRef: string; message: string; origin: string }>>;
+  searchCompareBranches: (query: string) => Promise<string[]>;
+  searchCompareCommits: (
+    query: string,
+  ) => Promise<Array<{ ref: string; shortRef: string; message: string; origin: string }>>;
   getFileVersion: (ref: string, path: string) => Promise<string | null>;
   getMergeBase: (baseRef: string) => Promise<string>;
   loadDiffSource: (
@@ -103,6 +109,8 @@ export function createGitClient(ctx: RepoContext): GitClient {
     getCommitDiffFiles: (commitRef: string) => getCommitDiffFiles(commitRef, ctx.cwd),
     getCommitParent: (commitRef: string) => getCommitParent(commitRef, ctx.cwd),
     getRecentCommitSummaries: (limit = 12) => getRecentCommitSummaries(limit, ctx.cwd),
+    searchCompareBranches: (query: string) => searchCompareBranches(query, ctx.cwd),
+    searchCompareCommits: (query: string) => searchCompareCommits(query, 1000, ctx.cwd),
     getFileVersion: (ref: string, path: string) => getFileVersion(ref, path, ctx.cwd),
     getMergeBase: (baseRef: string) => getMergeBase(baseRef, ctx.cwd),
     loadDiffSource: async (file, section, compareBaseRef, compareTargetRef, compareMode) => {

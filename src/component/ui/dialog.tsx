@@ -1,6 +1,8 @@
 import type React from "react";
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 
+import { Overlay } from "./overlay";
+
 type DialogSize = "small" | "medium" | "large";
 
 type DialogEntry = {
@@ -76,7 +78,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
       {children}
       {topDialog ? (
         <box position="absolute" top={0} left={0} width="100%" height="100%" zIndex={3000}>
-          {topDialog.element}
+          <Overlay onMouseUp={() => clear()}>{topDialog.element}</Overlay>
         </box>
       ) : null}
     </DialogContext.Provider>

@@ -7,7 +7,6 @@ import type { Theme } from "@/context/theme/provider";
 import type { CompareMode, CompareTarget } from "@/lib/git";
 
 import { DialogSelect, type DialogSelectOption } from "@/component/ui/dialog-select";
-import { Overlay } from "@/component/ui/overlay";
 
 const compareTabs = [
   { name: "Base branch", description: "Compare against a branch", value: "base-branch" },
@@ -23,8 +22,8 @@ export type CompareBranchOption = {
 
 export type CompareCommitOption = {
   ref: string;
-  label: string;
-  description: string;
+  message: string;
+  origin: string;
 };
 
 export interface CompareDialogProps {
@@ -34,6 +33,7 @@ export interface CompareDialogProps {
   currentBranch: string | null;
   activeCompareTarget: CompareTarget | null;
   defaultCompareTarget: CompareTarget | null;
+  onQueryChange: (query: string) => void;
   onSelect: (target: CompareTarget) => void;
   onClose: () => void;
 }
@@ -68,9 +68,9 @@ function buildBranchOptions(
 
 function buildCommitOptions(commits: CompareCommitOption[]): DialogSelectOption<string>[] {
   return commits.map((commit) => ({
-    title: commit.label,
+    title: commit.message,
     value: commit.ref,
-    description: commit.description,
+    description: commit.origin,
     category: "Commits",
   }));
 }
@@ -83,6 +83,7 @@ export function CompareDialog(props: CompareDialogProps) {
     currentBranch,
     activeCompareTarget,
     defaultCompareTarget,
+    onQueryChange,
     onSelect,
     onClose,
   } = props;
@@ -102,7 +103,7 @@ export function CompareDialog(props: CompareDialogProps) {
   }, [activeCompareTarget?.mode, defaultCompareTarget?.mode]);
 
   const options = useMemo(() => {
-    if (mode === "single-commit") return buildCommitOptions(commits);
+    if (mode === "base-commit" || mode === "single-commit") return buildCommitOptions(commits);
     return buildBranchOptions(branches, currentBranch, defaultCompareTarget);
   }, [branches, commits, currentBranch, defaultCompareTarget, mode]);
 
@@ -111,6 +112,13 @@ export function CompareDialog(props: CompareDialogProps) {
       onSelect({ mode, ref: option.value, label: option.title });
     },
     [mode, onSelect],
+  );
+
+  const handleQueryChange = useCallback(
+    (query: string) => {
+      onQueryChange(query);
+    },
+    [onQueryChange],
   );
 
   useKeyboard((event) => {
@@ -134,49 +142,52 @@ export function CompareDialog(props: CompareDialogProps) {
   });
 
   return (
-    <Overlay>
-      <box width={92} height={28} backgroundColor={theme.surface}>
-        <box paddingX={3} paddingTop={1} flexDirection="row" gap={1}>
-          {compareTabs.map((tab) => {
-            const selected = tab.value === mode;
+    <box width={92} height={28} backgroundColor={theme.surface}>
+      <box paddingX={3} paddingTop={1} flexDirection="row" gap={1}>
+        {compareTabs.map((tab) => {
+          const selected = tab.value === mode;
 
-            return (
-              <box
-                key={tab.value}
-                paddingX={1}
-                backgroundColor={selected ? theme.accent : `${theme.border}40`}
-                onMouseUp={() => setMode(tab.value)}
+          return (
+            <box
+              key={tab.value}
+              paddingX={1}
+              backgroundColor={selected ? theme.accent : `${theme.border}40`}
+              onMouseUp={() => setMode(tab.value)}
+            >
+              <text
+                fg={selected ? theme.background : theme.text}
+                attributes={1}
+                selectable={false}
               >
-                <text
-                  fg={selected ? theme.background : theme.text}
-                  attributes={1}
-                  selectable={false}
-                >
-                  {tab.name}
-                </text>
-              </box>
-            );
-          })}
-        </box>
-
-        <box paddingTop={1} paddingX={2}>
-          <DialogSelect
-            theme={theme}
-            title={
-              mode === "single-commit"
-                ? "Compare to commit"
-                : mode === "base-commit"
-                  ? "Compare to base commit"
-                  : "Compare to branch"
-            }
-            placeholder={mode === "single-commit" ? "Filter commits..." : "Filter branches..."}
-            options={options}
-            onSelect={handleSelect}
-            onClose={onClose}
-            height={24}
-          />
-        </box>
+                {tab.name}
+              </text>
+            </box>
+          );
+        })}
       </box>
-    </Overlay>
+
+      <box paddingTop={1} paddingX={2} height={"100%"}>
+        <DialogSelect
+          theme={theme}
+          title={
+            mode === "single-commit"
+              ? "Compare to commit"
+              : mode === "base-commit"
+                ? "Compare to base commit"
+                : "Compare to branch"
+          }
+          placeholder={
+            mode === "base-commit" || mode === "single-commit"
+              ? "Filter commits..."
+              : "Filter branches..."
+          }
+          options={options}
+          onFilter={handleQueryChange}
+          onSelect={handleSelect}
+          onClose={onClose}
+          height={24}
+        />
+      </box>
+    </box>
   );
 }

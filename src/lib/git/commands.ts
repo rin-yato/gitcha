@@ -247,6 +247,17 @@ export async function getCompareBranches(cwd?: string): Promise<string[]> {
 }
 
 /**
+ * Search compare branches by query against all local and remote refs.
+ */
+export async function searchCompareBranches(query: string, cwd?: string): Promise<string[]> {
+  const needle = query.trim().toLowerCase();
+  const branches = await getCompareBranches(cwd);
+  if (!needle) return branches;
+
+  return branches.filter((branch) => branch.toLowerCase().includes(needle));
+}
+
+/**
  * Get recent commit log lines.
  */
 export async function getRecentCommits(limit = 12, cwd?: string): Promise<string[]> {
@@ -301,24 +312,59 @@ export async function getCommitDiffFiles(
 export async function getRecentCommitSummaries(
   limit = 12,
   cwd?: string,
-): Promise<Array<{ ref: string; shortRef: string; subject: string }>> {
-  const output = await execGit(["log", "--pretty=format:%H%x09%s", "-n", String(limit)], {
-    cwd,
-  });
+): Promise<Array<{ ref: string; shortRef: string; message: string; origin: string }>> {
+  const output = await execGit(
+    ["log", "--decorate=short", "--pretty=format:%H%x09%s%x09%D", "-n", String(limit)],
+    {
+      cwd,
+    },
+  );
 
   return output
     .split(/\r?\n/)
     .filter(Boolean)
     .map((line) => {
-      const [ref, ...subjectParts] = line.split("\t");
-      const subject = subjectParts.join("\t").trim();
+      const [ref, subject = "", decorations = ""] = line.split("\t");
+      const branch =
+        decorations
+          .split(",")
+          .map((entry) => entry.trim())
+          .find(
+            (entry) =>
+              entry.length > 0 &&
+              entry !== "HEAD" &&
+              entry !== "tag:" &&
+              !entry.startsWith("tag: "),
+          )
+          ?.replace(/^HEAD ->\s*/, "") ?? "";
       return {
         ref: ref ?? "",
         shortRef: (ref ?? "").slice(0, 7),
-        subject,
+        message: subject.trim(),
+        origin: branch,
       };
     })
     .filter((entry) => entry.ref.length > 0);
+}
+
+/**
+ * Search commits by message, hash, or decoration across recent history.
+ */
+export async function searchCompareCommits(
+  query: string,
+  limit = 1000,
+  cwd?: string,
+): Promise<Array<{ ref: string; shortRef: string; message: string; origin: string }>> {
+  const needle = query.trim().toLowerCase();
+  const commits = await getRecentCommitSummaries(limit, cwd);
+
+  if (!needle) return commits;
+
+  return commits.filter((commit) => {
+    const haystack =
+      `${commit.ref} ${commit.shortRef} ${commit.message} ${commit.origin}`.toLowerCase();
+    return haystack.includes(needle);
+  });
 }
 
 /**

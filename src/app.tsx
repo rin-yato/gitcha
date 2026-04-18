@@ -27,12 +27,11 @@ import { ThemeDialog } from "@/component/dialog-theme";
 import { DiffPane } from "@/component/diff-pane";
 import { Sidebar } from "@/component/sidebar/index";
 import { DialogProvider, useDialog } from "@/component/ui/dialog";
-import { Overlay } from "@/component/ui/overlay";
 import { Toast, ToastProvider } from "@/component/ui/toast";
 
 type CompareData = {
   branches: { ref: string; label: string; description?: string }[];
-  commits: { ref: string; label: string; description: string }[];
+  commits: { ref: string; message: string; origin: string }[];
   defaultCompareTarget: CompareTarget | null;
 };
 
@@ -49,13 +48,35 @@ function CompareBranchDialogLoader(props: {
   onClose: () => void;
 }) {
   const [data, setData] = useState<CompareData | null>(null);
+  const [results, setResults] = useState<CompareData | null>(null);
+
+  const loadSearchResults = useCallback(
+    async (nextQuery: string) => {
+      const normalizedQuery = nextQuery.trim();
+      const [branches, commits] = await Promise.all([
+        props.client.searchCompareBranches(normalizedQuery).catch(() => []),
+        props.client.searchCompareCommits(normalizedQuery).catch(() => []),
+      ]);
+
+      setResults({
+        branches: branches.map((branch) => ({ ref: branch, label: branch })),
+        commits: commits.map((commit) => ({
+          ref: commit.ref,
+          message: `${commit.shortRef} ${commit.message}`,
+          origin: commit.origin,
+        })),
+        defaultCompareTarget: data?.defaultCompareTarget ?? null,
+      });
+    },
+    [data?.defaultCompareTarget, props.client],
+  );
 
   useEffect(() => {
     const controller = new AbortController();
 
     void Promise.all([
       props.client.getCompareBranches().catch(() => []),
-      props.client.getRecentCommitSummaries(12).catch(() => []),
+      props.client.getRecentCommitSummaries(30).catch(() => []),
       props.client.getCompareTarget().catch(() => null),
     ]).then(([branches, commits, defaultCompareTarget]) => {
       if (controller.signal.aborted) return;
@@ -63,8 +84,8 @@ function CompareBranchDialogLoader(props: {
         branches: branches.map((branch) => ({ ref: branch, label: branch })),
         commits: commits.map((commit) => ({
           ref: commit.ref,
-          label: `${commit.shortRef} ${commit.subject}`,
-          description: commit.subject,
+          message: `${commit.shortRef} ${commit.message}`,
+          origin: commit.origin,
         })),
         defaultCompareTarget,
       });
@@ -74,33 +95,21 @@ function CompareBranchDialogLoader(props: {
   }, [props.client]);
 
   const defaultCompareTarget = props.activeCompareTarget ?? data?.defaultCompareTarget ?? null;
-
-  useKeyboard((event) => {
-    if (!data && event.name === "escape") {
-      props.onClose();
-    }
-  });
-
-  if (!data) {
-    return (
-      <Overlay>
-        <box paddingX={2} paddingY={1} backgroundColor={props.theme.surface}>
-          <text content="Loading branches..." fg={props.theme.textMuted} selectable={false} />
-        </box>
-      </Overlay>
-    );
-  }
+  const visibleData = results ?? data;
 
   return (
     <CompareDialog
       theme={props.theme}
-      branches={data.branches}
-      commits={data.commits}
+      branches={visibleData?.branches ?? []}
+      commits={visibleData?.commits ?? []}
       currentBranch={props.currentBranch}
       activeCompareTarget={props.activeCompareTarget}
       defaultCompareTarget={defaultCompareTarget}
       onSelect={props.onSelect}
       onClose={props.onClose}
+      onQueryChange={(query) => {
+        void loadSearchResults(query);
+      }}
     />
   );
 }
@@ -129,7 +138,7 @@ function App() {
   }, [dialog, theme]);
 
   const showCompareBranchDialog = useCallback(() => {
-    dialog.replace(
+    dialog.show(
       <CompareBranchDialogLoader
         client={git.client}
         currentBranch={git.status?.branch ?? null}
