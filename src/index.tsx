@@ -1,3 +1,5 @@
+#!/usr/bin/env bun
+
 import { addDefaultParsers, createCliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
 
