@@ -19,16 +19,21 @@ Everything is keyboard-driven. Navigate files, review diffs, stage hunks, and wr
 ## Quick Start
 
 ```bash
-bun install
-bun run setup
+curl -fsSL https://raw.githubusercontent.com/rin-yato/changes/main/install.sh | sh
 ```
 
 Run `ch` from any git repository to get started.
 
 ### Requirements
 
-- **Bun** >= 1.0
-- **macOS**
+- **macOS**, **Linux**, or **Windows**
+- **Bun** >= 1.0 for development
+
+### Install
+
+```bash
+PREFIX=$HOME/.local curl -fsSL https://raw.githubusercontent.com/rin-yato/changes/main/install.sh | sh
+```
 
 ## Development
 

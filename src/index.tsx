@@ -7,9 +7,9 @@ import { createStartupBenchmarkRecorder } from "@/lib/startup-benchmark";
 import { parsers } from "@/lib/tree-sitter";
 
 import { AppRootWithBootstrap } from "@/app";
+import { registerRenderables } from "@/renderable/register";
 
-import "@/renderable/register";
-
+registerRenderables();
 addDefaultParsers(parsers);
 
 const startupBenchmarkPath = process.env.CHANGES_STARTUP_BENCHMARK_PATH;

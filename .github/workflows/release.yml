@@ -1,0 +1,72 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build for ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: bun-linux-x64
+            binary: changes
+          - os: macos-13
+            target: bun-darwin-x64
+            binary: changes
+          - os: macos-14
+            target: bun-darwin-arm64
+            binary: changes
+          - os: windows-latest
+            target: bun-windows-x64
+            binary: changes.exe
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: Build binary
+        run: bun run scripts/build.ts
+        env:
+          BUILD_TARGET: ${{ matrix.target }}
+          BUILD_OUTFILE: dist/${{ matrix.binary }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: dist/${{ matrix.binary }}
+
+  publish:
+    name: Create Release Assets
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Make binaries executable
+        run: chmod +x artifacts/*/changes*
+
+      - name: Upload release assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for binary in artifacts/*/changes*; do
+            filename=$(basename "$binary")
+            echo "Uploading $filename..."
+            gh release upload "${{ github.event.release.tag_name }}" "$binary" --clobber
+          done
