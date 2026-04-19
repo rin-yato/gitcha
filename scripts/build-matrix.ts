@@ -23,7 +23,7 @@ const compileTarget = (process.env.BUILD_TARGET ?? targetMap[localTarget]) as
   | "bun-windows-x64"
   | "bun-windows-arm64";
 
-const outfile = process.env.BUILD_OUTFILE ?? "bin/differ";
+const outfile = process.env.BUILD_OUTFILE ?? "bin/gitcha";
 
 const parserWorker = fs.realpathSync(
   path.resolve("node_modules/@opentui/core/parser.worker.js"),

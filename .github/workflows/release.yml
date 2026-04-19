@@ -106,11 +106,11 @@ jobs:
           TAG: ${{ github.event.release.tag_name || github.ref_name }}
         run: |
           for dir in artifacts/*/; do
-            target=$(basename "$dir")
-            for binary_path in "$dir"differ*; do
+            target=$(basename "$dir" | sed 's/^bun-//')
+            for binary_path in "$dir"gitcha*; do
               filename=$(basename "$binary_path")
               extension="${filename##*.}"
-              new_name="differ-$target"
+              new_name="gitcha-$target"
               if [ "$extension" = "exe" ]; then new_name="$new_name.exe"; fi
               
               echo "Uploading $new_name to release $TAG..."

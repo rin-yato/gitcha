@@ -1,11 +1,12 @@
 {
-  "name": "differ",
+  "name": "gitcha",
   "version": "0.1.1",
   "description": "A terminal UI for reviewing code changes with syntax highlighting",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "differ": "dist/index.js"
+    "gitcha": "dist/index.js",
+    "gc": "dist/index.js"
   },
   "files": [
     "dist"
@@ -21,7 +22,6 @@
     "bench:latest": "bun run benchmarks/bench.ts --json --write-latest",
     "bench:compare": "bun run benchmarks/bench-compare.ts",
     "bench:reset-fixture": "bun run benchmarks/bench-reset-fixture.ts",
-    "prepublishOnly": "bun run build",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "check": "biome check",
