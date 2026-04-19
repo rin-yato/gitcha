@@ -3,6 +3,13 @@ name: release
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      skip_npm:
+        description: 'Skip NPM publishing?'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -10,7 +17,7 @@ permissions:
 
 jobs:
   # -------------------------------------------------------------------------
-  # Binary builds (goes to GitHub release)
+  # Binary builds
   # -------------------------------------------------------------------------
   binary:
     name: Build for ${{ matrix.target }}
@@ -33,7 +40,6 @@ jobs:
             binary: differ.exe
     steps:
       - uses: actions/checkout@v4
-
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -53,14 +59,14 @@ jobs:
           path: bin/${{ matrix.binary }}
 
   # -------------------------------------------------------------------------
-  # JS build for npm (runs in parallel with binary)
+  # JS build for npm
   # -------------------------------------------------------------------------
   npm:
     name: Publish to npm
+    if: github.event_name == 'release' || github.event.inputs.skip_npm != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -70,31 +76,46 @@ jobs:
       - name: Build JS
         run: bun run scripts/build.ts
 
+      - name: Configure npm auth
+        run: npm config set //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Publish to npm
         run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
   # -------------------------------------------------------------------------
-  # Create GitHub release (runs after both binary and npm complete)
+  # Create/Update GitHub release
   # -------------------------------------------------------------------------
   release:
     name: Create Release
-    needs: [binary, npm]
+    needs: [binary]
+    if: always() && (needs.binary.result == 'success')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Make binaries executable
-        run: chmod +x artifacts/*/differ*
-
-      - name: Upload release assets
+      - name: Prepare and upload assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name || github.ref_name }}
         run: |
-          for binary in artifacts/*/differ*; do
-            filename=$(basename "$binary")
-            echo "Uploading $filename..."
-            gh release upload "${{ github.event.release.tag_name }}" "$binary" --clobber
+          for dir in artifacts/*/; do
+            target=$(basename "$dir")
+            for binary_path in "$dir"differ*; do
+              filename=$(basename "$binary_path")
+              extension="${filename##*.}"
+              new_name="differ-$target"
+              if [ "$extension" = "exe" ]; then new_name="$new_name.exe"; fi
+              
+              echo "Uploading $new_name to release $TAG..."
+              mv "$binary_path" "./$new_name"
+              chmod +x "./$new_name"
+              gh release upload "$TAG" "./$new_name" --clobber
+            done
           done
