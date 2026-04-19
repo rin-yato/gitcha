@@ -1,18 +1,21 @@
 import fs from "fs";
 import path from "path";
 
-const compileTarget = (process.env.BUILD_TARGET ??
-  (process.platform === "win32"
-    ? process.arch === "x64"
-      ? "bun-windows-x64"
-      : "bun-windows-arm64"
-    : process.platform === "darwin"
-      ? process.arch === "x64"
-        ? "bun-darwin-x64"
-        : "bun-darwin-arm64"
-      : process.arch === "x64"
-        ? "bun-linux-x64"
-        : "bun-linux-arm64")) as
+const platform = process.platform;
+const arch = process.arch;
+
+const targetMap: Record<string, string> = {
+  "darwin-x64": "bun-darwin-x64",
+  "darwin-arm64": "bun-darwin-arm64",
+  "linux-x64": "bun-linux-x64",
+  "linux-arm64": "bun-linux-arm64",
+  "win32-x64": "bun-windows-x64",
+  "win32-arm64": "bun-windows-arm64",
+};
+
+const localTarget = `${platform}-${arch}`;
+
+const compileTarget = (process.env.BUILD_TARGET ?? targetMap[localTarget]) as
   | "bun-linux-x64"
   | "bun-darwin-x64"
   | "bun-darwin-arm64"
