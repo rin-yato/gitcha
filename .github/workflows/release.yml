@@ -6,10 +6,15 @@ on:
   workflow_dispatch:
     inputs:
       skip_npm:
-        description: 'Skip NPM publishing?'
+        description: 'Skip NPM'
         required: false
         type: boolean
-        default: false
+        default: true
+      upload_release:
+        description: 'Upload release'
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -40,6 +45,9 @@ jobs:
             binary: gitcha.exe
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -52,7 +60,31 @@ jobs:
           BUILD_TARGET: ${{ matrix.target }}
           BUILD_OUTFILE: bin/${{ matrix.binary }}
 
+      - name: Upload to Release
+        if: github.event_name == 'release' || github.event.inputs.upload_release == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG=$(git describe --tags --abbrev=0)
+          fi
+
+          target=$(echo "${{ matrix.target }}" | sed 's/^bun-//')
+          name="gitcha-$target"
+          if [[ "${{ matrix.target }}" == *"windows"* ]]; then
+            name="$name.exe"
+          fi
+          mv "bin/${{ matrix.binary }}" "./$name"
+          chmod +x "./$name"
+          gh release upload "$TAG" "./$name" --clobber
+
       - name: Upload artifact
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.upload_release != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.target }}
@@ -82,40 +114,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish to npm
+        if: github.event_name == 'release' || github.event.inputs.skip_npm != 'true'
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-  # -------------------------------------------------------------------------
-  # Create/Update GitHub release
-  # -------------------------------------------------------------------------
-  release:
-    name: Create Release
-    needs: [binary]
-    if: always() && (needs.binary.result == 'success')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Prepare and upload assets
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ github.event.release.tag_name || github.ref_name }}
-        run: |
-          for dir in artifacts/*/; do
-            target=$(basename "$dir" | sed 's/^bun-//')
-            for binary_path in "$dir"gitcha*; do
-              filename=$(basename "$binary_path")
-              extension="${filename##*.}"
-              new_name="gitcha-$target"
-              if [ "$extension" = "exe" ]; then new_name="$new_name.exe"; fi
-              
-              echo "Uploading $new_name to release $TAG..."
-              mv "$binary_path" "./$new_name"
-              chmod +x "./$new_name"
-              gh release upload "$TAG" "./$new_name" --clobber
-            done
-          done

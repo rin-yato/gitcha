@@ -1,5 +1,12 @@
 
 
+## [0.1.2](https://github.com/rin-yato/differ/compare/v0.1.1...v0.1.2) (2026-04-19)
+
+
+### Bug Fixes
+
+* second identity crisis ([6e8b1cc](https://github.com/rin-yato/differ/commit/6e8b1ccee92157ae45596abd804d975fb5dedafe))
+
 ## [0.1.1](https://github.com/rin-yato/gitcha/compare/0.1.0...v0.1.1) (2026-04-19)
 
 
