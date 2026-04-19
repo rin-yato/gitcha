@@ -1,6 +1,6 @@
 {
   "name": "differ",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A terminal UI for reviewing code changes with syntax highlighting",
   "type": "module",
   "main": "dist/index.js",
