@@ -1,10 +1,10 @@
-# differ
+# gitcha
 
 Git, reimagined for the terminal.
 
 ## About
 
-`differ` brings a clean, modern interface to your daily Git workflow. Thoughtful spacing. Muted, intentional colors. Clean layouts that let you focus on what matters - your code.
+`gitcha` brings a clean, modern interface to your daily Git workflow. Thoughtful spacing. Muted, intentional colors. Clean layouts that let you focus on what matters - your code.
 
 Everything is keyboard-driven. Navigate files, review diffs, stage hunks, and write commits — all without leaving the terminal.
 
@@ -18,23 +18,23 @@ Everything is keyboard-driven. Navigate files, review diffs, stage hunks, and wr
 
 ## Quick Start
 
-If you already have Bun installed, you can install or run `differ` directly:
+If you already have Bun installed, you can install or run `gitcha` directly:
 
 ```bash
 # Installation
-bun add -g differ
-bunx differ
+bun add -g gitcha
+bunx gitcha
 
-differ # usage
+gitcha # usage
 ```
 
 If you do not have Bun installed, use the install script instead:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rin-yato/differ/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/rin-yato/gitcha/main/install.sh | sh
 ```
 
-Run `differ` from any git repository to get started.
+Run `gitcha` from any git repository to get started.
 
 ## Contributing
 

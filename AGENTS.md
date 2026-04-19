@@ -32,8 +32,8 @@ Always run `bun run fix`, instead of `bun run ci` or `bun run check`. This way i
 
 ### Build and Install
 
-- `bun run build` - compile the CLI to `dist/differ`.
-- `bun run setup` - build if needed, will run `bun link`, then we can use the `differ` cmd.
+- `bun run build` - compile the CLI to `dist/gitcha`.
+- `bun run setup` - build if needed, will run `bun link`, then we can use the `gitcha` cmd.
 
 ### Benchmarks
 
