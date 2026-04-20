@@ -5,28 +5,34 @@ on:
     types: [published]
   workflow_dispatch:
     inputs:
-      skip_npm:
-        description: 'Skip NPM'
+      publish_npm:
+        description: 'Publish to npm'
         required: false
         type: boolean
-        default: true
-      upload_release:
-        description: 'Upload release'
+        default: false
+      publish_release_assets:
+        description: 'Upload release assets'
         required: false
         type: boolean
-        default: true
+        default: false
+      release_tag:
+        description: 'Release tag to upload assets to'
+        required: false
+        type: string
+        default: ''
 
 permissions:
-  contents: write
-  id-token: write
+  contents: read
 
 jobs:
   # -------------------------------------------------------------------------
   # Binary builds
   # -------------------------------------------------------------------------
   binary:
-    name: Build for ${{ matrix.target }}
+    name: Build ${{ matrix.release_name }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -34,19 +40,25 @@ jobs:
           - os: ubuntu-latest
             target: bun-linux-x64
             binary: gitcha
+            release_name: gitcha-linux-x64
           - os: ubuntu-24.04-arm
             target: bun-linux-arm64
             binary: gitcha
-          - os: macos-latest
+            release_name: gitcha-linux-arm64
+          - os: macos-13
+            target: bun-darwin-x64
+            binary: gitcha
+            release_name: gitcha-darwin-x64
+          - os: macos-14
             target: bun-darwin-arm64
             binary: gitcha
+            release_name: gitcha-darwin-arm64
           - os: windows-latest
             target: bun-windows-x64
             binary: gitcha.exe
+            release_name: gitcha-windows-x64.exe
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -60,61 +72,99 @@ jobs:
           BUILD_TARGET: ${{ matrix.target }}
           BUILD_OUTFILE: bin/${{ matrix.binary }}
 
-      - name: Upload to Release
-        if: github.event_name == 'release' || github.event.inputs.upload_release == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Stage release asset
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            TAG="${{ github.event.release.tag_name }}"
-          elif [ "${{ github.ref_type }}" = "tag" ]; then
-            TAG="${{ github.ref_name }}"
-          else
-            TAG=$(git describe --tags --abbrev=0)
-          fi
-
-          target=$(echo "${{ matrix.target }}" | sed 's/^bun-//')
-          name="gitcha-$target"
-          if [[ "${{ matrix.target }}" == *"windows"* ]]; then
-            name="$name.exe"
-          fi
-          mv "bin/${{ matrix.binary }}" "./$name"
-          chmod +x "./$name"
-          gh release upload "$TAG" "./$name" --clobber
+          mkdir -p release-assets
+          cp "bin/${{ matrix.binary }}" "release-assets/${{ matrix.release_name }}"
 
       - name: Upload artifact
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.upload_release != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.target }}
-          path: bin/${{ matrix.binary }}
+          name: ${{ matrix.release_name }}
+          path: release-assets/${{ matrix.release_name }}
+          if-no-files-found: error
+
+  # -------------------------------------------------------------------------
+  # Release assets
+  # -------------------------------------------------------------------------
+  release-assets:
+    name: Upload release assets
+    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish_release_assets)
+    needs: binary
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Resolve release tag
+        id: tag
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ inputs.release_tag }}
+        run: |
+          if [ "$EVENT_NAME" = "release" ]; then
+            tag="$RELEASE_TAG"
+          else
+            tag="$INPUT_TAG"
+          fi
+
+          if [ -z "$tag" ]; then
+            echo "release_tag is required when publish_release_assets is enabled for workflow_dispatch" >&2
+            exit 1
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          pattern: gitcha-*
+          merge-multiple: true
+
+      - name: Upload to release
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          shopt -s nullglob
+          files=(release-assets/*)
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No release assets found" >&2
+            exit 1
+          fi
+
+          gh release upload "${{ steps.tag.outputs.tag }}" "${files[@]}" --clobber
 
   # -------------------------------------------------------------------------
   # JS build for npm
   # -------------------------------------------------------------------------
   npm:
     name: Publish to npm
-    if: github.event_name == 'release' || github.event.inputs.skip_npm != 'true'
+    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish_npm)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
       - run: bun install --frozen-lockfile
 
       - name: Build JS
         run: bun run scripts/build.ts
 
-      - name: Configure npm auth
-        run: npm config set //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
       - name: Publish to npm
-        if: github.event_name == 'release' || github.event.inputs.skip_npm != 'true'
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

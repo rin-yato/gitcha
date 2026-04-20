@@ -1,6 +1,5 @@
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 
 const outdir = "dist";
 
@@ -8,10 +7,7 @@ const workerSourcePath = fs.realpathSync(
   path.resolve("node_modules/@opentui/core/parser.worker.js"),
 );
 
-const workerResolvedPath = import.meta.resolve("node_modules/@opentui/core/parser.worker.js");
-const absoluteWorkerPath = fileURLToPath(workerResolvedPath);
-
-Bun.build({
+const result = await Bun.build({
   target: "bun",
   outdir,
   entrypoints: ["./src/index.tsx", workerSourcePath],
@@ -20,7 +16,14 @@ Bun.build({
   naming: {
     entry: "[name].[ext]",
   },
-  define: {
-    OTUI_TREE_SITTER_WORKER_PATH: absoluteWorkerPath,
-  },
 });
+
+if (!result.success) {
+  console.error("Build failed:");
+  for (const log of result.logs) {
+    console.error(log);
+  }
+  process.exit(1);
+}
+
+console.log(`Built ${outdir}`);

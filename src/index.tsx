@@ -5,8 +5,8 @@ import { createRoot } from "@opentui/react";
 
 import { bootstrapReviewSession } from "@/context/session/session";
 
+import { parsers } from "@/lib/parsers";
 import { createStartupBenchmarkRecorder } from "@/lib/startup-benchmark";
-import { parsers } from "@/lib/tree-sitter";
 
 import { AppRootWithBootstrap } from "@/app";
 import { registerRenderables } from "@/renderable/register";

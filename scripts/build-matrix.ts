@@ -1,6 +1,3 @@
-import fs from "fs";
-import path from "path";
-
 const platform = process.platform;
 const arch = process.arch;
 
@@ -25,13 +22,6 @@ const compileTarget = (process.env.BUILD_TARGET ?? targetMap[localTarget]) as
 
 const outfile = process.env.BUILD_OUTFILE ?? "bin/gitcha";
 
-const parserWorker = fs.realpathSync(
-  path.resolve("node_modules/@opentui/core/parser.worker.js"),
-);
-
-const bunfsRoot = "/$bunfs/root/";
-const workerRelativePath = path.relative(process.cwd(), parserWorker).replace(/\\/g, "/");
-
 const result = await Bun.build({
   target: "bun",
   compile: {
@@ -39,10 +29,7 @@ const result = await Bun.build({
     outfile,
     execArgv: ["--"],
   },
-  entrypoints: ["./src/index.tsx", parserWorker],
-  define: {
-    OTUI_TREE_SITTER_WORKER_PATH: `"${bunfsRoot}${workerRelativePath}"`,
-  },
+  entrypoints: ["./src/index.tsx", "./node_modules/@opentui/core/parser.worker.js"],
   minify: true,
 });
 
@@ -55,3 +42,5 @@ if (!result.success) {
 }
 
 console.log(`Built ${outfile}`);
+
+export {};

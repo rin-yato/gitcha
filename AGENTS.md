@@ -1,4 +1,4 @@
-# Changes AGENTS.md
+# Gitcha AGENTS.md
 
 ## Agent Workflow
 

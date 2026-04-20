@@ -4,7 +4,8 @@ import { memo, useCallback, useRef } from "react";
 
 import { copySelection } from "@/lib/clipboard";
 
-import { useToast } from "../ui/toast";
+import { useToast } from "@/component/ui/toast";
+
 import type { DiffContentProps, DiffRenderableRef } from "./types";
 
 export const DiffContent = memo(function DiffContent(props: DiffContentProps) {
