@@ -1,18 +1,11 @@
-import fs from "fs";
-import path from "path";
-
 const outdir = "dist";
-
-const workerSourcePath = fs.realpathSync(
-  path.resolve("node_modules/@opentui/core/parser.worker.js"),
-);
 
 const result = await Bun.build({
   target: "bun",
   outdir,
-  entrypoints: ["./src/index.tsx", workerSourcePath],
-  minify: true,
-  splitting: true,
+  entrypoints: ["./src/index.tsx", "./src/lib/treesitter/parser.worker.ts"],
+  minify: false,
+  splitting: false,
   naming: {
     entry: "[name].[ext]",
   },
@@ -27,3 +20,5 @@ if (!result.success) {
 }
 
 console.log(`Built ${outdir}`);
+
+export {};

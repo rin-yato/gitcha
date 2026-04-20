@@ -1,36 +1,26 @@
-const platform = process.platform;
-const arch = process.arch;
-
-const targetMap: Record<string, string> = {
-  "darwin-x64": "bun-darwin-x64",
-  "darwin-arm64": "bun-darwin-arm64",
-  "linux-x64": "bun-linux-x64",
-  "linux-arm64": "bun-linux-arm64",
-  "win32-x64": "bun-windows-x64",
-  "win32-arm64": "bun-windows-arm64",
-};
-
-const localTarget = `${platform}-${arch}`;
-
-const compileTarget = (process.env.BUILD_TARGET ?? targetMap[localTarget]) as
-  | "bun-linux-x64"
-  | "bun-darwin-x64"
-  | "bun-darwin-arm64"
-  | "bun-linux-arm64"
-  | "bun-windows-x64"
-  | "bun-windows-arm64";
+import fs from "fs";
+import path from "path";
 
 const outfile = process.env.BUILD_OUTFILE ?? "bin/gitcha";
+
+const workerSourcePath = fs.realpathSync(
+  path.resolve("node_modules/@opentui/core/parser.worker.js"),
+);
+
+const bunfsRoot = "/$bunfs/root/";
+const workerRelativePath = path.relative(process.cwd(), workerSourcePath).replace(/\\/g, "/");
 
 const result = await Bun.build({
   target: "bun",
   compile: {
-    target: compileTarget,
     outfile,
     execArgv: ["--"],
   },
-  entrypoints: ["./src/index.tsx", "./node_modules/@opentui/core/parser.worker.js"],
+  entrypoints: ["./src/index.tsx", workerSourcePath],
   minify: true,
+  define: {
+    OTUI_TREE_SITTER_WORKER_PATH: `"${bunfsRoot}${workerRelativePath}"`,
+  },
 });
 
 if (!result.success) {
@@ -42,5 +32,3 @@ if (!result.success) {
 }
 
 console.log(`Built ${outfile}`);
-
-export {};

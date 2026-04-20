@@ -5,14 +5,14 @@ import { createRoot } from "@opentui/react";
 
 import { bootstrapReviewSession } from "@/context/session/session";
 
-import { parsers } from "@/lib/parsers";
 import { createStartupBenchmarkRecorder } from "@/lib/startup-benchmark";
+import { parsers } from "@/lib/treesitter/parsers";
 
 import { AppRootWithBootstrap } from "@/app";
 import { registerRenderables } from "@/renderable/register";
 
-registerRenderables();
 addDefaultParsers(parsers);
+registerRenderables();
 
 const startupBenchmarkPath = process.env.CHANGES_STARTUP_BENCHMARK_PATH;
 const benchmark = startupBenchmarkPath

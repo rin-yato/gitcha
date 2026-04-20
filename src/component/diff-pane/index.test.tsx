@@ -10,7 +10,7 @@ import type { Theme } from "@/context/theme/provider";
 
 import { ToastProvider } from "@/component/ui/toast";
 
-import { DiffPane } from "./index";
+import { DiffPane } from ".";
 
 const theme: Theme = {
   background: "#000000",
