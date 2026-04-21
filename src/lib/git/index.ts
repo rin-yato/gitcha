@@ -1,5 +1,6 @@
 // Git integration module
 
+export * from "./binary";
 export * from "./commands";
 export * from "./diff";
 export * from "./files";

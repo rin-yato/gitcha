@@ -278,6 +278,7 @@ function App() {
         selectedFileKey={selection.selectedFileKey}
         selectedFileInfo={selection.selectedFileInfo}
         diffContent={diff.diffContent}
+        unsupportedReason={diff.unsupportedReason}
         diffViewMode={diff.diffViewMode}
         toggleDiffViewMode={diff.toggleDiffViewMode}
       />

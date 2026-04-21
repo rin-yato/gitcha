@@ -48,6 +48,7 @@
     "dequal": "^2.0.3",
     "diff": "^8.0.2",
     "fuzzysort": "^3.1.0",
+    "isbinaryfile": "^6.0.0",
     "react": "^19.0.0",
     "remeda": "^2.33.7"
   },

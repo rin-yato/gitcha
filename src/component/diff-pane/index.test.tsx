@@ -51,6 +51,8 @@ test("code panel shows an empty state", async () => {
         selectedFileKey={null}
         selectedFileInfo={null}
         diffContent={null}
+        unsupportedReason={null}
+        isLoading={false}
         diffViewMode="unified"
         toggleDiffViewMode={() => {}}
       />,
@@ -69,7 +71,7 @@ test("code panel shows an empty state", async () => {
   expect(JSON.stringify(testSetup.captureSpans().lines)).toContain("no file selected");
 });
 
-test("code panel shows loading state when a file is selected", async () => {
+test("code panel keeps diff empty while loading", async () => {
   testSetup = await testRender(
     withToastProvider(
       <DiffPane
@@ -78,6 +80,8 @@ test("code panel shows loading state when a file is selected", async () => {
         selectedFileKey="changes:src/app.ts"
         selectedFileInfo={null}
         diffContent={null}
+        unsupportedReason={null}
+        isLoading={true}
         diffViewMode="split"
         toggleDiffViewMode={() => {}}
       />,
@@ -91,7 +95,63 @@ test("code panel shows loading state when a file is selected", async () => {
     await testSetup?.renderOnce();
   });
 
-  expect(JSON.stringify(testSetup.captureSpans().lines)).toContain("Loading...");
+  const output = JSON.stringify(testSetup.captureSpans().lines);
+  expect(output).not.toContain("Unsupported file");
+});
+
+test("code panel keeps layout stable while loading", async () => {
+  testSetup = await testRender(
+    withToastProvider(
+      <DiffPane
+        theme={theme}
+        selectedFile="src/app.ts"
+        selectedFileKey="compare:src/app.ts"
+        selectedFileInfo={null}
+        diffContent={null}
+        unsupportedReason={null}
+        isLoading={true}
+        diffViewMode="unified"
+        toggleDiffViewMode={() => {}}
+      />,
+    ),
+    { width: 120, height: 24 },
+  );
+
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
+
+  const output = JSON.stringify(testSetup.captureSpans().lines);
+  expect(output).not.toContain("Loading...");
+  expect(output).not.toContain("Unsupported file");
+});
+
+test("code panel shows unsupported overlay when file is binary", async () => {
+  testSetup = await testRender(
+    withToastProvider(
+      <DiffPane
+        theme={theme}
+        selectedFile="assets/logo.png"
+        selectedFileKey="changes:assets/logo.png"
+        selectedFileInfo={null}
+        diffContent={null}
+        unsupportedReason="Binary file - cannot display diff"
+        isLoading={false}
+        diffViewMode="unified"
+        toggleDiffViewMode={() => {}}
+      />,
+    ),
+    { width: 80, height: 24 },
+  );
+
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
+
+  const output = JSON.stringify(testSetup.captureSpans().lines);
+  expect(output).toContain("Unsupported file");
+  expect(output).toContain("assets/logo.png");
+  expect(output).toContain("Binary file - cannot display diff");
 });
 
 test("code panel renders diff content when provided", async () => {
@@ -109,6 +169,8 @@ test("code panel renders diff content when provided", async () => {
  @@ -1,1 +1,1 @@
  -console.log("hello from feat/a")
  +console.log("hello from feat/b")`}
+        unsupportedReason={null}
+        isLoading={false}
         diffViewMode="unified"
         toggleDiffViewMode={() => {}}
       />,
@@ -140,6 +202,7 @@ index 1111111..2222222 100644
 @@ -1 +1 @@
 -a
 +b`}
+        isLoading={false}
         diffViewMode="unified"
         toggleDiffViewMode={() => {}}
       />,
@@ -172,6 +235,7 @@ index 1111111..2222222 100644
 @@ -1,30 +1,30 @@
 ${lines.map((line) => `-${line}`).join("\n")}
 ${lines.map((line) => `+${line} updated`).join("\n")}`}
+        isLoading={false}
         diffViewMode="unified"
         toggleDiffViewMode={() => {}}
       />,
@@ -207,6 +271,7 @@ rename to src/ui/panel.renamed.tsx
 @@ -1,1 +1,1 @@
 -old
 +new`}
+        isLoading={false}
         diffViewMode="unified"
         toggleDiffViewMode={() => {}}
       />,
@@ -240,6 +305,7 @@ index 1111111..2222222 100644
 @@ -1,80 +1,80 @@
 ${lines.map((line) => `-${line}`).join("\n")}
 ${lines.map((line) => `+${line} updated`).join("\n")}`}
+        isLoading={false}
         diffViewMode="unified"
         toggleDiffViewMode={() => {}}
       />,
@@ -282,6 +348,7 @@ index 1111111..2222222 100644
 @@ -1,60 +1,60 @@
 ${lines.map((line) => `-${line}`).join("\n")}
 ${lines.map((line) => `+${line} updated`).join("\n")}`}
+        isLoading={false}
         diffViewMode="unified"
         toggleDiffViewMode={() => {}}
       />,

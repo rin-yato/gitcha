@@ -3,7 +3,7 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -18,6 +18,8 @@ export type DiffViewMode = "unified" | "split";
 
 export type ReviewDiffState = {
   diffContent: string | null;
+  unsupportedReason: string | null;
+  isLoading: boolean;
   diffViewMode: DiffViewMode;
   toggleDiffViewMode: () => void;
 };
@@ -28,46 +30,78 @@ export function ReviewDiffProvider({ children }: { children: React.ReactNode }) 
   const git = useReviewSession();
   const selection = useReviewSelection();
   const [diffContent, setDiffContent] = useState<string | null>(null);
+  const [unsupportedReason, setUnsupportedReason] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [diffViewMode, setDiffViewMode] = useState<ReviewDiffState["diffViewMode"]>("unified");
   const diffLoadRequestRef = useRef(0);
 
   const loadDiff = useCallback(() => {
+    const requestId = ++diffLoadRequestRef.current;
+
     if (!selection.selectedFile || !selection.selectedFileSection) {
       setDiffContent(null);
+      setUnsupportedReason(null);
+      setIsLoading(false);
       return;
     }
-
-    const requestId = ++diffLoadRequestRef.current;
-    const compareBaseRef =
-      selection.selectedFileSection === "compare" ? git.compareState?.baseRef : undefined;
-    const compareTargetRef =
-      selection.selectedFileSection === "compare" ? git.compareState?.targetRef : undefined;
-    const compareMode =
-      selection.selectedFileSection === "compare" ? git.compareState?.mode : undefined;
 
     const file = selection.focusedFile;
     if (!file) {
       setDiffContent(null);
+      setUnsupportedReason(null);
+      setIsLoading(false);
       return;
     }
 
     const section = selection.selectedFileSection;
     if (!section) {
       setDiffContent(null);
+      setUnsupportedReason(null);
+      setIsLoading(false);
       return;
     }
 
-    void git.client
-      .loadDiffSource(file, section, compareBaseRef, compareTargetRef, compareMode)
-      .then((source) => {
-        if (requestId !== diffLoadRequestRef.current) return;
-        const diff = generateDiff(source, file.path);
-        setDiffContent(diff || "No changes");
-      })
-      .catch((e) => {
-        if (requestId !== diffLoadRequestRef.current) return;
-        setDiffContent(`Error: ${e instanceof Error ? e.message : "Unknown"}`);
-      });
+    setIsLoading(true);
+    setUnsupportedReason(null);
+
+    void (async () => {
+      const reason = await git.client.getDiffUnsupportedReason(
+        file,
+        section,
+        git.compareState?.baseRef,
+        git.compareState?.targetRef,
+        git.compareState?.mode,
+      );
+
+      if (requestId !== diffLoadRequestRef.current) return;
+
+      if (reason) {
+        setDiffContent(null);
+        setUnsupportedReason(reason);
+        setIsLoading(false);
+        return;
+      }
+
+      const result = await git.client.loadDiffSource(
+        file,
+        section,
+        section === "compare" ? git.compareState?.baseRef : undefined,
+        section === "compare" ? git.compareState?.targetRef : undefined,
+        section === "compare" ? git.compareState?.mode : undefined,
+      );
+
+      if (requestId !== diffLoadRequestRef.current) return;
+
+      const diff = generateDiff(result, file.path);
+      setDiffContent(diff || "No changes");
+      setUnsupportedReason(null);
+      setIsLoading(false);
+    })().catch((e) => {
+      if (requestId !== diffLoadRequestRef.current) return;
+      setDiffContent(`Error: ${e instanceof Error ? e.message : "Unknown"}`);
+      setUnsupportedReason(null);
+      setIsLoading(false);
+    });
   }, [
     git.client,
     git.compareState?.baseRef,
@@ -78,18 +112,20 @@ export function ReviewDiffProvider({ children }: { children: React.ReactNode }) 
     selection.selectedFileSection,
   ]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     loadDiff();
   }, [loadDiff]);
 
   const value = useMemo<ReviewDiffState>(
     () => ({
       diffContent,
+      unsupportedReason,
+      isLoading,
       diffViewMode,
       toggleDiffViewMode: () =>
         setDiffViewMode((mode) => (mode === "unified" ? "split" : "unified")),
     }),
-    [diffContent, diffViewMode],
+    [diffContent, diffViewMode, isLoading, unsupportedReason],
   );
 
   return <ReviewDiffContext.Provider value={value}>{children}</ReviewDiffContext.Provider>;

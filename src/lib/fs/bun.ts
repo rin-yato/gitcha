@@ -6,6 +6,13 @@ export const bunFs: FsBackend = {
       .text()
       .catch(() => null),
 
+  readFileSample: async (path, maxBytes) =>
+    Bun.file(path)
+      .slice(0, maxBytes)
+      .arrayBuffer()
+      .then((buffer) => new Uint8Array(buffer))
+      .catch(() => null),
+
   exists: async (path) => {
     try {
       return await Bun.file(path).exists();

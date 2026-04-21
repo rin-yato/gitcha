@@ -12,6 +12,7 @@ import type {
   RepoContext,
 } from "@/lib/git";
 import {
+  BINARY_UNSUPPORTED_REASON,
   buildFileTreeSnapshot,
   commitChanges as commitGitChanges,
   detectRepoContext,
@@ -26,11 +27,14 @@ import {
   getMergeBase,
   getRecentCommitSummaries,
   getRepoStatus,
+  getUnsupportedReason,
+  isBinaryDiff,
   loadChangesDiffSource,
   loadCompareDiffSource,
   loadStagedDiffSource,
   pullChanges as pullGitChanges,
   pushChanges as pushGitChanges,
+  SAMPLE_BYTE_LIMIT,
   searchCompareBranches,
   searchCompareCommits,
   stageFile as stageGitFile,
@@ -83,6 +87,13 @@ export type GitClient = {
   ) => Promise<Array<{ ref: string; shortRef: string; message: string; origin: string }>>;
   getFileVersion: (ref: string, path: string) => Promise<string | null>;
   getMergeBase: (baseRef: string) => Promise<string>;
+  getDiffUnsupportedReason: (
+    file: GitStatusFile,
+    section: "staged" | "changes" | "compare",
+    compareBaseRef?: string,
+    compareTargetRef?: string | null,
+    compareMode?: CompareMode,
+  ) => Promise<string | null>;
   loadDiffSource: (
     file: GitStatusFile,
     section: "staged" | "changes" | "compare",
@@ -113,6 +124,63 @@ export function createGitClient(ctx: RepoContext): GitClient {
     searchCompareCommits: (query: string) => searchCompareCommits(query, 1000, ctx.cwd),
     getFileVersion: (ref: string, path: string) => getFileVersion(ref, path, ctx.cwd),
     getMergeBase: (baseRef: string) => getMergeBase(baseRef, ctx.cwd),
+    getDiffUnsupportedReason: async (
+      file,
+      section,
+      compareBaseRef,
+      compareTargetRef,
+      compareMode,
+    ) => {
+      const unsupportedReason = getUnsupportedReason(file.path, null);
+      if (unsupportedReason) return unsupportedReason;
+
+      if (file.indexStatus === "?" || file.workingTreeStatus === "?") {
+        const sample = await ctx.backend.readFileSample(
+          ctx.toRootPath(file.path),
+          SAMPLE_BYTE_LIMIT,
+        );
+        return getUnsupportedReason(file.path, sample);
+      }
+
+      if (section === "staged") {
+        return (await isBinaryDiff(file.path, section, undefined, undefined, ctx.cwd))
+          ? BINARY_UNSUPPORTED_REASON
+          : null;
+      }
+
+      if (section === "changes") {
+        return (await isBinaryDiff(file.path, section, undefined, undefined, ctx.cwd))
+          ? BINARY_UNSUPPORTED_REASON
+          : null;
+      }
+
+      if (section === "compare" && compareBaseRef) {
+        if (compareMode === "base-branch") {
+          const baseRef = await getMergeBase(compareBaseRef, ctx.cwd);
+          return (await isBinaryDiff(
+            file.path,
+            section,
+            baseRef,
+            compareTargetRef ?? undefined,
+            ctx.cwd,
+          ))
+            ? BINARY_UNSUPPORTED_REASON
+            : null;
+        }
+
+        return (await isBinaryDiff(
+          file.path,
+          section,
+          compareBaseRef,
+          compareTargetRef ?? undefined,
+          ctx.cwd,
+        ))
+          ? BINARY_UNSUPPORTED_REASON
+          : null;
+      }
+
+      return null;
+    },
     loadDiffSource: async (file, section, compareBaseRef, compareTargetRef, compareMode) => {
       if (section === "compare" && compareBaseRef) {
         if (compareMode === "base-branch") {

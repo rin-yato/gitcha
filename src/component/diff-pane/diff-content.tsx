@@ -20,6 +20,7 @@ export const DiffContent = memo(function DiffContent(props: DiffContentProps) {
 
   return (
     <changes
+      width="100%"
       id={props.fileKey}
       syncScroll={true}
       ref={diffRenderableRef}

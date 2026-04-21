@@ -3,6 +3,37 @@ import { execFile, spawn } from "node:child_process";
 
 const EMPTY_TREE_REF = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 
+export async function isBinaryDiff(
+  filePath: string,
+  section: "staged" | "changes" | "compare",
+  baseRef?: string,
+  targetRef?: string,
+  cwd?: string,
+): Promise<boolean> {
+  try {
+    const diffCmd =
+      section === "staged"
+        ? ["diff", "--numstat", "--cached", "--", filePath]
+        : section === "changes"
+          ? ["diff", "--numstat", "--", filePath]
+          : baseRef && targetRef
+            ? ["diff", "--numstat", `${baseRef}...${targetRef}`, "--", filePath]
+            : baseRef
+              ? ["diff", "--numstat", `${baseRef}...HEAD`, "--", filePath]
+              : null;
+
+    if (!diffCmd) return false;
+
+    const output = await execGit(diffCmd, { cwd });
+    const line = output.split(/\r?\n/).find((entry) => entry.length > 0);
+    if (!line) return false;
+    const parts = line.split("\t");
+    return parts[0] === "-" && parts[1] === "-";
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Execute a git command and return the output
  */
