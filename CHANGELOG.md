@@ -1,5 +1,20 @@
 
 
+## [0.1.3](https://github.com/rin-yato/differ/compare/v0.1.1...v0.1.3) (2026-04-21)
+
+
+### Bug Fixes
+
+* make base commit comparison work ([1296dba](https://github.com/rin-yato/differ/commit/1296dba7e5782b7c37cdd6a450c384cb37cb1ada))
+* more ci fixes :( ([d7ab26e](https://github.com/rin-yato/differ/commit/d7ab26ec91913e6132fc93d41e419c5e44ef58ad))
+* second identity crisis ([f903cac](https://github.com/rin-yato/differ/commit/f903caca8af7e713f973490c84d8d4f2b554f267))
+* try to make build works ([d75cab8](https://github.com/rin-yato/differ/commit/d75cab8243bafb675e19fc957f8479b32c65e169))
+
+
+### Features
+
+* add binary file handling ([e1af6ad](https://github.com/rin-yato/differ/commit/e1af6ad1b60051406146273b15fb59451253184c))
+
 ## [0.1.2](https://github.com/rin-yato/differ/compare/v0.1.1...v0.1.2) (2026-04-19)
 
 
