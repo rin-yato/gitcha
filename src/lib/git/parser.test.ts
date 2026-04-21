@@ -121,15 +121,14 @@ describe("buildFileTree", () => {
   test("preserves originalPath in generated rename diffs", () => {
     const diff = generateDiff(
       {
-        baseContent: "old\n",
-        currentContent: "new\n",
+        patch: "@@ -1 +1 @@\n-old\n+new\n",
         originalPath: "src/old-name.ts",
       },
       "src/new-name.ts",
     );
 
-    expect(diff).toContain("--- src/old-name.ts");
-    expect(diff).toContain("+++ src/new-name.ts");
+    expect(diff).toContain("--- a/src/old-name.ts");
+    expect(diff).toContain("+++ b/src/new-name.ts");
   });
 
   test("duplicate paths only store first fileInfo (last one wins for path traversal)", () => {

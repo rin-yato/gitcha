@@ -1,20 +1,28 @@
 import type React from "react";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import type {
   CompareMode,
+  CompareResolution,
   CompareState,
   CompareTarget,
-  FileDiffSource,
   FileTreeSnapshot,
   GitRepoStatus,
   GitStatusFile,
   RepoContext,
 } from "@/lib/git";
 import {
-  BINARY_UNSUPPORTED_REASON,
   buildFileTreeSnapshot,
   commitChanges as commitGitChanges,
+  createRepoMonitor,
   detectRepoContext,
   discardChanges as discardGitChanges,
   getBranchDiffFiles,
@@ -22,24 +30,25 @@ import {
   getCommitParent,
   getCompareBranches,
   getCompareTarget,
-  getFileVersion,
   getLocalBranches,
   getMergeBase,
   getRecentCommitSummaries,
   getRepoStatus,
+  getRevisionDiffFiles,
   getUnsupportedReason,
   isBinaryDiff,
-  loadChangesDiffSource,
-  loadCompareDiffSource,
-  loadStagedDiffSource,
+  loadFileDiffSource,
   pullChanges as pullGitChanges,
   pushChanges as pushGitChanges,
+  resolveCompareTarget,
   SAMPLE_BYTE_LIMIT,
   searchCompareBranches,
   searchCompareCommits,
   stageFile as stageGitFile,
   unstageFile as unstageGitFile,
 } from "@/lib/git";
+
+import { dequal } from "dequal";
 
 export type ReviewSession = {
   status: GitRepoStatus | null;
@@ -85,8 +94,13 @@ export type GitClient = {
   searchCompareCommits: (
     query: string,
   ) => Promise<Array<{ ref: string; shortRef: string; message: string; origin: string }>>;
-  getFileVersion: (ref: string, path: string) => Promise<string | null>;
-  getMergeBase: (baseRef: string) => Promise<string>;
+  getDiffPatch: (
+    file: GitStatusFile,
+    section: "staged" | "changes" | "compare",
+    compareBaseRef?: string,
+    compareTargetRef?: string | null,
+    compareMode?: CompareMode,
+  ) => Promise<string | null>;
   getDiffUnsupportedReason: (
     file: GitStatusFile,
     section: "staged" | "changes" | "compare",
@@ -94,13 +108,7 @@ export type GitClient = {
     compareTargetRef?: string | null,
     compareMode?: CompareMode,
   ) => Promise<string | null>;
-  loadDiffSource: (
-    file: GitStatusFile,
-    section: "staged" | "changes" | "compare",
-    compareBaseRef?: string,
-    compareTargetRef?: string | null,
-    compareMode?: CompareMode,
-  ) => Promise<FileDiffSource>;
+  getMergeBase: (baseRef: string) => Promise<string>;
   stageFile: (filePath: string) => Promise<void>;
   unstageFile: (filePath: string) => Promise<void>;
   discardChanges: (filePath: string) => Promise<void>;
@@ -109,7 +117,113 @@ export type GitClient = {
   pullChanges: () => Promise<void>;
 };
 
-export function createGitClient(ctx: RepoContext): GitClient {
+type DiffCacheKey = string;
+
+type DiffRecord = {
+  patch?: string | null;
+  unsupportedReason?: string | null;
+};
+
+function fileTreeSignature(files: GitStatusFile[]): string {
+  return files
+    .map(
+      (file) =>
+        `${file.indexStatus}${file.workingTreeStatus}:${file.path}:${file.originalPath ?? ""}`,
+    )
+    .join("|");
+}
+
+function compareStateFromResolution(
+  target: CompareTarget,
+  resolution: CompareResolution,
+  files: GitStatusFile[],
+): CompareState {
+  return {
+    mode: target.mode,
+    baseRef: resolution.baseRef,
+    compareRef: resolution.compareRef,
+    targetRef: resolution.targetRef,
+    baseLabel: resolution.baseLabel,
+    files,
+  };
+}
+
+function buildDiffCacheKey(args: {
+  file: GitStatusFile;
+  section: "staged" | "changes" | "compare";
+  compareBaseRef?: string;
+  compareTargetRef?: string | null;
+  compareMode?: CompareMode;
+}): DiffCacheKey {
+  const { file, section, compareBaseRef, compareTargetRef, compareMode } = args;
+  return [
+    section,
+    compareMode ?? "",
+    compareBaseRef ?? "",
+    compareTargetRef ?? "",
+    file.path,
+    file.originalPath ?? "",
+    file.indexStatus,
+    file.workingTreeStatus,
+  ].join("::");
+}
+
+function createGitClient(ctx: RepoContext): GitClient {
+  const diffCache = new Map<DiffCacheKey, DiffRecord>();
+
+  const getDiffUnsupportedReason = async (
+    file: GitStatusFile,
+    section: "staged" | "changes" | "compare",
+    compareBaseRef?: string,
+    compareTargetRef?: string | null,
+    compareMode?: CompareMode,
+  ) => {
+    const cacheKey = buildDiffCacheKey({
+      file,
+      section,
+      compareBaseRef,
+      compareTargetRef,
+      compareMode,
+    });
+
+    const cached = diffCache.get(cacheKey);
+    if (cached) return cached.unsupportedReason ?? null;
+
+    const unsupportedReason = getUnsupportedReason(file.path, null);
+    if (unsupportedReason) {
+      diffCache.set(cacheKey, { unsupportedReason });
+      return unsupportedReason;
+    }
+
+    if (file.indexStatus === "?" || file.workingTreeStatus === "?") {
+      const sample = await ctx.backend.readFileSample(
+        ctx.toRootPath(file.path),
+        SAMPLE_BYTE_LIMIT,
+      );
+      const reason = getUnsupportedReason(file.path, sample);
+      diffCache.set(cacheKey, { unsupportedReason: reason });
+      return reason;
+    }
+
+    const reason =
+      section === "compare" && compareBaseRef
+        ? (await isBinaryDiff(
+            file.path,
+            section,
+            compareBaseRef,
+            compareTargetRef ?? undefined,
+            ctx.cwd,
+          ))
+          ? "Binary file - cannot display diff"
+          : null
+        : (await isBinaryDiff(file.path, section, undefined, undefined, ctx.cwd))
+          ? "Binary file - cannot display diff"
+          : null;
+
+    diffCache.set(cacheKey, { unsupportedReason: reason });
+    return reason;
+  };
+
   return {
     ctx,
     getRepoStatus: (options) => getRepoStatus(ctx.cwd, options),
@@ -122,78 +236,41 @@ export function createGitClient(ctx: RepoContext): GitClient {
     getRecentCommitSummaries: (limit = 12) => getRecentCommitSummaries(limit, ctx.cwd),
     searchCompareBranches: (query: string) => searchCompareBranches(query, ctx.cwd),
     searchCompareCommits: (query: string) => searchCompareCommits(query, 1000, ctx.cwd),
-    getFileVersion: (ref: string, path: string) => getFileVersion(ref, path, ctx.cwd),
     getMergeBase: (baseRef: string) => getMergeBase(baseRef, ctx.cwd),
-    getDiffUnsupportedReason: async (
-      file,
-      section,
-      compareBaseRef,
-      compareTargetRef,
-      compareMode,
-    ) => {
-      const unsupportedReason = getUnsupportedReason(file.path, null);
-      if (unsupportedReason) return unsupportedReason;
+    getDiffUnsupportedReason,
+    getDiffPatch: async (file, section, compareBaseRef, compareTargetRef, compareMode) => {
+      const cacheKey = buildDiffCacheKey({
+        file,
+        section,
+        compareBaseRef,
+        compareTargetRef,
+        compareMode,
+      });
 
-      if (file.indexStatus === "?" || file.workingTreeStatus === "?") {
-        const sample = await ctx.backend.readFileSample(
-          ctx.toRootPath(file.path),
-          SAMPLE_BYTE_LIMIT,
-        );
-        return getUnsupportedReason(file.path, sample);
-      }
+      const cached = diffCache.get(cacheKey);
+      if (cached?.patch !== undefined) return cached.patch;
 
-      if (section === "staged") {
-        return (await isBinaryDiff(file.path, section, undefined, undefined, ctx.cwd))
-          ? BINARY_UNSUPPORTED_REASON
-          : null;
-      }
+      const reason = await getDiffUnsupportedReason(
+        file,
+        section,
+        compareBaseRef,
+        compareTargetRef,
+        compareMode,
+      );
+      if (reason) return null;
 
-      if (section === "changes") {
-        return (await isBinaryDiff(file.path, section, undefined, undefined, ctx.cwd))
-          ? BINARY_UNSUPPORTED_REASON
-          : null;
-      }
+      const source = await loadFileDiffSource({
+        ctx,
+        file,
+        section,
+        compareBaseRef,
+        compareTargetRef,
+        compareMode,
+      });
 
-      if (section === "compare" && compareBaseRef) {
-        if (compareMode === "base-branch") {
-          const baseRef = await getMergeBase(compareBaseRef, ctx.cwd);
-          return (await isBinaryDiff(
-            file.path,
-            section,
-            baseRef,
-            compareTargetRef ?? undefined,
-            ctx.cwd,
-          ))
-            ? BINARY_UNSUPPORTED_REASON
-            : null;
-        }
-
-        return (await isBinaryDiff(
-          file.path,
-          section,
-          compareBaseRef,
-          compareTargetRef ?? undefined,
-          ctx.cwd,
-        ))
-          ? BINARY_UNSUPPORTED_REASON
-          : null;
-      }
-
-      return null;
-    },
-    loadDiffSource: async (file, section, compareBaseRef, compareTargetRef, compareMode) => {
-      if (section === "compare" && compareBaseRef) {
-        if (compareMode === "base-branch") {
-          const baseRef = await getMergeBase(compareBaseRef, ctx.cwd);
-          return loadCompareDiffSource(ctx, file, baseRef, compareTargetRef);
-        }
-
-        return loadCompareDiffSource(ctx, file, compareBaseRef, compareTargetRef);
-      }
-      if (section === "staged") {
-        return loadStagedDiffSource(ctx, file);
-      }
-      return loadChangesDiffSource(ctx, file);
+      const patch = source.patch || null;
+      diffCache.set(cacheKey, { patch, unsupportedReason: null });
+      return patch;
     },
     stageFile: (filePath: string) => stageGitFile(filePath, ctx.cwd),
     unstageFile: (filePath: string) => unstageGitFile(filePath, ctx.cwd),
@@ -204,24 +281,32 @@ export function createGitClient(ctx: RepoContext): GitClient {
   };
 }
 
+async function resolveCompareFiles(
+  client: GitClient,
+  target: CompareTarget,
+): Promise<{ resolution: CompareResolution; files: GitStatusFile[] }> {
+  const resolution = await resolveCompareTarget(target, client.ctx.cwd);
+
+  const files =
+    target.mode === "single-commit"
+      ? await client.getCommitDiffFiles(target.ref)
+      : target.mode === "base-commit"
+        ? await getRevisionDiffFiles(resolution.baseRef, resolution.compareRef, client.ctx.cwd)
+        : await getBranchDiffFiles(target.ref, client.ctx.cwd);
+
+  return { resolution, files };
+}
+
 export async function bootstrapReviewSession(repoCwd?: string): Promise<ReviewBootstrap> {
   const ctx = await detectRepoContext(repoCwd);
   if (!ctx) {
-    return {
-      client: null,
-      status: null,
-      error: "Not a git repository",
-    };
+    return { client: null, status: null, error: "Not a git repository" };
   }
 
   const client = createGitClient(ctx);
   const status = await client.getRepoStatus({ includeUntracked: false }).catch(() => null);
 
-  return {
-    client,
-    status,
-    error: status ? null : "Failed to load git status",
-  };
+  return { client, status, error: status ? null : "Failed to load git status" };
 }
 
 export function visibleFiles(status: GitRepoStatus | null): GitStatusFile[] {
@@ -266,18 +351,23 @@ export function ReviewProvider({
   const [status, setStatus] = useState<GitRepoStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [compareState, setCompareState] = useState<CompareState | null>(null);
+  const [fileTrees, setFileTrees] = useState<{
+    staged: FileTreeSnapshot;
+    changes: FileTreeSnapshot;
+    compare: FileTreeSnapshot;
+  }>({
+    staged: buildFileTreeSnapshot([]),
+    changes: buildFileTreeSnapshot([]),
+    compare: buildFileTreeSnapshot([]),
+  });
 
-  const fileTrees = useMemo(
-    () => ({
-      staged: buildFileTreeSnapshot(status?.files.staged ?? []),
-      changes: buildFileTreeSnapshot([
-        ...(status?.files.changes ?? []),
-        ...(status?.files.untracked ?? []),
-      ]),
-      compare: buildFileTreeSnapshot(compareState?.files ?? []),
-    }),
-    [compareState, status],
-  );
+  const latestStatusRef = useRef<GitRepoStatus | null>(null);
+  const latestCompareRef = useRef<CompareState | null>(null);
+  const compareResolutionRef = useRef<CompareResolution | null>(null);
+  const statusRevision = useRef(0);
+  const compareRevision = useRef(0);
+  const monitorRef = useRef<{ dispose: () => Promise<void> } | null>(null);
+  const fileTreeSignatureRef = useRef({ staged: "", changes: "", compare: "" });
 
   useEffect(() => {
     if (bootstrap) {
@@ -288,6 +378,7 @@ export function ReviewProvider({
         setClient(nextBootstrap.client);
         setStatus(nextBootstrap.status);
         setError(nextBootstrap.error);
+        latestStatusRef.current = nextBootstrap.status;
       });
 
       return () => {
@@ -299,60 +390,66 @@ export function ReviewProvider({
       setClient(nextBootstrap.client);
       setStatus(nextBootstrap.status);
       setError(nextBootstrap.error);
+      latestStatusRef.current = nextBootstrap.status;
     });
   }, [bootstrap, repoCwd]);
 
   const refreshStatus = useCallback(() => {
     if (!client) return;
+
     client
       .getRepoStatus()
-      .then(setStatus)
+      .then((nextStatus) => {
+        const normalized = nextStatus
+          ? { ...nextStatus, files: { ...nextStatus.files } }
+          : nextStatus;
+        if (dequal(latestStatusRef.current, normalized)) return;
+        latestStatusRef.current = normalized;
+        setStatus(normalized);
+      })
       .catch(() => setStatus(null));
   }, [client]);
 
+  useEffect(() => {
+    if (!client) return;
+    refreshStatus();
+  }, [client, refreshStatus, statusRevision.current]);
+
   const refreshCompare = useCallback(() => {
     if (!client || !compareState) return;
-    const loader =
-      compareState.mode === "single-commit" && compareState.targetRef
-        ? client.getCommitDiffFiles(compareState.targetRef)
-        : client.getBranchDiffFiles(compareState.baseRef);
 
-    loader
-      .then((files) => {
-        setCompareState((s) => (s ? { ...s, files } : s));
-      })
-      .catch(() => {});
+    void (async () => {
+      try {
+        const nextFiles =
+          compareState.mode === "single-commit" && compareState.targetRef
+            ? await client.getCommitDiffFiles(compareState.targetRef)
+            : compareState.mode === "base-commit"
+              ? await getRevisionDiffFiles(
+                  compareState.baseRef,
+                  compareState.compareRef,
+                  client.ctx.cwd,
+                )
+              : await getBranchDiffFiles(compareState.compareRef, client.ctx.cwd);
+
+        const nextState = { ...compareState, files: nextFiles };
+        if (dequal(latestCompareRef.current, nextState)) return;
+        latestCompareRef.current = nextState;
+        setCompareState(nextState);
+      } catch {
+        // ignore transient refresh failures
+      }
+    })();
   }, [client, compareState]);
 
   const startCompare = useCallback(
     async (target: CompareTarget): Promise<CompareState | null> => {
       if (!client) return null;
-      try {
-        if (target.mode === "single-commit") {
-          const parentRef = (await client.getCommitParent(target.ref)) ?? target.ref;
-          const files = await client.getCommitDiffFiles(target.ref);
-          const nextState = {
-            mode: target.mode,
-            baseRef: parentRef,
-            targetRef: target.ref,
-            baseLabel: target.label,
-            files,
-          };
-          setCompareState(nextState);
-          return nextState;
-        }
 
-        const files =
-          target.mode === "base-commit"
-            ? await client.getCommitDiffFiles(target.ref)
-            : await client.getBranchDiffFiles(target.ref);
-        const nextState = {
-          mode: target.mode,
-          baseRef: target.ref,
-          targetRef: null,
-          baseLabel: target.label,
-          files,
-        };
+      try {
+        const { resolution, files } = await resolveCompareFiles(client, target);
+        const nextState = compareStateFromResolution(target, resolution, files);
+        latestCompareRef.current = nextState;
+        compareResolutionRef.current = resolution;
         setCompareState(nextState);
         return nextState;
       } catch {
@@ -362,29 +459,87 @@ export function ReviewProvider({
     [client],
   );
 
-  const stopCompare = useCallback(() => setCompareState(null), []);
+  const stopCompare = useCallback(() => {
+    latestCompareRef.current = null;
+    compareResolutionRef.current = null;
+    setCompareState(null);
+  }, []);
 
   const runGitAction = useCallback(
     (action: () => Promise<void>) => {
       if (!client) return;
       action()
-        .then(refreshStatus)
+        .then(() => {
+          statusRevision.current += 1;
+          compareRevision.current += 1;
+          refreshStatus();
+          refreshCompare();
+        })
         .catch(() => {});
     },
-    [client, refreshStatus],
+    [client, refreshCompare, refreshStatus],
   );
 
   useEffect(() => {
-    if (!client) return;
+    if (!client || monitorRef.current) return;
 
-    const statusTimer = setInterval(() => {
-      void refreshStatus();
-    }, 5000);
+    let cancelled = false;
+
+    void createRepoMonitor(client.ctx, () => {
+      if (cancelled) return;
+      statusRevision.current += 1;
+      compareRevision.current += 1;
+      refreshStatus();
+      refreshCompare();
+    }).then((monitor) => {
+      if (cancelled) {
+        void monitor.dispose();
+        return;
+      }
+
+      monitorRef.current = monitor;
+    });
 
     return () => {
-      clearInterval(statusTimer);
+      cancelled = true;
+      const monitor = monitorRef.current;
+      monitorRef.current = null;
+      void monitor?.dispose();
     };
-  }, [client, refreshStatus]);
+  }, [client, refreshCompare, refreshStatus]);
+
+  useEffect(() => {
+    const nextStatus = status ?? null;
+    const nextCompare = compareState?.files ?? [];
+
+    const nextSignatures = {
+      staged: fileTreeSignature(nextStatus?.files.staged ?? []),
+      changes: fileTreeSignature([
+        ...(nextStatus?.files.changes ?? []),
+        ...(nextStatus?.files.untracked ?? []),
+      ]),
+      compare: fileTreeSignature(nextCompare),
+    };
+
+    if (
+      nextSignatures.staged === fileTreeSignatureRef.current.staged &&
+      nextSignatures.changes === fileTreeSignatureRef.current.changes &&
+      nextSignatures.compare === fileTreeSignatureRef.current.compare
+    ) {
+      return;
+    }
+
+    fileTreeSignatureRef.current = nextSignatures;
+
+    setFileTrees({
+      staged: buildFileTreeSnapshot(nextStatus?.files.staged ?? []),
+      changes: buildFileTreeSnapshot([
+        ...(nextStatus?.files.changes ?? []),
+        ...(nextStatus?.files.untracked ?? []),
+      ]),
+      compare: buildFileTreeSnapshot(nextCompare),
+    });
+  }, [compareState?.files, status]);
 
   const value = useMemo<ReviewSession | null>(
     () =>
@@ -409,15 +564,15 @@ export function ReviewProvider({
         : null,
     [
       client,
-      status,
-      error,
       compareState,
+      error,
       fileTrees,
+      refreshCompare,
       refreshStatus,
       runGitAction,
       startCompare,
+      status,
       stopCompare,
-      refreshCompare,
     ],
   );
 
@@ -436,8 +591,6 @@ export function ReviewProvider({
 
 export function useReviewSession() {
   const context = useContext(ReviewSessionContext);
-  if (!context) {
-    throw new Error("useReviewSession must be used within a ReviewProvider");
-  }
+  if (!context) throw new Error("useReviewSession must be used within a ReviewProvider");
   return context;
 }

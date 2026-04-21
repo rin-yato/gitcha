@@ -1,58 +1,82 @@
-import { getFileVersion } from "./commands";
+import { getFilePatch } from "./commands";
 import type { RepoContext } from "./repo";
-import type { FileDiffSource, GitStatusFile } from "./types";
+import type { CompareMode, FileDiffSource, GitStatusFile } from "./types";
 
-export async function readWorkingFile(
-  ctx: RepoContext,
-  filePath: string,
-): Promise<string | null> {
-  return ctx.backend.readFile(ctx.toRootPath(filePath));
+type DiffFileStrategy = {
+  getPatch: () => Promise<string | null>;
+};
+
+class StagedFileStrategy implements DiffFileStrategy {
+  constructor(
+    private readonly ctx: RepoContext,
+    private readonly file: GitStatusFile,
+  ) {}
+
+  getPatch(): Promise<string | null> {
+    return getFilePatch(this.file.path, {
+      cwd: this.ctx.cwd,
+      staged: true,
+      isNewFile: this.file.indexStatus === "?" || this.file.workingTreeStatus === "?",
+    });
+  }
 }
 
-export async function fileExists(ctx: RepoContext, filePath: string): Promise<boolean> {
-  return ctx.backend.exists(ctx.toRootPath(filePath));
+class WorkingTreeFileStrategy implements DiffFileStrategy {
+  constructor(
+    private readonly ctx: RepoContext,
+    private readonly file: GitStatusFile,
+  ) {}
+
+  getPatch(): Promise<string | null> {
+    return getFilePatch(this.file.path, {
+      cwd: this.ctx.cwd,
+      isNewFile: this.file.indexStatus === "?" || this.file.workingTreeStatus === "?",
+    });
+  }
 }
 
-export async function loadStagedDiffSource(
-  ctx: RepoContext,
-  file: GitStatusFile,
-): Promise<FileDiffSource> {
-  const basePath = file.originalPath ?? file.path;
-  const [baseContent, indexContent] = await Promise.all([
-    getFileVersion("HEAD", basePath, ctx.cwd),
-    getFileVersion(":0", file.path, ctx.cwd),
-  ]);
-  return { baseContent, currentContent: indexContent, originalPath: file.originalPath };
+class CompareFileStrategy implements DiffFileStrategy {
+  constructor(
+    private readonly ctx: RepoContext,
+    private readonly file: GitStatusFile,
+    private readonly compareBaseRef: string,
+    private readonly compareTargetRef?: string | null,
+    private readonly compareMode?: CompareMode,
+  ) {}
+
+  getPatch(): Promise<string | null> {
+    return getFilePatch(this.file.path, {
+      cwd: this.ctx.cwd,
+      fromRef: this.compareBaseRef,
+      toRef: this.compareTargetRef ?? undefined,
+      isNewFile:
+        this.compareMode === "single-commit" &&
+        (this.file.indexStatus === "?" || this.file.workingTreeStatus === "?"),
+    });
+  }
 }
 
-export async function loadChangesDiffSource(
-  ctx: RepoContext,
-  file: GitStatusFile,
-): Promise<FileDiffSource> {
-  const basePath = file.originalPath ?? file.path;
-  const [indexContent, workingContent] = await Promise.all([
-    getFileVersion(":0", basePath, ctx.cwd),
-    readWorkingFile(ctx, file.path),
-  ]);
+export async function loadFileDiffSource(args: {
+  ctx: RepoContext;
+  file: GitStatusFile;
+  section: "staged" | "changes" | "compare";
+  compareBaseRef?: string;
+  compareTargetRef?: string | null;
+  compareMode?: CompareMode;
+}): Promise<FileDiffSource> {
+  const { ctx, file, section, compareBaseRef, compareTargetRef, compareMode } = args;
+
+  const strategy =
+    section === "staged"
+      ? new StagedFileStrategy(ctx, file)
+      : section === "compare" && compareBaseRef
+        ? new CompareFileStrategy(ctx, file, compareBaseRef, compareTargetRef, compareMode)
+        : new WorkingTreeFileStrategy(ctx, file);
+
+  const patch = await strategy.getPatch();
+
   return {
-    baseContent: indexContent,
-    currentContent: workingContent,
+    patch: patch ?? "",
     originalPath: file.originalPath,
   };
-}
-
-export async function loadCompareDiffSource(
-  ctx: RepoContext,
-  file: GitStatusFile,
-  baseRef: string,
-  currentRef?: string | null,
-): Promise<FileDiffSource> {
-  const basePath = file.originalPath ?? file.path;
-  const [baseContent, currentContent] = await Promise.all([
-    getFileVersion(baseRef, basePath, ctx.cwd),
-    currentRef
-      ? getFileVersion(currentRef, file.path, ctx.cwd)
-      : readWorkingFile(ctx, file.path),
-  ]);
-  return { baseContent, currentContent, originalPath: file.originalPath };
 }

@@ -1,22 +1,17 @@
-import { createTwoFilesPatch } from "diff";
-
 import type { FileDiffSource } from "./types";
 
-/**
- * Generate a unified diff string from raw file versions.
- *
- * Uses context: Infinity so every line from both files is included,
- * allowing the <diff> component to render the complete file with
- * changes highlighted — like VSCode's full-file diff view.
- */
-export function generateDiff(source: FileDiffSource, filePath: string): string {
-  const base = source.baseContent ?? "";
-  const current = source.currentContent ?? "";
-  const oldPath = source.originalPath ?? filePath;
+const BINARY_PATCH_MARKERS = ["Binary files ", "GIT binary patch"] as const;
 
-  return createTwoFilesPatch(oldPath, filePath, base, current, undefined, undefined, {
-    context: Infinity,
-  });
+export function isBinaryPatch(diff: string): boolean {
+  return BINARY_PATCH_MARKERS.some((marker) => diff.includes(marker));
+}
+
+export function generateDiff(source: FileDiffSource, filePath: string): string {
+  const header = source.originalPath
+    ? `diff --git a/${source.originalPath} b/${filePath}\n--- a/${source.originalPath}\n+++ b/${filePath}`
+    : `diff --git a/${filePath} b/${filePath}\n--- a/${filePath}\n+++ b/${filePath}`;
+
+  return source.patch ? `${header}\n${source.patch}` : `${header}\n`;
 }
 
 export interface ChangePosition {
@@ -51,56 +46,128 @@ function parseHunkHeader(line: string): {
 }
 
 export function parseDiffPositions(diff: string): DiffChangeMap {
-  const changes: ChangePosition[] = [];
   const lines = diff.split("\n");
 
-  let currentOldLine = 0;
-  let currentNewLine = 0;
-  let unifiedLine = 0;
-  let totalLinesInNewFile = 0;
-  let totalLinesInOldFile = 0;
-  let totalUnifiedLines = 0;
+  type DiffParseState = {
+    changes: ChangePosition[];
+    currentOldLine: number;
+    currentNewLine: number;
+    unifiedLine: number;
+    totalLinesInNewFile: number;
+    totalLinesInOldFile: number;
+    totalUnifiedLines: number;
+    inHunk: boolean;
+  };
 
-  for (const line of lines) {
+  const initialState: DiffParseState = {
+    changes: [],
+    currentOldLine: 0,
+    currentNewLine: 0,
+    unifiedLine: 0,
+    totalLinesInNewFile: 0,
+    totalLinesInOldFile: 0,
+    totalUnifiedLines: 0,
+    inHunk: false,
+  };
+
+  const finalState = lines.reduce<DiffParseState>((state, line) => {
     if (line.startsWith("@@")) {
       const header = parseHunkHeader(line);
-      if (header) {
-        currentOldLine = header.oldStart - 1;
-        currentNewLine = header.newStart - 1;
-      }
-    } else if (line.startsWith("+") && !line.startsWith("+++")) {
-      unifiedLine++;
-      changes.push({
-        lineInNewFile: currentNewLine,
-        lineInOldFile: currentOldLine,
-        unifiedLine,
-        type: "addition",
-      });
-      currentNewLine++;
-      totalLinesInNewFile = Math.max(totalLinesInNewFile, currentNewLine);
-      totalUnifiedLines = Math.max(totalUnifiedLines, unifiedLine);
-    } else if (line.startsWith("-") && !line.startsWith("---")) {
-      unifiedLine++;
-      changes.push({
-        lineInNewFile: currentNewLine,
-        lineInOldFile: currentOldLine,
-        unifiedLine,
-        type: "deletion",
-      });
-      currentOldLine++;
-      totalLinesInOldFile = Math.max(totalLinesInOldFile, currentOldLine);
-      totalUnifiedLines = Math.max(totalUnifiedLines, unifiedLine);
-    } else if (!line.startsWith("\\")) {
-      unifiedLine++;
-      currentOldLine++;
-      currentNewLine++;
-      totalLinesInNewFile = Math.max(totalLinesInNewFile, currentNewLine);
-      totalLinesInOldFile = Math.max(totalLinesInOldFile, currentOldLine);
-      totalUnifiedLines = Math.max(totalUnifiedLines, unifiedLine);
-    }
-  }
+      if (!header) return state;
 
-  return { changes, totalLinesInNewFile, totalLinesInOldFile, totalUnifiedLines };
+      return {
+        ...state,
+        currentOldLine: header.oldStart - 1,
+        currentNewLine: header.newStart - 1,
+        inHunk: true,
+      };
+    }
+
+    if (!state.inHunk) return state;
+
+    if (
+      line.startsWith("diff --git ") ||
+      line.startsWith("index ") ||
+      line.startsWith("new file mode ") ||
+      line.startsWith("deleted file mode ") ||
+      line.startsWith("similarity index ") ||
+      line.startsWith("rename from ") ||
+      line.startsWith("rename to ") ||
+      line.startsWith("Binary files ") ||
+      line.startsWith("GIT binary patch")
+    ) {
+      return state;
+    }
+
+    if (line.startsWith("+") && !line.startsWith("+++")) {
+      const nextUnifiedLine = state.unifiedLine + 1;
+      const nextCurrentNewLine = state.currentNewLine + 1;
+
+      return {
+        ...state,
+        changes: [
+          ...state.changes,
+          {
+            lineInNewFile: state.currentNewLine,
+            lineInOldFile: state.currentOldLine,
+            unifiedLine: nextUnifiedLine,
+            type: "addition",
+          },
+        ],
+        currentNewLine: nextCurrentNewLine,
+        unifiedLine: nextUnifiedLine,
+        totalLinesInNewFile: Math.max(state.totalLinesInNewFile, nextCurrentNewLine),
+        totalUnifiedLines: Math.max(state.totalUnifiedLines, nextUnifiedLine),
+      };
+    }
+
+    if (line.startsWith("-") && !line.startsWith("---")) {
+      const nextUnifiedLine = state.unifiedLine + 1;
+      const nextCurrentOldLine = state.currentOldLine + 1;
+
+      return {
+        ...state,
+        changes: [
+          ...state.changes,
+          {
+            lineInNewFile: state.currentNewLine,
+            lineInOldFile: state.currentOldLine,
+            unifiedLine: nextUnifiedLine,
+            type: "deletion",
+          },
+        ],
+        currentOldLine: nextCurrentOldLine,
+        unifiedLine: nextUnifiedLine,
+        totalLinesInOldFile: Math.max(state.totalLinesInOldFile, nextCurrentOldLine),
+        totalUnifiedLines: Math.max(state.totalUnifiedLines, nextUnifiedLine),
+      };
+    }
+
+    if (!line.startsWith("\\")) {
+      const nextUnifiedLine = state.unifiedLine + 1;
+      const nextCurrentOldLine = state.currentOldLine + 1;
+      const nextCurrentNewLine = state.currentNewLine + 1;
+
+      return {
+        ...state,
+        currentOldLine: nextCurrentOldLine,
+        currentNewLine: nextCurrentNewLine,
+        unifiedLine: nextUnifiedLine,
+        totalLinesInNewFile: Math.max(state.totalLinesInNewFile, nextCurrentNewLine),
+        totalLinesInOldFile: Math.max(state.totalLinesInOldFile, nextCurrentOldLine),
+        totalUnifiedLines: Math.max(state.totalUnifiedLines, nextUnifiedLine),
+      };
+    }
+
+    return state;
+  }, initialState);
+
+  return {
+    changes: finalState.changes,
+    totalLinesInNewFile: finalState.totalLinesInNewFile,
+    totalLinesInOldFile: finalState.totalLinesInOldFile,
+    totalUnifiedLines: finalState.totalUnifiedLines,
+  };
 }
 
 export interface ScrollbarMarker {

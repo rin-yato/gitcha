@@ -10,6 +10,7 @@ import {
   getCompareBranches,
   getCompareTarget,
   getCurrentBranch,
+  getFilePatch,
   getLocalBranches,
   getRootCommit,
 } from "./commands";
@@ -123,6 +124,25 @@ describe("default compare target", () => {
     await execGit(["mv", "old.txt", "new.txt"], { cwd: repo });
     await execGit(["commit", "-am", "rename file"], { cwd: repo });
     expect(await getBranchDiffFiles("master", repo)).toEqual([]);
+  });
+
+  test("returns patch text for an untracked file", async () => {
+    const repo = mkdtempSync(join(tmpdir(), "changes-untracked-"));
+    await execGit(["init", "-b", "master"], { cwd: repo });
+    await execGit(["config", "user.email", "test@example.com"], { cwd: repo });
+    await execGit(["config", "user.name", "Test User"], { cwd: repo });
+
+    writeFileSync(join(repo, "new.txt"), "hello\n");
+
+    const patch = await getFilePatch("new.txt", {
+      cwd: repo,
+      isNewFile: true,
+    });
+
+    expect(patch).not.toBeNull();
+    expect(patch).toContain("--- /dev/null");
+    expect(patch).toContain("+++ 2/new.txt");
+    expect(patch).toContain("+hello");
   });
 });
 

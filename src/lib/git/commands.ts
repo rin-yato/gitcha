@@ -1,485 +1,407 @@
-import type { CompareTarget, GitFileStatus, GitStatusFile } from "./types";
-import { execFile, spawn } from "node:child_process";
+import { gitExecutor } from "./executor";
+import { getRepoStatus } from "./parser";
+import type { CompareResolution, CompareTarget, GitFileStatus, GitStatusFile } from "./types";
 
 const EMPTY_TREE_REF = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+const FULL_DIFF_CONTEXT_LINES = 999_999;
 
-export async function isBinaryDiff(
-  filePath: string,
-  section: "staged" | "changes" | "compare",
-  baseRef?: string,
-  targetRef?: string,
-  cwd?: string,
-): Promise<boolean> {
-  try {
-    const diffCmd =
-      section === "staged"
-        ? ["diff", "--numstat", "--cached", "--", filePath]
-        : section === "changes"
-          ? ["diff", "--numstat", "--", filePath]
-          : baseRef && targetRef
-            ? ["diff", "--numstat", `${baseRef}...${targetRef}`, "--", filePath]
-            : baseRef
-              ? ["diff", "--numstat", `${baseRef}...HEAD`, "--", filePath]
-              : null;
+type DiffSourceStrategy = {
+  buildArgs: () => string[];
+};
 
-    if (!diffCmd) return false;
+class StagedDiffStrategy implements DiffSourceStrategy {
+  constructor(
+    private readonly filePath: string,
+    readonly _cwd?: string,
+    private readonly isNewFile = false,
+    private readonly contextLines = FULL_DIFF_CONTEXT_LINES,
+  ) {}
 
-    const output = await execGit(diffCmd, { cwd });
-    const line = output.split(/\r?\n/).find((entry) => entry.length > 0);
-    if (!line) return false;
-    const parts = line.split("\t");
-    return parts[0] === "-" && parts[1] === "-";
-  } catch {
-    return false;
+  buildArgs(): string[] {
+    if (this.isNewFile) {
+      return [
+        "diff",
+        "--no-ext-diff",
+        "--find-renames",
+        `--unified=${this.contextLines}`,
+        "--no-color",
+        "--no-index",
+        "/dev/null",
+        this.filePath,
+      ];
+    }
+
+    return [
+      "diff",
+      "--no-ext-diff",
+      "--find-renames",
+      `--unified=${this.contextLines}`,
+      "--no-color",
+      "--cached",
+      "--",
+      this.filePath,
+    ];
   }
 }
 
-/**
- * Execute a git command and return the output
- */
-export async function execGit(
-  args: string[],
-  options: { cwd?: string; encoding?: BufferEncoding } = {},
-): Promise<string> {
-  const { cwd = process.cwd(), encoding = "utf-8" } = options;
+class WorkingTreeDiffStrategy implements DiffSourceStrategy {
+  constructor(
+    private readonly filePath: string,
+    readonly _cwd?: string,
+    private readonly isNewFile = false,
+    private readonly contextLines = FULL_DIFF_CONTEXT_LINES,
+  ) {}
 
-  return new Promise((resolve, reject) => {
-    execFile("git", args, { cwd, encoding, maxBuffer: 10 * 1024 * 1024 }, (error, stdout) => {
-      if (error) {
-        const execError = error as Error & {
-          stderr?: string;
-          stdout?: string;
-          status?: number;
-        };
+  buildArgs(): string[] {
+    if (this.isNewFile) {
+      return [
+        "diff",
+        "--no-ext-diff",
+        "--find-renames",
+        `--unified=${this.contextLines}`,
+        "--no-color",
+        "--no-index",
+        "/dev/null",
+        this.filePath,
+      ];
+    }
 
-        if (execError.status === 1 && execError.stdout) {
-          resolve(execError.stdout);
-          return;
-        }
-
-        if (execError.status === 1 && !execError.stderr) {
-          resolve("");
-          return;
-        }
-        reject(new Error(`Git command failed: ${execError.message}`));
-        return;
-      }
-      resolve(stdout || "");
-    });
-  });
-}
-
-/**
- * Execute a git command with stdin input
- */
-export async function execGitWithInput(
-  args: string[],
-  input: string,
-  cwd?: string,
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const child = spawn("git", args, {
-      cwd: cwd ?? process.cwd(),
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-
-    let stdout = "";
-    let stderr = "";
-
-    child.stdout.on("data", (data: Buffer) => {
-      stdout += data.toString();
-    });
-    child.stderr.on("data", (data: Buffer) => {
-      stderr += data.toString();
-    });
-
-    child.on("close", (code) => {
-      if (code === 0) {
-        resolve(stdout || "");
-      } else if (code === 1 && stdout) {
-        resolve(stdout);
-      } else if (code === 1 && !stderr) {
-        resolve("");
-      } else {
-        reject(new Error(`Git command failed: ${stderr || `exit code ${code}`}`));
-      }
-    });
-
-    child.on("error", (err) => {
-      reject(new Error(`Git command failed: ${err.message}`));
-    });
-
-    child.stdin.write(input);
-    child.stdin.end();
-  });
-}
-
-/**
- * Check if current directory is a git repository
- */
-export async function isGitRepo(cwd?: string): Promise<boolean> {
-  try {
-    await execGit(["rev-parse", "--git-dir"], { cwd });
-    return true;
-  } catch {
-    return false;
+    return [
+      "diff",
+      "--no-ext-diff",
+      "--find-renames",
+      `--unified=${this.contextLines}`,
+      "--no-color",
+      "--",
+      this.filePath,
+    ];
   }
 }
 
-/**
- * Get the repository root path
- */
-export async function getRepoRoot(cwd?: string): Promise<string> {
-  return (await execGit(["rev-parse", "--show-toplevel"], { cwd })).trim();
-}
+class CompareDiffStrategy implements DiffSourceStrategy {
+  constructor(
+    private readonly filePath: string,
+    private readonly baseRef: string,
+    private readonly targetRef?: string | null,
+    private readonly contextLines = FULL_DIFF_CONTEXT_LINES,
+  ) {}
 
-/**
- * Stage a file
- */
-export async function stageFile(filePath: string, cwd?: string): Promise<void> {
-  await execGit(["add", "--", filePath], { cwd });
-}
+  buildArgs(): string[] {
+    const range = this.targetRef
+      ? `${this.baseRef}...${this.targetRef}`
+      : `${this.baseRef}...HEAD`;
 
-/**
- * Unstage a file
- */
-export async function unstageFile(filePath: string, cwd?: string): Promise<void> {
-  await execGit(["reset", "HEAD", "--", filePath], { cwd });
-}
-
-/**
- * Discard changes in a file (destructive!)
- */
-export async function discardChanges(filePath: string, cwd?: string): Promise<void> {
-  try {
-    await execGit(["checkout", "--", filePath], { cwd });
-  } catch {
-    await execGit(["clean", "-f", "--", filePath], { cwd });
+    return [
+      "diff",
+      "--no-ext-diff",
+      "--find-renames",
+      `--unified=${this.contextLines}`,
+      "--no-color",
+      range,
+      "--",
+      this.filePath,
+    ];
   }
 }
 
-/**
- * Commit staged changes with a message
- */
-export async function commitChanges(message: string, cwd?: string): Promise<void> {
-  await execGitWithInput(["commit", "--file", "-"], `${message.trim()}\n`, cwd);
-}
+class GitStatusStrategy {
+  constructor(private readonly cwd?: string) {}
 
-/**
- * Push current branch to its upstream
- */
-export async function pushChanges(cwd?: string): Promise<void> {
-  await execGit(["push"], { cwd });
-}
-
-/**
- * Pull latest changes from upstream
- */
-export async function pullChanges(cwd?: string): Promise<void> {
-  await execGit(["pull", "--ff-only"], { cwd });
-}
-
-/**
- * Get file content at a specific git ref.
- * Returns null if the file doesn't exist at that ref.
- */
-export async function getFileVersion(
-  ref: string,
-  filePath: string,
-  cwd?: string,
-): Promise<string | null> {
-  try {
-    const output = await execGit(["show", `${ref}:${filePath}`], { cwd });
-    return output;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Get merge-base between a base ref and HEAD.
- * Returns the merge-base ref, or falls back to baseRef if merge-base fails.
- */
-export async function getMergeBase(baseRef: string, cwd?: string): Promise<string> {
-  try {
-    const output = await execGit(["merge-base", baseRef, "HEAD"], { cwd });
-    return output.trim();
-  } catch {
-    return baseRef;
-  }
-}
-
-/**
- * Get the current branch name.
- */
-export async function getCurrentBranch(cwd?: string): Promise<string> {
-  return (await execGit(["rev-parse", "--abbrev-ref", "HEAD"], { cwd })).trim();
-}
-
-/**
- * Get the root commit for the current history.
- */
-export async function getRootCommit(cwd?: string): Promise<string | null> {
-  const output = (await execGit(["rev-list", "--max-parents=0", "HEAD"], { cwd })).trim();
-  return output ? (output.split(/\r?\n/)[0] ?? null) : null;
-}
-
-/**
- * Get the first parent of a commit, if one exists.
- */
-export async function getCommitParent(commitRef: string, cwd?: string): Promise<string | null> {
-  const output = (
-    await execGit(["rev-list", "--parents", "-n", "1", commitRef], { cwd })
-  ).trim();
-  const parts = output.split(/\r?\n/)[0]?.split(/\s+/) ?? [];
-  return parts[1] ?? null;
-}
-
-/**
- * Get the upstream branch for the current branch, if one is configured.
- */
-async function getCurrentBranchUpstream(cwd?: string): Promise<string | null> {
-  try {
+  async getCurrentBranch(): Promise<string> {
     return (
-      await execGit(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], { cwd })
+      await gitExecutor.run(["rev-parse", "--abbrev-ref", "HEAD"], { cwd: this.cwd })
     ).trim();
-  } catch {
-    return null;
+  }
+
+  async getRootCommit(): Promise<string | null> {
+    const output = (
+      await gitExecutor.run(["rev-list", "--max-parents=0", "HEAD"], { cwd: this.cwd })
+    ).trim();
+    return output ? (output.split(/\r?\n/)[0] ?? null) : null;
+  }
+
+  async getCommitParent(commitRef: string): Promise<string | null> {
+    const output = (
+      await gitExecutor.run(["rev-list", "--parents", "-n", "1", commitRef], { cwd: this.cwd })
+    ).trim();
+    return output.split(/\r?\n/)[0]?.split(/\s+/)[1] ?? null;
+  }
+
+  async getMergeBase(baseRef: string): Promise<string> {
+    try {
+      return (await gitExecutor.run(["merge-base", baseRef, "HEAD"], { cwd: this.cwd })).trim();
+    } catch {
+      return baseRef;
+    }
+  }
+
+  async getCurrentBranchUpstream(): Promise<string | null> {
+    try {
+      return (
+        await gitExecutor.run(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], {
+          cwd: this.cwd,
+        })
+      ).trim();
+    } catch {
+      return null;
+    }
+  }
+
+  getCwd(): string | undefined {
+    return this.cwd;
   }
 }
 
-/**
- * List local branch names.
- */
-export async function getLocalBranches(cwd?: string): Promise<string[]> {
-  const output = await execGit(["for-each-ref", "--format=%(refname:short)", "refs/heads/"], {
-    cwd,
-  });
-  return output.split(/\r?\n/).filter(Boolean).sort();
-}
+class GitDiffStrategy {
+  constructor(private readonly cwd?: string) {}
 
-/**
- * List branches that can be used as compare targets.
- */
-export async function getCompareBranches(cwd?: string): Promise<string[]> {
-  const output = await execGit(
-    ["for-each-ref", "--format=%(refname:short)", "refs/heads/", "refs/remotes/"],
-    { cwd },
-  );
+  async isBinaryDiff(
+    filePath: string,
+    section: "staged" | "changes" | "compare",
+    baseRef?: string,
+    targetRef?: string,
+  ): Promise<boolean> {
+    try {
+      const diffCmd =
+        section === "staged"
+          ? ["diff", "--numstat", "--cached", "--", filePath]
+          : section === "changes"
+            ? ["diff", "--numstat", "--", filePath]
+            : baseRef && targetRef
+              ? ["diff", "--numstat", `${baseRef}...${targetRef}`, "--", filePath]
+              : baseRef
+                ? ["diff", "--numstat", `${baseRef}...HEAD`, "--", filePath]
+                : null;
 
-  return [
-    ...new Set(
-      output
-        .split(/\r?\n/)
-        .filter(Boolean)
-        .filter((branch) => !branch.endsWith("/HEAD")),
-    ),
-  ].sort();
-}
+      if (!diffCmd) return false;
 
-/**
- * Search compare branches by query against all local and remote refs.
- */
-export async function searchCompareBranches(query: string, cwd?: string): Promise<string[]> {
-  const needle = query.trim().toLowerCase();
-  const branches = await getCompareBranches(cwd);
-  if (!needle) return branches;
+      const output = await gitExecutor.run(diffCmd, { cwd: this.cwd });
+      const line = output.split(/\r?\n/).find((entry) => entry.length > 0);
+      if (!line) return false;
+      const parts = line.split("\t");
+      return parts[0] === "-" && parts[1] === "-";
+    } catch {
+      return false;
+    }
+  }
 
-  return branches.filter((branch) => branch.toLowerCase().includes(needle));
-}
+  async getFilePatch(
+    filePath: string,
+    options: {
+      fromRef?: string;
+      toRef?: string | null;
+      staged?: boolean;
+      contextLines?: number;
+      isNewFile?: boolean;
+    } = {},
+  ): Promise<string | null> {
+    const {
+      fromRef,
+      toRef,
+      staged = false,
+      contextLines = FULL_DIFF_CONTEXT_LINES,
+      isNewFile = false,
+    } = options;
 
-/**
- * Get recent commit log lines.
- */
-export async function getRecentCommits(limit = 12, cwd?: string): Promise<string[]> {
-  const output = await execGit(["log", "--oneline", "--decorate", "-n", String(limit)], {
-    cwd,
-  });
-  return output.split(/\r?\n/).filter(Boolean);
-}
+    const strategy = staged
+      ? new StagedDiffStrategy(filePath, this.cwd, isNewFile, contextLines)
+      : fromRef
+        ? new CompareDiffStrategy(filePath, fromRef, toRef, contextLines)
+        : new WorkingTreeDiffStrategy(filePath, this.cwd, isNewFile, contextLines);
 
-/**
- * Get changed files between two refs.
- */
-export async function getDiffFiles(
-  baseRef: string,
-  targetRef: string,
-  cwd?: string,
-): Promise<GitStatusFile[]> {
-  const output = await execGit(["diff", "--name-status", baseRef, targetRef], { cwd });
+    return (
+      (await gitExecutor.run(strategy.buildArgs(), { cwd: this.cwd }).catch(() => null)) || null
+    );
+  }
 
-  if (!output) return [];
+  async getFileVersion(ref: string, filePath: string): Promise<string | null> {
+    try {
+      return await gitExecutor.run(["show", `${ref}:${filePath}`], { cwd: this.cwd });
+    } catch {
+      return null;
+    }
+  }
 
-  const files: GitStatusFile[] = [];
-  for (const line of output.split(/\r?\n/).filter(Boolean)) {
-    const parsed = parseDiffNameStatusLine(line);
-    if (!parsed) continue;
-
-    files.push({
-      path: parsed.path,
-      originalPath: parsed.originalPath,
-      indexStatus: " " as GitFileStatus,
-      workingTreeStatus: parsed.status as GitFileStatus,
+  async getDiffFiles(baseRef: string, targetRef: string): Promise<GitStatusFile[]> {
+    const output = await gitExecutor.run(["diff", "--name-status", baseRef, targetRef], {
+      cwd: this.cwd,
     });
-  }
 
-  return files;
+    if (!output) return [];
+
+    return output
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line) => parseStatusLineFromDiff(line))
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+      .map((entry) => ({
+        path: entry.path,
+        originalPath: entry.originalPath,
+        indexStatus: " " as GitFileStatus,
+        workingTreeStatus: entry.status as GitFileStatus,
+      }));
+  }
 }
 
-/**
- * Get changed files for a single commit against its first parent.
- */
-export async function getCommitDiffFiles(
-  commitRef: string,
-  cwd?: string,
-): Promise<GitStatusFile[]> {
-  const parentRef = (await getCommitParent(commitRef, cwd)) ?? EMPTY_TREE_REF;
-  return getDiffFiles(parentRef, commitRef, cwd);
-}
+class CompareTargetStrategy {
+  constructor(private readonly statusStrategy: GitStatusStrategy) {}
 
-/**
- * Get recent commits with stable refs and labels for selection UIs.
- */
-export async function getRecentCommitSummaries(
-  limit = 12,
-  cwd?: string,
-): Promise<Array<{ ref: string; shortRef: string; message: string; origin: string }>> {
-  const output = await execGit(
-    ["log", "--decorate=short", "--pretty=format:%H%x09%s%x09%D", "-n", String(limit)],
-    {
-      cwd,
-    },
-  );
+  async getCompareBranches(): Promise<string[]> {
+    const output = await gitExecutor.run(
+      ["for-each-ref", "--format=%(refname:short)", "refs/heads/", "refs/remotes/"],
+      { cwd: this.statusStrategy.getCwd() },
+    );
 
-  return output
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .map((line) => {
-      const [ref, subject = "", decorations = ""] = line.split("\t");
-      const branch =
-        decorations
-          .split(",")
-          .map((entry) => entry.trim())
-          .find(
-            (entry) =>
-              entry.length > 0 &&
-              entry !== "HEAD" &&
-              entry !== "tag:" &&
-              !entry.startsWith("tag: "),
-          )
-          ?.replace(/^HEAD ->\s*/, "") ?? "";
-      return {
-        ref: ref ?? "",
-        shortRef: (ref ?? "").slice(0, 7),
-        message: subject.trim(),
-        origin: branch,
-      };
-    })
-    .filter((entry) => entry.ref.length > 0);
-}
-
-/**
- * Search commits by message, hash, or decoration across recent history.
- */
-export async function searchCompareCommits(
-  query: string,
-  limit = 1000,
-  cwd?: string,
-): Promise<Array<{ ref: string; shortRef: string; message: string; origin: string }>> {
-  const needle = query.trim().toLowerCase();
-  const commits = await getRecentCommitSummaries(limit, cwd);
-
-  if (!needle) return commits;
-
-  return commits.filter((commit) => {
-    const haystack =
-      `${commit.ref} ${commit.shortRef} ${commit.message} ${commit.origin}`.toLowerCase();
-    return haystack.includes(needle);
-  });
-}
-
-/**
- * Resolve the best default compare target for PR review mode.
- *
- * Uses `git for-each-ref --merged HEAD` to batch-fetch all ancestor branches
- * in a single call, then `git rev-list --count` to find the closest one.
- * Down from ~100 sequential calls to ~3 total.
- */
-export async function getCompareTarget(cwd?: string): Promise<CompareTarget | null> {
-  const currentBranch = await getCurrentBranch(cwd);
-
-  const upstreamBranch = await getCurrentBranchUpstream(cwd);
-  if (upstreamBranch) {
-    return { mode: "base-branch", ref: upstreamBranch, label: upstreamBranch };
+    return [
+      ...new Set(
+        output
+          .split(/\r?\n/)
+          .filter(Boolean)
+          .filter((branch) => !branch.endsWith("/HEAD")),
+      ),
+    ].sort();
   }
 
-  // Get all local and remote branches merged into HEAD in one call.
-  const mergedOutput = await execGit(
-    [
-      "for-each-ref",
-      "--format=%(refname:short)",
-      "--merged",
-      "HEAD",
-      "refs/heads/",
-      "refs/remotes/",
-    ],
-    { cwd },
-  );
-  const mergedBranches = mergedOutput
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .filter((b) => b !== currentBranch)
-    .filter((branch) => !branch.endsWith("/HEAD"))
-    .sort();
-
-  if (mergedBranches.length === 0) {
-    const rootCommit = await getRootCommit(cwd);
-    return rootCommit ? { mode: "base-branch", ref: rootCommit, label: "root commit" } : null;
+  async searchCompareBranches(query: string): Promise<string[]> {
+    const needle = query.trim().toLowerCase();
+    const branches = await this.getCompareBranches();
+    return needle
+      ? branches.filter((branch) => branch.toLowerCase().includes(needle))
+      : branches;
   }
 
-  // Find the closest ancestor by computing distances in parallel
-  const distanceResults = await Promise.all(
-    mergedBranches.map(async (branch) => {
-      const output = await execGit(["rev-list", "--count", `${branch}..HEAD`], { cwd });
-      return { branch, distance: Number(output) || Number.POSITIVE_INFINITY };
-    }),
-  );
-
-  const best = distanceResults.reduce<{ branch: string; distance: number } | null>(
-    (currentBest, { branch, distance }) => {
-      if (!currentBest || distance < currentBest.distance) {
-        return { branch, distance };
-      }
-      return currentBest;
-    },
-    null,
-  );
-
-  if (best) {
-    return { mode: "base-branch", ref: best.branch, label: best.branch };
+  async getRecentCommits(limit = 12): Promise<string[]> {
+    const output = await gitExecutor.run(
+      ["log", "--oneline", "--decorate", "-n", String(limit)],
+      {
+        cwd: this.statusStrategy.getCwd(),
+      },
+    );
+    return output.split(/\r?\n/).filter(Boolean);
   }
 
-  const rootCommit = await getRootCommit(cwd);
-  if (rootCommit) {
-    return { mode: "base-branch", ref: rootCommit, label: "root commit" };
+  async getRecentCommitSummaries(
+    limit = 12,
+  ): Promise<Array<{ ref: string; shortRef: string; message: string; origin: string }>> {
+    const output = await gitExecutor.run(
+      ["log", "--decorate=short", "--pretty=format:%H%x09%s%x09%D", "-n", String(limit)],
+      { cwd: this.statusStrategy.getCwd() },
+    );
+
+    return output
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line) => {
+        const [ref, subject = "", decorations = ""] = line.split("\t");
+        const origin =
+          decorations
+            .split(",")
+            .map((entry) => entry.trim())
+            .find(
+              (entry) =>
+                entry.length > 0 &&
+                entry !== "HEAD" &&
+                entry !== "tag:" &&
+                !entry.startsWith("tag: "),
+            )
+            ?.replace(/^HEAD ->\s*/, "") ?? "";
+
+        return {
+          ref: ref ?? "",
+          shortRef: (ref ?? "").slice(0, 7),
+          message: subject.trim(),
+          origin,
+        };
+      })
+      .filter((entry) => entry.ref.length > 0);
   }
 
-  return { mode: "base-branch", ref: mergedBranches[0]!, label: mergedBranches[0]! };
+  async searchCompareCommits(
+    query: string,
+    limit = 1000,
+  ): Promise<Array<{ ref: string; shortRef: string; message: string; origin: string }>> {
+    const needle = query.trim().toLowerCase();
+    const commits = await this.getRecentCommitSummaries(limit);
+    return needle
+      ? commits.filter((commit) =>
+          `${commit.ref} ${commit.shortRef} ${commit.message} ${commit.origin}`
+            .toLowerCase()
+            .includes(needle),
+        )
+      : commits;
+  }
+
+  async getCompareTarget(): Promise<CompareTarget | null> {
+    const currentBranch = await this.statusStrategy.getCurrentBranch();
+    const upstreamBranch = await this.statusStrategy.getCurrentBranchUpstream();
+    if (upstreamBranch) {
+      return { mode: "base-branch", ref: upstreamBranch, label: upstreamBranch };
+    }
+
+    const mergedOutput = await gitExecutor.run(
+      [
+        "for-each-ref",
+        "--format=%(refname:short)",
+        "--merged",
+        "HEAD",
+        "refs/heads/",
+        "refs/remotes/",
+      ],
+      { cwd: this.statusStrategy.getCwd() },
+    );
+    const mergedBranches = mergedOutput
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .filter((branch) => branch !== currentBranch)
+      .filter((branch) => !branch.endsWith("/HEAD"))
+      .sort();
+
+    if (mergedBranches.length === 0) {
+      const rootCommit = await this.statusStrategy.getRootCommit();
+      return rootCommit ? { mode: "base-branch", ref: rootCommit, label: "root commit" } : null;
+    }
+
+    const distanceResults = await Promise.all(
+      mergedBranches.map(async (branch) => ({
+        branch,
+        distance:
+          Number(
+            await gitExecutor.run(["rev-list", "--count", `${branch}..HEAD`], {
+              cwd: this.statusStrategy.getCwd(),
+            }),
+          ) || Number.POSITIVE_INFINITY,
+      })),
+    );
+
+    const best = distanceResults.reduce<{ branch: string; distance: number } | null>(
+      (currentBest, candidate) =>
+        !currentBest || candidate.distance < currentBest.distance ? candidate : currentBest,
+      null,
+    );
+
+    if (best) {
+      return { mode: "base-branch", ref: best.branch, label: best.branch };
+    }
+
+    const rootCommit = await this.statusStrategy.getRootCommit();
+    if (rootCommit) {
+      return { mode: "base-branch", ref: rootCommit, label: "root commit" };
+    }
+
+    return { mode: "base-branch", ref: mergedBranches[0]!, label: mergedBranches[0]! };
+  }
 }
 
-/**
- * Parse "XY path" or "XY\0path" lines from git diff --name-status
- */
-function parseDiffNameStatusLine(
+function parseStatusLineFromDiff(
   line: string,
 ): { path: string; originalPath?: string; status: string } | null {
   if (!line || line.length < 2) return null;
+
   const status = line[0] ?? "";
   const rest = line.slice(1).trimStart();
 
   if (!rest) return null;
 
-  // Handle renames: "R100\told -> new"
   if (status === "R" || status === "C") {
     const arrowIndex = rest.indexOf(" -> ");
     if (arrowIndex !== -1) {
@@ -494,24 +416,317 @@ function parseDiffNameStatusLine(
     if (parts.length >= 2) {
       const originalPath = parts[parts.length - 2]!;
       const path = parts[parts.length - 1]!;
-
       if (originalPath && path) {
         return { path, originalPath, status };
       }
     }
   }
 
-  // Strip leading tab from name-status output
   const path = rest.startsWith("\t") ? rest.slice(1) : rest;
   return { path, status: status || " " };
 }
 
-/**
- * Get list of changed files between a base branch and HEAD
- */
+class GitCommandService {
+  private readonly status: GitStatusStrategy;
+  private readonly diff: GitDiffStrategy;
+  private readonly compare: CompareTargetStrategy;
+
+  constructor(private readonly cwd?: string) {
+    this.status = new GitStatusStrategy(cwd);
+    this.diff = new GitDiffStrategy(cwd);
+    this.compare = new CompareTargetStrategy(this.status);
+  }
+
+  getRepoStatus(options?: { includeUntracked?: boolean }) {
+    return getRepoStatus(this.cwd, options);
+  }
+
+  getLocalBranches() {
+    return gitExecutor
+      .run(["for-each-ref", "--format=%(refname:short)", "refs/heads/"], {
+        cwd: this.cwd,
+      })
+      .then((output) => output.split(/\r?\n/).filter(Boolean).sort());
+  }
+
+  getCompareBranches() {
+    return this.compare.getCompareBranches();
+  }
+
+  getCompareTarget() {
+    return this.compare.getCompareTarget();
+  }
+
+  getBranchDiffFiles(baseRef: string) {
+    return this.diff.getDiffFiles(baseRef, "HEAD");
+  }
+
+  getCommitDiffFiles(commitRef: string) {
+    return this.status
+      .getCommitParent(commitRef)
+      .then((parentRef) => this.diff.getDiffFiles(parentRef ?? EMPTY_TREE_REF, commitRef));
+  }
+
+  getCommitParent(commitRef: string) {
+    return this.status.getCommitParent(commitRef);
+  }
+
+  getRecentCommitSummaries(limit = 12) {
+    return this.compare.getRecentCommitSummaries(limit);
+  }
+
+  searchCompareBranches(query: string) {
+    return this.compare.searchCompareBranches(query);
+  }
+
+  searchCompareCommits(query: string, limit = 1000) {
+    return this.compare.searchCompareCommits(query, limit);
+  }
+
+  getMergeBase(baseRef: string) {
+    return this.status.getMergeBase(baseRef);
+  }
+
+  getCurrentBranch() {
+    return this.status.getCurrentBranch();
+  }
+
+  getRootCommit() {
+    return this.status.getRootCommit();
+  }
+
+  getFilePatch(filePath: string, options?: Parameters<GitDiffStrategy["getFilePatch"]>[1]) {
+    return this.diff.getFilePatch(filePath, options);
+  }
+
+  getDiffFiles(baseRef: string, targetRef: string) {
+    return this.diff.getDiffFiles(baseRef, targetRef);
+  }
+
+  getFileVersion(ref: string, filePath: string) {
+    return this.diff.getFileVersion(ref, filePath);
+  }
+
+  isBinaryDiff(
+    filePath: string,
+    section: "staged" | "changes" | "compare",
+    baseRef?: string,
+    targetRef?: string,
+  ) {
+    return this.diff.isBinaryDiff(filePath, section, baseRef, targetRef);
+  }
+}
+
+const serviceCache = new Map<string, GitCommandService>();
+
+function getService(cwd?: string): GitCommandService {
+  const key = cwd ?? process.cwd();
+  const cached = serviceCache.get(key);
+  if (cached) return cached;
+
+  const nextService = new GitCommandService(cwd);
+  serviceCache.set(key, nextService);
+  return nextService;
+}
+
+export async function isBinaryDiff(
+  filePath: string,
+  section: "staged" | "changes" | "compare",
+  baseRef?: string,
+  targetRef?: string,
+  cwd?: string,
+): Promise<boolean> {
+  return getService(cwd).isBinaryDiff(filePath, section, baseRef, targetRef);
+}
+
+export function execGit(
+  args: string[],
+  options: { cwd?: string; encoding?: BufferEncoding } = {},
+) {
+  return gitExecutor.run(args, options);
+}
+
+export function execGitWithInput(args: string[], input: string, cwd?: string) {
+  return gitExecutor.runWithInput(args, input, cwd);
+}
+
+export function getRepoRoot(cwd?: string) {
+  return gitExecutor.getRepoRoot(cwd);
+}
+
+export function isGitRepo(cwd?: string) {
+  return gitExecutor.isGitRepo(cwd);
+}
+
+export function stageFile(filePath: string, cwd?: string) {
+  return gitExecutor.stageFile(filePath, cwd);
+}
+
+export function unstageFile(filePath: string, cwd?: string) {
+  return gitExecutor.unstageFile(filePath, cwd);
+}
+
+export function discardChanges(filePath: string, cwd?: string) {
+  return gitExecutor.discardChanges(filePath, cwd);
+}
+
+export function commitChanges(message: string, cwd?: string) {
+  return gitExecutor.commitChanges(message, cwd);
+}
+
+export function pushChanges(cwd?: string) {
+  return gitExecutor.pushChanges(cwd);
+}
+
+export function pullChanges(cwd?: string) {
+  return gitExecutor.pullChanges(cwd);
+}
+
+export function getFileVersion(ref: string, filePath: string, cwd?: string) {
+  return gitExecutor.getFileVersion(ref, filePath, cwd);
+}
+
+export async function getFilePatch(
+  filePath: string,
+  options: {
+    cwd?: string;
+    fromRef?: string;
+    toRef?: string | null;
+    staged?: boolean;
+    contextLines?: number;
+    isNewFile?: boolean;
+  } = {},
+): Promise<string | null> {
+  const service = getService(options.cwd);
+  return service.getFilePatch(filePath, options);
+}
+
+export async function getRevisionDiffFiles(
+  fromRef: string,
+  toRef: string,
+  cwd?: string,
+): Promise<GitStatusFile[]> {
+  return getService(cwd).getDiffFiles(fromRef, toRef);
+}
+
+export async function getMergeBase(baseRef: string, cwd?: string): Promise<string> {
+  return getService(cwd).getMergeBase(baseRef);
+}
+
+export async function getCurrentBranch(cwd?: string): Promise<string> {
+  return getService(cwd).getCurrentBranch();
+}
+
+export async function getRootCommit(cwd?: string): Promise<string | null> {
+  return getService(cwd).getRootCommit();
+}
+
+export async function getCommitParent(commitRef: string, cwd?: string): Promise<string | null> {
+  return getService(cwd).getCommitParent(commitRef);
+}
+
+export async function getLocalBranches(cwd?: string): Promise<string[]> {
+  return getService(cwd).getLocalBranches();
+}
+
+export async function getCompareBranches(cwd?: string): Promise<string[]> {
+  return getService(cwd).getCompareBranches();
+}
+
+export async function searchCompareBranches(query: string, cwd?: string): Promise<string[]> {
+  return getService(cwd).searchCompareBranches(query);
+}
+
+export async function getRecentCommits(limit = 12, cwd?: string): Promise<string[]> {
+  return getService(cwd)
+    .getRecentCommitSummaries(limit)
+    .then((entries) =>
+      entries.map((entry) => `${entry.ref}\t${entry.message}\t${entry.origin}`),
+    );
+}
+
+export async function getDiffFiles(
+  baseRef: string,
+  targetRef: string,
+  cwd?: string,
+): Promise<GitStatusFile[]> {
+  return getService(cwd).getDiffFiles(baseRef, targetRef);
+}
+
+export async function getCommitDiffFiles(
+  commitRef: string,
+  cwd?: string,
+): Promise<GitStatusFile[]> {
+  return getService(cwd).getCommitDiffFiles(commitRef);
+}
+
+export async function resolveCompareTarget(
+  target: CompareTarget,
+  cwd?: string,
+): Promise<CompareResolution> {
+  if (target.mode === "single-commit") {
+    const baseRef = (await getCommitParent(target.ref, cwd)) ?? target.ref;
+    return {
+      baseRef,
+      compareRef: target.ref,
+      targetRef: target.ref,
+      revisionRange: `${baseRef}..${target.ref}`,
+      baseLabel: target.label,
+    };
+  }
+
+  if (target.mode === "base-commit") {
+    const parentRef = (await getCommitParent(target.ref, cwd)) ?? target.ref;
+    return {
+      baseRef: parentRef,
+      compareRef: target.ref,
+      targetRef: target.ref,
+      revisionRange: `${parentRef}..${target.ref}`,
+      baseLabel: target.label,
+    };
+  }
+
+  const baseRef = await getMergeBase(target.ref, cwd);
+  return {
+    baseRef,
+    compareRef: target.ref,
+    targetRef: null,
+    revisionRange: `${baseRef}..HEAD`,
+    baseLabel: target.label,
+  };
+}
+
+export async function getRecentCommitSummaries(
+  limit = 12,
+  cwd?: string,
+): Promise<Array<{ ref: string; shortRef: string; message: string; origin: string }>> {
+  return getService(cwd).getRecentCommitSummaries(limit);
+}
+
+export async function searchCompareCommits(
+  query: string,
+  limit = 1000,
+  cwd?: string,
+): Promise<Array<{ ref: string; shortRef: string; message: string; origin: string }>> {
+  return getService(cwd).searchCompareCommits(query, limit);
+}
+
+export async function getCompareTarget(cwd?: string): Promise<CompareTarget | null> {
+  return getService(cwd).getCompareTarget();
+}
+
 export async function getBranchDiffFiles(
   baseBranch: string,
   cwd?: string,
 ): Promise<GitStatusFile[]> {
-  return getDiffFiles(baseBranch, "HEAD", cwd);
+  const baseRef = await getMergeBase(baseBranch, cwd);
+  return getRevisionDiffFiles(baseRef, "HEAD", cwd);
+}
+
+export async function createRepoMonitor(
+  ctx: import("./repo").RepoContext,
+  onChange: (kind: import("./types").RepoChangeKind) => void,
+): Promise<import("./types").RepoMonitor> {
+  const { createRepoMonitor: createMonitor } = await import("./monitor");
+  return createMonitor(ctx, onChange);
 }

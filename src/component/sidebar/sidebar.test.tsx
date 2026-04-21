@@ -146,6 +146,7 @@ test("sidebar shows compare mode header", async () => {
       compareState: {
         mode: "base-branch",
         baseRef: "main",
+        compareRef: "HEAD",
         targetRef: null,
         baseLabel: "main",
         files: [{ path: "src/app.ts", indexStatus: " ", workingTreeStatus: "M" }],

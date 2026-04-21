@@ -12,6 +12,7 @@ export interface DiffPaneProps {
   selectedFileKey: string | null;
   selectedFileInfo: GitStatusFile | null;
   diffContent: string | null;
+  isLoading?: boolean;
   unsupportedReason?: string | null;
   diffViewMode: DiffViewMode;
   toggleDiffViewMode: () => void;

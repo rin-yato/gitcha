@@ -9,8 +9,6 @@ import {
   useState,
 } from "react";
 
-import { generateDiff } from "@/lib/git";
-
 import { useReviewSelection } from "../selection";
 import { useReviewSession } from "../session/session";
 
@@ -82,7 +80,7 @@ export function ReviewDiffProvider({ children }: { children: React.ReactNode }) 
         return;
       }
 
-      const result = await git.client.loadDiffSource(
+      const result = await git.client.getDiffPatch(
         file,
         section,
         section === "compare" ? git.compareState?.baseRef : undefined,
@@ -92,8 +90,7 @@ export function ReviewDiffProvider({ children }: { children: React.ReactNode }) 
 
       if (requestId !== diffLoadRequestRef.current) return;
 
-      const diff = generateDiff(result, file.path);
-      setDiffContent(diff || "No changes");
+      setDiffContent(result || "No changes");
       setUnsupportedReason(null);
       setIsLoading(false);
     })().catch((e) => {
