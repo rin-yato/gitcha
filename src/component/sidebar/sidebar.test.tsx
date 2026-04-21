@@ -7,7 +7,7 @@ import { act } from "react";
 import type { Theme } from "@/context/theme/provider";
 
 import type { GitRepoStatus, GitStatusFile } from "@/lib/git";
-import { buildFileTreeSnapshot } from "@/lib/git";
+import { gitStatusParser } from "@/lib/git";
 
 import { Sidebar } from "./index";
 
@@ -43,9 +43,12 @@ const baseProps = {
 
 function createFileTrees(status: GitRepoStatus): Parameters<typeof Sidebar>[0]["fileTrees"] {
   return {
-    staged: buildFileTreeSnapshot(status.files.staged),
-    changes: buildFileTreeSnapshot([...status.files.changes, ...status.files.untracked]),
-    compare: buildFileTreeSnapshot([] as GitStatusFile[]),
+    staged: gitStatusParser.buildFileTreeSnapshot(status.files.staged),
+    changes: gitStatusParser.buildFileTreeSnapshot([
+      ...status.files.changes,
+      ...status.files.untracked,
+    ]),
+    compare: gitStatusParser.buildFileTreeSnapshot([] as GitStatusFile[]),
   };
 }
 
@@ -53,9 +56,9 @@ function createCompareFileTrees(
   compareFiles: GitStatusFile[],
 ): Parameters<typeof Sidebar>[0]["fileTrees"] {
   return {
-    staged: buildFileTreeSnapshot([]),
-    changes: buildFileTreeSnapshot([]),
-    compare: buildFileTreeSnapshot(compareFiles),
+    staged: gitStatusParser.buildFileTreeSnapshot([]),
+    changes: gitStatusParser.buildFileTreeSnapshot([]),
+    compare: gitStatusParser.buildFileTreeSnapshot(compareFiles),
   };
 }
 

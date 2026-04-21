@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
 
 import { generateDiff } from "./diff";
-import { buildFileTree, categorizeFiles, parseStatusLine } from "./parser";
+import { gitStatusParser } from "./parser";
 import type { GitStatusFile } from "./types";
 
 describe("parseStatusLine", () => {
   test("parses a modified file", () => {
-    expect(parseStatusLine(" M src/app.ts")).toEqual({
+    expect(gitStatusParser.parseStatusLine(" M src/app.ts")).toEqual({
       path: "src/app.ts",
       indexStatus: " ",
       workingTreeStatus: "M",
@@ -14,7 +14,7 @@ describe("parseStatusLine", () => {
   });
 
   test("parses a rename", () => {
-    expect(parseStatusLine("R  old.txt -> new.txt")).toEqual({
+    expect(gitStatusParser.parseStatusLine("R  old.txt -> new.txt")).toEqual({
       path: "new.txt",
       originalPath: "old.txt",
       indexStatus: "R",
@@ -25,7 +25,7 @@ describe("parseStatusLine", () => {
 
 describe("parseStatusLine with status output", () => {
   test("parses a staged file line", () => {
-    expect(parseStatusLine("A  src/new.ts")).toEqual({
+    expect(gitStatusParser.parseStatusLine("A  src/new.ts")).toEqual({
       path: "src/new.ts",
       indexStatus: "A",
       workingTreeStatus: " ",
@@ -57,7 +57,7 @@ describe("categorizeFiles", () => {
     };
     const files: GitStatusFile[] = [staged, changed, untracked, conflicted];
 
-    expect(categorizeFiles(files)).toEqual({
+    expect(gitStatusParser.categorizeFiles(files)).toEqual({
       staged: [staged],
       changes: [changed],
       untracked: [untracked],
@@ -68,7 +68,7 @@ describe("categorizeFiles", () => {
 
 describe("buildFileTree", () => {
   test("groups files by directory and sorts them", () => {
-    const root = buildFileTree([
+    const root = gitStatusParser.buildFileTree([
       { path: "src/z.ts", indexStatus: " ", workingTreeStatus: "M" },
       { path: "src/a.ts", indexStatus: " ", workingTreeStatus: "M" },
       { path: "README.md", indexStatus: " ", workingTreeStatus: "M" },
@@ -79,7 +79,7 @@ describe("buildFileTree", () => {
   });
 
   test("preserves originalPath for renamed files in fileInfo", () => {
-    const root = buildFileTree([
+    const root = gitStatusParser.buildFileTree([
       {
         path: "src/new-name.ts",
         originalPath: "src/old-name.ts",
@@ -96,7 +96,7 @@ describe("buildFileTree", () => {
   });
 
   test("handles deeply nested files", () => {
-    const root = buildFileTree([
+    const root = gitStatusParser.buildFileTree([
       { path: "a/b/c/d/nested.ts", indexStatus: "A", workingTreeStatus: " " },
     ]);
 
@@ -110,7 +110,9 @@ describe("buildFileTree", () => {
   });
 
   test("handles root-level files without directory", () => {
-    const root = buildFileTree([{ path: "root.ts", indexStatus: " ", workingTreeStatus: "M" }]);
+    const root = gitStatusParser.buildFileTree([
+      { path: "root.ts", indexStatus: " ", workingTreeStatus: "M" },
+    ]);
 
     expect(root.children.length).toBe(1);
     expect(root.children[0]?.name).toBe("root.ts");
@@ -132,7 +134,7 @@ describe("buildFileTree", () => {
   });
 
   test("duplicate paths only store first fileInfo (last one wins for path traversal)", () => {
-    const root = buildFileTree([
+    const root = gitStatusParser.buildFileTree([
       { path: "src/shared.ts", indexStatus: "A", workingTreeStatus: " " },
       { path: "src/shared.ts", indexStatus: " ", workingTreeStatus: "M" },
     ]);

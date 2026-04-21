@@ -20,7 +20,6 @@ import type {
   RepoContext,
 } from "@/lib/git";
 import {
-  buildFileTreeSnapshot,
   commitChanges as commitGitChanges,
   createRepoMonitor,
   detectRepoContext,
@@ -33,9 +32,9 @@ import {
   getLocalBranches,
   getMergeBase,
   getRecentCommitSummaries,
-  getRepoStatus,
   getRevisionDiffFiles,
   getUnsupportedReason,
+  gitStatusParser,
   isBinaryDiff,
   loadFileDiffSource,
   pullChanges as pullGitChanges,
@@ -226,7 +225,7 @@ function createGitClient(ctx: RepoContext): GitClient {
 
   return {
     ctx,
-    getRepoStatus: (options) => getRepoStatus(ctx.cwd, options),
+    getRepoStatus: (options) => gitStatusParser.getRepoStatus(ctx.cwd, options),
     getLocalBranches: () => getLocalBranches(ctx.cwd),
     getCompareBranches: () => getCompareBranches(ctx.cwd),
     getCompareTarget: () => getCompareTarget(ctx.cwd),
@@ -356,9 +355,9 @@ export function ReviewProvider({
     changes: FileTreeSnapshot;
     compare: FileTreeSnapshot;
   }>({
-    staged: buildFileTreeSnapshot([]),
-    changes: buildFileTreeSnapshot([]),
-    compare: buildFileTreeSnapshot([]),
+    staged: gitStatusParser.buildFileTreeSnapshot([]),
+    changes: gitStatusParser.buildFileTreeSnapshot([]),
+    compare: gitStatusParser.buildFileTreeSnapshot([]),
   });
 
   const latestStatusRef = useRef<GitRepoStatus | null>(null);
@@ -532,12 +531,12 @@ export function ReviewProvider({
     fileTreeSignatureRef.current = nextSignatures;
 
     setFileTrees({
-      staged: buildFileTreeSnapshot(nextStatus?.files.staged ?? []),
-      changes: buildFileTreeSnapshot([
+      staged: gitStatusParser.buildFileTreeSnapshot(nextStatus?.files.staged ?? []),
+      changes: gitStatusParser.buildFileTreeSnapshot([
         ...(nextStatus?.files.changes ?? []),
         ...(nextStatus?.files.untracked ?? []),
       ]),
-      compare: buildFileTreeSnapshot(nextCompare),
+      compare: gitStatusParser.buildFileTreeSnapshot(nextCompare),
     });
   }, [compareState?.files, status]);
 

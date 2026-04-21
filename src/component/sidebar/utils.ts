@@ -2,7 +2,7 @@ import { buildFileKey, type FileSection } from "@/context/selection/utils";
 import type { Theme } from "@/context/theme/provider";
 
 import type { FileTreeNode, GitStatusFile } from "@/lib/git";
-import { buildFileTree } from "@/lib/git";
+import { gitStatusParser } from "@/lib/git";
 
 // Status icons - minimal, single character
 const STATUS_ICONS: Record<string, string> = {
@@ -106,7 +106,7 @@ function collectVisualFiles(nodes: FileTreeNode[], output: GitStatusFile[]): voi
 export function getVisualFileOrder(files: GitStatusFile[]): GitStatusFile[] {
   if (files.length === 0) return [];
 
-  const root = buildFileTree(files);
+  const root = gitStatusParser.buildFileTree(files);
   const ordered: GitStatusFile[] = [];
   collectVisualFiles(root.children, ordered);
   return ordered;

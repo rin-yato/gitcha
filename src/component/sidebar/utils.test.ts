@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import type { GitStatusFile } from "@/lib/git";
-import { buildFileTree } from "@/lib/git";
+import { gitStatusParser } from "@/lib/git";
 
 import {
   getAncestorDirs,
@@ -70,7 +70,7 @@ describe("sidebar utils", () => {
         { path: "README.md", indexStatus: "A", workingTreeStatus: " " },
         { path: "tsconfig.json", indexStatus: "M", workingTreeStatus: " " },
       ];
-      const { children } = buildFileTree(files);
+      const { children } = gitStatusParser.buildFileTree(files);
       expect(children.every((n) => !n.isDirectory)).toBe(true);
       expect(children.map((n) => n.name)).toEqual(["README.md", "tsconfig.json"]);
     });
@@ -80,7 +80,7 @@ describe("sidebar utils", () => {
         { path: "src/app.ts", indexStatus: "M", workingTreeStatus: " " },
         { path: "src/index.ts", indexStatus: "A", workingTreeStatus: " " },
       ];
-      const { children } = buildFileTree(files);
+      const { children } = gitStatusParser.buildFileTree(files);
       expect(children).toHaveLength(1);
       const srcDir = children[0]!;
       expect(srcDir.isDirectory).toBe(true);

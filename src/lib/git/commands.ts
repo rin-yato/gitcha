@@ -1,5 +1,5 @@
 import { gitExecutor } from "./executor";
-import { getRepoStatus } from "./parser";
+import { gitStatusParser } from "./parser";
 import type { CompareResolution, CompareTarget, GitFileStatus, GitStatusFile } from "./types";
 
 const EMPTY_TREE_REF = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
@@ -438,7 +438,7 @@ class GitCommandService {
   }
 
   getRepoStatus(options?: { includeUntracked?: boolean }) {
-    return getRepoStatus(this.cwd, options);
+    return gitStatusParser.getRepoStatus(this.cwd, options);
   }
 
   getLocalBranches() {
