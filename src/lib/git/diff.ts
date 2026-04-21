@@ -59,7 +59,7 @@ export function parseDiffPositions(diff: string): DiffChangeMap {
     inHunk: boolean;
   };
 
-  const initialState: DiffParseState = {
+  const state: DiffParseState = {
     changes: [],
     currentOldLine: 0,
     currentNewLine: 0,
@@ -70,20 +70,18 @@ export function parseDiffPositions(diff: string): DiffChangeMap {
     inHunk: false,
   };
 
-  const finalState = lines.reduce<DiffParseState>((state, line) => {
+  for (const line of lines) {
     if (line.startsWith("@@")) {
       const header = parseHunkHeader(line);
-      if (!header) return state;
+      if (!header) continue;
 
-      return {
-        ...state,
-        currentOldLine: header.oldStart - 1,
-        currentNewLine: header.newStart - 1,
-        inHunk: true,
-      };
+      state.currentOldLine = header.oldStart - 1;
+      state.currentNewLine = header.newStart - 1;
+      state.inHunk = true;
+      continue;
     }
 
-    if (!state.inHunk) return state;
+    if (!state.inHunk) continue;
 
     if (
       line.startsWith("diff --git ") ||
@@ -96,77 +94,52 @@ export function parseDiffPositions(diff: string): DiffChangeMap {
       line.startsWith("Binary files ") ||
       line.startsWith("GIT binary patch")
     ) {
-      return state;
+      continue;
     }
 
     if (line.startsWith("+") && !line.startsWith("+++")) {
-      const nextUnifiedLine = state.unifiedLine + 1;
-      const nextCurrentNewLine = state.currentNewLine + 1;
-
-      return {
-        ...state,
-        changes: [
-          ...state.changes,
-          {
-            lineInNewFile: state.currentNewLine,
-            lineInOldFile: state.currentOldLine,
-            unifiedLine: nextUnifiedLine,
-            type: "addition",
-          },
-        ],
-        currentNewLine: nextCurrentNewLine,
-        unifiedLine: nextUnifiedLine,
-        totalLinesInNewFile: Math.max(state.totalLinesInNewFile, nextCurrentNewLine),
-        totalUnifiedLines: Math.max(state.totalUnifiedLines, nextUnifiedLine),
-      };
+      state.unifiedLine += 1;
+      state.currentNewLine += 1;
+      state.changes.push({
+        lineInNewFile: state.currentNewLine - 1,
+        lineInOldFile: state.currentOldLine,
+        unifiedLine: state.unifiedLine,
+        type: "addition",
+      });
+      state.totalLinesInNewFile = Math.max(state.totalLinesInNewFile, state.currentNewLine);
+      state.totalUnifiedLines = Math.max(state.totalUnifiedLines, state.unifiedLine);
+      continue;
     }
 
     if (line.startsWith("-") && !line.startsWith("---")) {
-      const nextUnifiedLine = state.unifiedLine + 1;
-      const nextCurrentOldLine = state.currentOldLine + 1;
-
-      return {
-        ...state,
-        changes: [
-          ...state.changes,
-          {
-            lineInNewFile: state.currentNewLine,
-            lineInOldFile: state.currentOldLine,
-            unifiedLine: nextUnifiedLine,
-            type: "deletion",
-          },
-        ],
-        currentOldLine: nextCurrentOldLine,
-        unifiedLine: nextUnifiedLine,
-        totalLinesInOldFile: Math.max(state.totalLinesInOldFile, nextCurrentOldLine),
-        totalUnifiedLines: Math.max(state.totalUnifiedLines, nextUnifiedLine),
-      };
+      state.unifiedLine += 1;
+      state.currentOldLine += 1;
+      state.changes.push({
+        lineInNewFile: state.currentNewLine,
+        lineInOldFile: state.currentOldLine - 1,
+        unifiedLine: state.unifiedLine,
+        type: "deletion",
+      });
+      state.totalLinesInOldFile = Math.max(state.totalLinesInOldFile, state.currentOldLine);
+      state.totalUnifiedLines = Math.max(state.totalUnifiedLines, state.unifiedLine);
+      continue;
     }
 
     if (!line.startsWith("\\")) {
-      const nextUnifiedLine = state.unifiedLine + 1;
-      const nextCurrentOldLine = state.currentOldLine + 1;
-      const nextCurrentNewLine = state.currentNewLine + 1;
-
-      return {
-        ...state,
-        currentOldLine: nextCurrentOldLine,
-        currentNewLine: nextCurrentNewLine,
-        unifiedLine: nextUnifiedLine,
-        totalLinesInNewFile: Math.max(state.totalLinesInNewFile, nextCurrentNewLine),
-        totalLinesInOldFile: Math.max(state.totalLinesInOldFile, nextCurrentOldLine),
-        totalUnifiedLines: Math.max(state.totalUnifiedLines, nextUnifiedLine),
-      };
+      state.unifiedLine += 1;
+      state.currentOldLine += 1;
+      state.currentNewLine += 1;
+      state.totalLinesInNewFile = Math.max(state.totalLinesInNewFile, state.currentNewLine);
+      state.totalLinesInOldFile = Math.max(state.totalLinesInOldFile, state.currentOldLine);
+      state.totalUnifiedLines = Math.max(state.totalUnifiedLines, state.unifiedLine);
     }
-
-    return state;
-  }, initialState);
+  }
 
   return {
-    changes: finalState.changes,
-    totalLinesInNewFile: finalState.totalLinesInNewFile,
-    totalLinesInOldFile: finalState.totalLinesInOldFile,
-    totalUnifiedLines: finalState.totalUnifiedLines,
+    changes: state.changes,
+    totalLinesInNewFile: state.totalLinesInNewFile,
+    totalLinesInOldFile: state.totalLinesInOldFile,
+    totalUnifiedLines: state.totalUnifiedLines,
   };
 }
 

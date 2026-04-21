@@ -13,6 +13,7 @@ import {
   getFilePatch,
   getLocalBranches,
   getRootCommit,
+  resolveCompareTarget,
 } from "./commands";
 
 async function createRepo() {
@@ -109,6 +110,30 @@ describe("default compare target", () => {
     const repo = await createRepo();
     const files = await getBranchDiffFiles("feat/a", repo);
     expect(files.map((file) => file.path)).toEqual(["file.txt"]);
+  });
+
+  test("base commit compare uses the selected commit as the base", async () => {
+    const repo = await createRepo();
+    const resolution = await resolveCompareTarget(
+      { mode: "base-commit", ref: "feat/a", label: "feat/a" },
+      repo,
+    );
+
+    expect(resolution).toEqual({
+      baseRef: "feat/a",
+      compareRef: "feat/a",
+      targetRef: null,
+      revisionRange: "feat/a..HEAD",
+      baseLabel: "feat/a",
+    });
+
+    const patch = await getFilePatch("file.txt", {
+      cwd: repo,
+      fromRef: resolution.baseRef,
+    });
+
+    expect(patch).toContain("-feat a");
+    expect(patch).toContain("+feat b");
   });
 
   test("preserves originalPath for renamed files", async () => {

@@ -88,8 +88,8 @@ class CompareDiffStrategy implements DiffSourceStrategy {
 
   buildArgs(): string[] {
     const range = this.targetRef
-      ? `${this.baseRef}...${this.targetRef}`
-      : `${this.baseRef}...HEAD`;
+      ? `${this.baseRef}..${this.targetRef}`
+      : `${this.baseRef}..HEAD`;
 
     return [
       "diff",
@@ -168,9 +168,9 @@ class GitDiffStrategy {
           : section === "changes"
             ? ["diff", "--numstat", "--", filePath]
             : baseRef && targetRef
-              ? ["diff", "--numstat", `${baseRef}...${targetRef}`, "--", filePath]
+              ? ["diff", "--numstat", `${baseRef}..${targetRef}`, "--", filePath]
               : baseRef
-                ? ["diff", "--numstat", `${baseRef}...HEAD`, "--", filePath]
+                ? ["diff", "--numstat", `${baseRef}..HEAD`, "--", filePath]
                 : null;
 
       if (!diffCmd) return false;
@@ -676,12 +676,11 @@ export async function resolveCompareTarget(
   }
 
   if (target.mode === "base-commit") {
-    const parentRef = (await getCommitParent(target.ref, cwd)) ?? target.ref;
     return {
-      baseRef: parentRef,
+      baseRef: target.ref,
       compareRef: target.ref,
-      targetRef: target.ref,
-      revisionRange: `${parentRef}..${target.ref}`,
+      targetRef: null,
+      revisionRange: `${target.ref}..HEAD`,
       baseLabel: target.label,
     };
   }

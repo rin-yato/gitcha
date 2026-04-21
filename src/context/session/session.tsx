@@ -289,9 +289,7 @@ async function resolveCompareFiles(
   const files =
     target.mode === "single-commit"
       ? await client.getCommitDiffFiles(target.ref)
-      : target.mode === "base-commit"
-        ? await getRevisionDiffFiles(resolution.baseRef, resolution.compareRef, client.ctx.cwd)
-        : await getBranchDiffFiles(target.ref, client.ctx.cwd);
+      : await getRevisionDiffFiles(resolution.baseRef, "HEAD", client.ctx.cwd);
 
   return { resolution, files };
 }
@@ -422,13 +420,7 @@ export function ReviewProvider({
         const nextFiles =
           compareState.mode === "single-commit" && compareState.targetRef
             ? await client.getCommitDiffFiles(compareState.targetRef)
-            : compareState.mode === "base-commit"
-              ? await getRevisionDiffFiles(
-                  compareState.baseRef,
-                  compareState.compareRef,
-                  client.ctx.cwd,
-                )
-              : await getBranchDiffFiles(compareState.compareRef, client.ctx.cwd);
+            : await getRevisionDiffFiles(compareState.baseRef, "HEAD", client.ctx.cwd);
 
         const nextState = { ...compareState, files: nextFiles };
         if (dequal(latestCompareRef.current, nextState)) return;

@@ -10,7 +10,11 @@ import { DialogSelect, type DialogSelectOption } from "@/component/ui/dialog-sel
 
 const compareTabs = [
   { name: "Base branch", description: "Compare against a branch", value: "base-branch" },
-  { name: "Base commit", description: "Compare against a commit parent", value: "base-commit" },
+  {
+    name: "Base commit",
+    description: "Compare current changes against a commit",
+    value: "base-commit",
+  },
   { name: "Single commit", description: "Show the commit itself", value: "single-commit" },
 ] as const;
 
