@@ -1,9 +1,16 @@
 import fs from "fs";
 import path from "path";
 
-type BuildMatrixEnv = Pick<NodeJS.ProcessEnv, "BUILD_OUTFILE" | "BUILD_TARGET">;
+type BuildMatrixEnv = NodeJS.ProcessEnv;
 
 type BuildConfig = Parameters<typeof Bun.build>[0];
+
+type BuildTarget =
+  Extract<NonNullable<BuildConfig["compile"]>, { target?: unknown }> extends {
+    target?: infer Target;
+  }
+    ? Target
+    : never;
 
 const bunfsRoot = "/$bunfs/root/";
 
@@ -14,12 +21,13 @@ export function createBuildMatrixConfig(
 ): BuildConfig {
   const outfile = env.BUILD_OUTFILE ?? "bin/gitcha";
   const workerRelativePath = path.relative(cwd, workerSourcePath).replace(/\\/g, "/");
+  const compileTarget = env.BUILD_TARGET as BuildTarget | undefined;
 
   return {
     target: "bun",
-    compile: env.BUILD_TARGET
+    compile: compileTarget
       ? {
-          target: env.BUILD_TARGET,
+          target: compileTarget,
           outfile,
           execArgv: ["--"],
         }
