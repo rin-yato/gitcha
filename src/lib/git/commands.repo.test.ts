@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { mkdtempSync, writeFileSync } from "fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
@@ -168,6 +168,28 @@ describe("default compare target", () => {
     expect(patch).toContain("--- /dev/null");
     expect(patch).toContain("+++ 2/new.txt");
     expect(patch).toContain("+hello");
+  });
+
+  test("loads file patches from a nested cwd", async () => {
+    const repo = mkdtempSync(join(tmpdir(), "changes-nested-"));
+    await execGit(["init", "-b", "master"], { cwd: repo });
+    await execGit(["config", "user.email", "test@example.com"], { cwd: repo });
+    await execGit(["config", "user.name", "Test User"], { cwd: repo });
+
+    mkdirSync(join(repo, "src"), { recursive: true });
+    writeFileSync(join(repo, "src", "app.ts"), "hello\n");
+    await execGit(["add", "src/app.ts"], { cwd: repo });
+    await execGit(["commit", "-m", "base commit"], { cwd: repo });
+
+    writeFileSync(join(repo, "src", "app.ts"), "world\n");
+
+    const patch = await getFilePatch("src/app.ts", {
+      cwd: join(repo, "src"),
+    });
+
+    expect(patch).not.toBeNull();
+    expect(patch).toContain("-hello");
+    expect(patch).toContain("+world");
   });
 });
 

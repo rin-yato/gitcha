@@ -155,6 +155,16 @@ class GitStatusStrategy {
 class GitDiffStrategy {
   constructor(private readonly cwd?: string) {}
 
+  private async getRepoRoot(): Promise<string | null> {
+    try {
+      return (
+        await gitExecutor.run(["rev-parse", "--show-toplevel"], { cwd: this.cwd })
+      ).trim();
+    } catch {
+      return null;
+    }
+  }
+
   async isBinaryDiff(
     filePath: string,
     section: "staged" | "changes" | "compare",
@@ -162,6 +172,9 @@ class GitDiffStrategy {
     targetRef?: string,
   ): Promise<boolean> {
     try {
+      const repoRoot = await this.getRepoRoot();
+      if (!repoRoot) return false;
+
       const diffCmd =
         section === "staged"
           ? ["diff", "--numstat", "--cached", "--", filePath]
@@ -175,7 +188,7 @@ class GitDiffStrategy {
 
       if (!diffCmd) return false;
 
-      const output = await gitExecutor.run(diffCmd, { cwd: this.cwd });
+      const output = await gitExecutor.run(diffCmd, { cwd: repoRoot });
       const line = output.split(/\r?\n/).find((entry) => entry.length > 0);
       if (!line) return false;
       const parts = line.split("\t");
@@ -203,6 +216,9 @@ class GitDiffStrategy {
       isNewFile = false,
     } = options;
 
+    const repoRoot = await this.getRepoRoot();
+    if (!repoRoot) return null;
+
     const strategy = staged
       ? new StagedDiffStrategy(filePath, this.cwd, isNewFile, contextLines)
       : fromRef
@@ -210,13 +226,16 @@ class GitDiffStrategy {
         : new WorkingTreeDiffStrategy(filePath, this.cwd, isNewFile, contextLines);
 
     return (
-      (await gitExecutor.run(strategy.buildArgs(), { cwd: this.cwd }).catch(() => null)) || null
+      (await gitExecutor.run(strategy.buildArgs(), { cwd: repoRoot }).catch(() => null)) || null
     );
   }
 
   async getFileVersion(ref: string, filePath: string): Promise<string | null> {
+    const repoRoot = await this.getRepoRoot();
+    if (!repoRoot) return null;
+
     try {
-      return await gitExecutor.run(["show", `${ref}:${filePath}`], { cwd: this.cwd });
+      return await gitExecutor.run(["show", `${ref}:${filePath}`], { cwd: repoRoot });
     } catch {
       return null;
     }
@@ -559,15 +578,15 @@ export function isGitRepo(cwd?: string) {
 }
 
 export function stageFile(filePath: string, cwd?: string) {
-  return gitExecutor.stageFile(filePath, cwd);
+  return getRepoRoot(cwd).then((repoRoot) => gitExecutor.stageFile(filePath, repoRoot));
 }
 
 export function unstageFile(filePath: string, cwd?: string) {
-  return gitExecutor.unstageFile(filePath, cwd);
+  return getRepoRoot(cwd).then((repoRoot) => gitExecutor.unstageFile(filePath, repoRoot));
 }
 
 export function discardChanges(filePath: string, cwd?: string) {
-  return gitExecutor.discardChanges(filePath, cwd);
+  return getRepoRoot(cwd).then((repoRoot) => gitExecutor.discardChanges(filePath, repoRoot));
 }
 
 export function commitChanges(message: string, cwd?: string) {
@@ -583,7 +602,9 @@ export function pullChanges(cwd?: string) {
 }
 
 export function getFileVersion(ref: string, filePath: string, cwd?: string) {
-  return gitExecutor.getFileVersion(ref, filePath, cwd);
+  return getRepoRoot(cwd).then((repoRoot) =>
+    gitExecutor.getFileVersion(ref, filePath, repoRoot),
+  );
 }
 
 export async function getFilePatch(
