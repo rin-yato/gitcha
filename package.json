@@ -16,7 +16,7 @@
     "dev": "bun run --watch src/index.tsx",
     "build": "bun run scripts/build.ts",
     "setup": "bun run build && bun link",
-    "release": "release-it",
+    "release": "release-it -i patch",
     "preview": "bun run dist/index.js",
     "bench": "bun run benchmarks/bench.ts",
     "bench:latest": "bun run benchmarks/bench.ts --json --write-latest",

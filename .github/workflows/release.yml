@@ -45,10 +45,12 @@ jobs:
             target: bun-linux-arm64
             binary: gitcha
             release_name: gitcha-linux-arm64
-          - os: macos-13
+          - os: macos-14
             target: bun-darwin-x64
             binary: gitcha
             release_name: gitcha-darwin-x64
+            install_cpu: x64
+            install_os: darwin
           - os: macos-14
             target: bun-darwin-arm64
             binary: gitcha
@@ -64,7 +66,23 @@ jobs:
         with:
           bun-version: latest
 
-      - run: bun install --frozen-lockfile
+      - name: Install dependencies
+        shell: bash
+        env:
+          INSTALL_CPU: ${{ matrix.install_cpu }}
+          INSTALL_OS: ${{ matrix.install_os }}
+        run: |
+          args=()
+
+          if [ -n "$INSTALL_CPU" ]; then
+            args+=(--cpu "$INSTALL_CPU")
+          fi
+
+          if [ -n "$INSTALL_OS" ]; then
+            args+=(--os "$INSTALL_OS")
+          fi
+
+          bun install --frozen-lockfile "${args[@]}"
 
       - name: Build binary
         run: bun run scripts/build-matrix.ts
