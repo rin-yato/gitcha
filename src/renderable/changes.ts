@@ -5,6 +5,7 @@ import {
   DiffRenderable,
   type LineColorConfig,
   LineNumberRenderable,
+  type OptimizedBuffer,
   parseColor,
   Renderable,
   type RenderableOptions,
@@ -37,6 +38,12 @@ interface SliceWindow {
   windowEndRow: number;
   windowHeight: number;
   totalRows: number;
+}
+
+interface SplitScrollRenderable {
+  scrollY: number;
+  scrollHeight: number;
+  height: number;
 }
 
 export interface ChangesRenderableOptions extends RenderableOptions<ChangesRenderable> {
@@ -225,6 +232,12 @@ export class ChangesRenderable extends Renderable {
     scrollHeight: number;
   } | null = null;
 
+  protected override renderSelf(_buffer: OptimizedBuffer, _deltaTime: number): void {
+    if (this._view === "split") {
+      this.syncSplitScrollState();
+    }
+  }
+
   constructor(ctx: RenderContext, options: ChangesRenderableOptions) {
     super(ctx, {
       ...options,
@@ -276,6 +289,7 @@ export class ChangesRenderable extends Renderable {
     super.onResize(width, height);
 
     if (this._view !== "unified") {
+      this.notifyScrollState();
       return;
     }
 
@@ -346,6 +360,75 @@ export class ChangesRenderable extends Renderable {
     }
 
     return this.fallbackDiffRenderable?.hasSelection() ?? false;
+  }
+
+  private getSplitCodeRenderables(): {
+    left: SplitScrollRenderable | null;
+    right: SplitScrollRenderable | null;
+  } | null {
+    if (this._view !== "split" || !this.fallbackDiffRenderable) {
+      return null;
+    }
+
+    const splitRenderable = this.fallbackDiffRenderable as DiffRenderable & {
+      leftCodeRenderable?: SplitScrollRenderable | null;
+      rightCodeRenderable?: SplitScrollRenderable | null;
+    };
+
+    const left = splitRenderable.leftCodeRenderable ?? null;
+    const right = splitRenderable.rightCodeRenderable ?? null;
+
+    if (!left && !right) {
+      return null;
+    }
+
+    return { left, right };
+  }
+
+  private getSplitScrollState(): {
+    scrollTop: number;
+    viewportHeight: number;
+    scrollHeight: number;
+  } | null {
+    const renderables = this.getSplitCodeRenderables();
+    if (!renderables) {
+      return null;
+    }
+
+    const { left, right } = renderables;
+    const viewportHeight = Math.max(left?.height ?? 0, right?.height ?? 0, this.height);
+    const scrollHeight = Math.max(
+      left?.scrollHeight ?? 0,
+      right?.scrollHeight ?? 0,
+      viewportHeight,
+    );
+    const scrollTop = Math.max(left?.scrollY ?? 0, right?.scrollY ?? 0);
+
+    return {
+      scrollTop,
+      viewportHeight,
+      scrollHeight,
+    };
+  }
+
+  private syncSplitScrollState(): void {
+    const splitState = this.getSplitScrollState();
+    if (!splitState) {
+      return;
+    }
+
+    const changed =
+      this._scrollTop !== splitState.scrollTop ||
+      !this.lastNotifiedScrollState ||
+      this.lastNotifiedScrollState.scrollTop !== splitState.scrollTop ||
+      this.lastNotifiedScrollState.viewportHeight !== splitState.viewportHeight ||
+      this.lastNotifiedScrollState.scrollHeight !== splitState.scrollHeight;
+
+    this._scrollTop = splitState.scrollTop;
+
+    if (changed) {
+      this.notifyScrollState();
+    }
   }
 
   private updateAutoScroll(mouseX: number, mouseY: number): void {
@@ -429,17 +512,55 @@ export class ChangesRenderable extends Renderable {
   }
 
   public get scrollTop(): number {
+    const splitState = this.getSplitScrollState();
+    if (splitState) {
+      return splitState.scrollTop;
+    }
+
     return this._scrollTop;
   }
 
   public set scrollTop(value: number) {
-    const next = Math.max(0, Math.min(Math.floor(value), this.maxScrollTop));
+    const next = Math.max(0, Math.floor(value));
+
+    if (this._view === "split") {
+      const splitState = this.getSplitScrollState();
+      const maxScrollTop = splitState
+        ? Math.max(0, splitState.scrollHeight - splitState.viewportHeight)
+        : next;
+      const clamped = Math.min(next, maxScrollTop);
+
+      if (splitState && splitState.scrollTop === clamped && this._scrollTop === clamped) {
+        return;
+      }
+
+      if (!splitState && this._scrollTop === clamped) {
+        return;
+      }
+
+      this._scrollTop = clamped;
+
+      const renderables = this.getSplitCodeRenderables();
+      if (renderables) {
+        if (renderables.left) {
+          renderables.left.scrollY = clamped;
+        }
+        if (renderables.right) {
+          renderables.right.scrollY = clamped;
+        }
+      }
+
+      this.notifyScrollState();
+      return;
+    }
+
+    const clamped = Math.max(0, Math.min(next, this.maxScrollTop));
 
     if (this._scrollTop === next) {
       return;
     }
 
-    this._scrollTop = next;
+    this._scrollTop = clamped;
 
     if (this._view === "unified") {
       this.rebuildUnifiedSlice(false);
@@ -447,17 +568,27 @@ export class ChangesRenderable extends Renderable {
   }
 
   public get scrollHeight(): number {
+    const splitState = this.getSplitScrollState();
+    if (splitState) {
+      return splitState.scrollHeight;
+    }
+
     return this._view === "unified"
       ? Math.max(this.totalVirtualRows, this.height)
       : (this.fallbackDiffRenderable?.height ?? this.height);
   }
 
   public get viewportHeight(): number {
+    const splitState = this.getSplitScrollState();
+    if (splitState) {
+      return splitState.viewportHeight;
+    }
+
     return this.height;
   }
 
   public get maxScrollTop(): number {
-    return Math.max(0, this.scrollHeight - this.height);
+    return Math.max(0, this.scrollHeight - this.viewportHeight);
   }
 
   public scrollBy(delta: number): void {
@@ -467,7 +598,7 @@ export class ChangesRenderable extends Renderable {
   private notifyScrollState(): void {
     const nextState = {
       scrollTop: this._scrollTop,
-      viewportHeight: this.height,
+      viewportHeight: this.viewportHeight,
       scrollHeight: this.scrollHeight,
     };
 
@@ -603,6 +734,12 @@ export class ChangesRenderable extends Renderable {
       this.fallbackDiffRenderable = new DiffRenderable(this.ctx, {
         id: this.id ? `${this.id}-fallback` : undefined,
         width: "100%",
+        height: "100%",
+        flexGrow: 1,
+        flexShrink: 1,
+        minWidth: 0,
+        minHeight: 0,
+        overflow: "hidden",
         diff: this._diff,
         syncScroll: this._syncScroll,
         view: this._view,
@@ -1093,6 +1230,7 @@ export class ChangesRenderable extends Renderable {
     this.ensureRemoved(this.layoutCodeRenderable);
     this.currentSlice = null;
     this.cachedSliceSignature = "";
+    this.flexDirection = this._view === "split" ? "row" : "column";
 
     const fallbackDiff = this.createOrUpdateFallbackDiff();
     this.ensureAdded(fallbackDiff);

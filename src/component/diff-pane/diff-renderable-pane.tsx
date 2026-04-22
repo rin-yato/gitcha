@@ -34,7 +34,14 @@ export const DiffRenderablePane = memo(function DiffRenderablePane(
   const { theme, fileKey, diffContent, viewMode, filetype, syntaxStyle } = props;
 
   return (
-    <box flexGrow={1} flexDirection="row" overflow="hidden">
+    <box
+      flexGrow={1}
+      flexShrink={1}
+      minWidth={0}
+      minHeight={0}
+      flexDirection="row"
+      overflow="hidden"
+    >
       <DiffContent
         fileKey={fileKey}
         diffContent={diffContent}

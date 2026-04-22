@@ -67,7 +67,14 @@ export const Scrollbar = memo(function Scrollbar(props: ScrollbarProps) {
     props;
 
   return (
-    <box width={SCROLLBAR_WIDTH} backgroundColor={surfaceColor} position="relative">
+    <box
+      width={SCROLLBAR_WIDTH}
+      height="100%"
+      flexShrink={0}
+      backgroundColor={surfaceColor}
+      position="relative"
+      overflow="hidden"
+    >
       <ScrollbarThumb top={thumbTop} height={thumbHeight} color={thumbColor} />
       <ScrollbarMarkers markers={markers} addedColor={addedColor} removedColor={removedColor} />
     </box>

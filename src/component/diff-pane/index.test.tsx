@@ -251,6 +251,39 @@ ${lines.map((line) => `+${line} updated`).join("\n")}`}
   expect(output).toContain("▎");
 });
 
+test("code panel shows split scrollbar when diff overflows", async () => {
+  const lines = Array.from({ length: 30 }, (_, i) => `line ${i + 1}`);
+
+  testSetup = await testRender(
+    withToastProvider(
+      <DiffPane
+        theme={theme}
+        selectedFile="src/app.ts"
+        selectedFileKey="compare:src/app.ts"
+        selectedFileInfo={null}
+        diffContent={`diff --git a/src/app.ts b/src/app.ts
+index 1111111..2222222 100644
+--- a/src/app.ts
++++ b/src/app.ts
+@@ -1,30 +1,30 @@
+${lines.map((line) => `-${line}`).join("\n")}
+${lines.map((line) => `+${line} updated`).join("\n")}`}
+        isLoading={false}
+        diffViewMode="split"
+        toggleDiffViewMode={() => {}}
+      />,
+    ),
+    { width: 120, height: 12 },
+  );
+
+  await act(async () => {
+    await testSetup?.renderOnce();
+  });
+
+  const output = JSON.stringify(testSetup.captureSpans().lines);
+  expect(output).toContain("▎");
+});
+
 test("code panel shows rename source when file was renamed", async () => {
   testSetup = await testRender(
     withToastProvider(
