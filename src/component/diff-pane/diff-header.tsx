@@ -13,7 +13,14 @@ export const DiffHeader = memo(function DiffHeader(props: DiffHeaderProps) {
   const { label, viewMode, theme } = props;
 
   return (
-    <box flexDirection="row" justifyContent="space-between" paddingX={1} overflow="hidden">
+    <box
+      flexDirection="row"
+      justifyContent="space-between"
+      paddingX={1}
+      height={1}
+      flexShrink={0}
+      overflow="hidden"
+    >
       <text
         content={label}
         fg={theme.text}

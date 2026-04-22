@@ -60,6 +60,9 @@ export const DiffPane = memo(function DiffPane(props: DiffPaneProps) {
       position="relative"
       backgroundColor={theme.background}
       flexGrow={1}
+      flexShrink={1}
+      minHeight={0}
+      overflow="hidden"
       flexDirection="column"
     >
       <DiffHeader label={headerLabel} viewMode={diffViewMode} theme={theme} />
@@ -78,7 +81,13 @@ export const DiffPane = memo(function DiffPane(props: DiffPaneProps) {
           />
         )
       ) : (
-        <box flexGrow={1} alignItems="center" justifyContent="center">
+        <box
+          flexGrow={1}
+          flexShrink={1}
+          minHeight={0}
+          alignItems="center"
+          justifyContent="center"
+        >
           <ascii-font font="block" text="Gitcha" color={theme.textMuted} />
         </box>
       )}

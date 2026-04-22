@@ -370,7 +370,7 @@ export class ChangesRenderable extends Renderable {
       return null;
     }
 
-    const splitRenderable = this.fallbackDiffRenderable as DiffRenderable & {
+    const splitRenderable = this.fallbackDiffRenderable as unknown as {
       leftCodeRenderable?: SplitScrollRenderable | null;
       rightCodeRenderable?: SplitScrollRenderable | null;
     };
