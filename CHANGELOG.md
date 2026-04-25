@@ -1,5 +1,20 @@
 
 
+## [0.1.4](https://github.com/rin-yato/differ/compare/v0.1.3...v0.1.4) (2026-04-25)
+
+
+### Bug Fixes
+
+* incorrect diff path ([cf8365f](https://github.com/rin-yato/differ/commit/cf8365fd4649aaa43b4fafd3363b29af43e01b6a))
+* remove macos x64 ([85c9336](https://github.com/rin-yato/differ/commit/85c9336a9dda2c330868f4e0e7ea999c0cf6a3da))
+* split mode overflow into header ([a34cb79](https://github.com/rin-yato/differ/commit/a34cb79cd84e28e1e17e1df4f9ffb40199a44aa2))
+* type error in build-matrix ([3c517e4](https://github.com/rin-yato/differ/commit/3c517e49b6272f1e8864c6d09b4d0a1c5b7f8199))
+
+
+### Features
+
+* add scrolling support for split diff ([f37b1c2](https://github.com/rin-yato/differ/commit/f37b1c202a54798e7261a236f7eae8918dbd47d2))
+
 ## [0.1.3](https://github.com/rin-yato/differ/compare/v0.1.1...v0.1.3) (2026-04-21)
 
 
