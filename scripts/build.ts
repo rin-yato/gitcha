@@ -4,8 +4,9 @@ const result = await Bun.build({
   target: "bun",
   outdir,
   entrypoints: ["./src/index.tsx", "./src/lib/treesitter/parser.worker.ts"],
-  minify: false,
-  splitting: false,
+  minify: true,
+  splitting: true,
+  sourcemap: "linked",
   naming: {
     entry: "[name].[ext]",
   },
