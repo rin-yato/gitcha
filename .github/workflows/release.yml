@@ -155,7 +155,7 @@ jobs:
             exit 1
           fi
 
-          gh release upload "${{ steps.tag.outputs.tag }}" "${files[@]}" --clobber
+          gh release upload "${{ steps.tag.outputs.tag }}" "${files[@]}" --clobber --repo "${{ github.repository }}"
 
   # -------------------------------------------------------------------------
   # JS build for npm
