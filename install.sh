@@ -42,7 +42,11 @@ case "$OS" in
 esac
 
 case "$ARCH" in
-    x86_64|amd64) arch_name="x64" ;;
+    x86_64|amd64)
+        if [ "$os_name" = "darwin" ]; then
+            die "Intel macOS is not supported by the published releases yet; install with Bun or build from source."
+        fi
+        arch_name="x64" ;;
     arm64|aarch64) arch_name="arm64" ;;
     *)            die "Unsupported architecture: $ARCH" ;;
 esac
@@ -57,6 +61,7 @@ fi
 # get latest tag
 log "Detecting latest release..."
 TAG="$(curl -sL "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')"
+[ -n "$TAG" ] || die "Failed to resolve the latest release tag"
 
 # download directly using tag + asset name
 URL="https://github.com/$REPO/releases/download/$TAG/$ASSET"
@@ -69,10 +74,15 @@ mkdir -p "$BIN_DIR"
 cp "$TMP/$ASSET" "$BIN_DIR/$ASSET"
 
 if [ "$os_name" = "windows" ]; then
-    printf '@echo off\r\n"%%~dp0%q" %%*\r\n' "$ASSET" > "$BIN_DIR/gitcha.cmd"
+    printf '@echo off\r\n"%%~dp0%s" %%*\r\n' "$ASSET" > "$BIN_DIR/gitcha.cmd"
+    cp "$BIN_DIR/gitcha.cmd" "$BIN_DIR/gc.cmd"
 else
-    chmod +x "$BIN_DIR/$ASSET"
+    install -m 755 "$TMP/$ASSET" "$BIN_DIR/$ASSET"
+    if [ "$os_name" = "darwin" ] && command -v xattr >/dev/null 2>&1; then
+        xattr -d com.apple.quarantine "$BIN_DIR/$ASSET" 2>/dev/null || true
+    fi
     ln -sf "$BIN_DIR/$ASSET" "$BIN_DIR/gitcha"
+    ln -sf "$BIN_DIR/$ASSET" "$BIN_DIR/gc"
 fi
 
-log "Installed to $BIN_DIR/$ASSET"
+log "Installed gitcha and gc to $BIN_DIR"

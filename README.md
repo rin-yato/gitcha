@@ -46,6 +46,8 @@ If you do not have Bun installed, use the install script instead:
 curl -fsSL https://raw.githubusercontent.com/rin-yato/gitcha/main/install.sh | sh
 ```
 
+On macOS, the published releases currently support Apple Silicon only. Intel Macs will need to build from source until x64 release assets return.
+
 Run `gitcha` from any git repository to get started.
 
 ## Status

@@ -45,12 +45,6 @@ jobs:
             target: bun-linux-arm64
             binary: gitcha
             release_name: gitcha-linux-arm64
-          # - os: macos-14
-          #   target: bun-darwin-x64
-          #   binary: gitcha
-          #   release_name: gitcha-darwin-x64
-          #   install_cpu: x64
-          #   install_os: darwin
           - os: macos-14
             target: bun-darwin-arm64
             binary: gitcha
