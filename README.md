@@ -1,20 +1,32 @@
 # gitcha
 
-Git, reimagined for the terminal.
+An early-preview Git UI for the terminal.
+
+<video src="https://github.com/user-attachments/assets/9416d22c-4c2d-4acd-b2d7-88868b9a07e6" autoplay loop muted playsinline></video>
 
 ## About
 
-`gitcha` brings a clean, modern interface to your daily Git workflow. Thoughtful spacing. Muted, intentional colors. Clean layouts that let you focus on what matters - your code.
+`gitcha` is a terminal UI for source control review, modeled after the workflow people know from VS Code's Source Control panel.
 
-Everything is keyboard-driven. Navigate files, review diffs, stage hunks, and write commits — all without leaving the terminal.
+It supports branch-based diff review, so you can inspect changes the way you would review a PR or MR before merging.
 
-## Features
+This project was built for an AI-heavy workflow, where it's important to be able to easily review the changes made by codeing agents.
 
-- **Source Control Panel** — See staged, unstaged, and untracked files at a glance
-- **Diff Views** — Review changes with syntax-highlighted, side-by-side or inline diffs
-- **Granular Staging** — Stage exactly what you want, one hunk at a time
-- **Commit Workflow** — Write messages, push, and pull — seamlessly
-- **Vim-Style Navigation** — Move fast with `h/j/k/l` or arrow keys
+With `gitcha`, the goal is to make that final review fast and focused.
+
+## Preview
+
+![Screenshot 1](assets/screenshot-1.webp)
+![Screenshot 2](assets/screenshot-2.webp)
+![Screenshot 3](assets/screenshot-3.webp)
+
+## Current Focus
+
+- Source control overview for staged, unstaged, and untracked files
+- Branch-based diff review for PR/MR-style inspection
+- A VS Code-like source control workflow in the terminal
+- Keyboard navigation with `h/j/k/l` or arrow keys
+- More workflow features are being built out
 
 ## Quick Start
 
@@ -35,6 +47,10 @@ curl -fsSL https://raw.githubusercontent.com/rin-yato/gitcha/main/install.sh | s
 ```
 
 Run `gitcha` from any git repository to get started.
+
+## Status
+
+`gitcha` is a preview project. The interface and feature set are expected to change as development continues.
 
 ## Contributing
 
