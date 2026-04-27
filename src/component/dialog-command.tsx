@@ -33,14 +33,16 @@ export function DialogCommand(props: DialogCommandProps) {
   );
 
   return (
-    <DialogSelect
-      theme={props.theme}
-      title="Commands"
-      placeholder="Search commands..."
-      options={props.options}
-      onSelect={handleSelect}
-      width={76}
-      height={24}
-    />
+    <box padding={1} backgroundColor={props.theme.surface}>
+      <DialogSelect
+        theme={props.theme}
+        title="Commands"
+        placeholder="Search commands..."
+        options={props.options}
+        onSelect={handleSelect}
+        width={76}
+        height={24}
+      />
+    </box>
   );
 }
