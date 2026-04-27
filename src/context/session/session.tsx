@@ -18,6 +18,7 @@ import type {
   GitRepoStatus,
   GitStatusFile,
   RepoContext,
+  RepoMonitorMode,
 } from "@/lib/git";
 import {
   commitChanges as commitGitChanges,
@@ -52,6 +53,8 @@ import { dequal } from "dequal";
 export type ReviewSession = {
   status: GitRepoStatus | null;
   error: string | null;
+  watcherMode: RepoMonitorMode | null;
+  diffRevision: number;
   compareState: CompareState | null;
   fileTrees: {
     staged: FileTreeSnapshot;
@@ -99,6 +102,7 @@ export type GitClient = {
     compareBaseRef?: string,
     compareTargetRef?: string | null,
     compareMode?: CompareMode,
+    diffRevision?: number,
   ) => Promise<string | null>;
   getDiffUnsupportedReason: (
     file: GitStatusFile,
@@ -106,6 +110,7 @@ export type GitClient = {
     compareBaseRef?: string,
     compareTargetRef?: string | null,
     compareMode?: CompareMode,
+    diffRevision?: number,
   ) => Promise<string | null>;
   getMergeBase: (baseRef: string) => Promise<string>;
   stageFile: (filePath: string) => Promise<void>;
@@ -153,13 +158,15 @@ function buildDiffCacheKey(args: {
   compareBaseRef?: string;
   compareTargetRef?: string | null;
   compareMode?: CompareMode;
+  diffRevision?: number;
 }): DiffCacheKey {
-  const { file, section, compareBaseRef, compareTargetRef, compareMode } = args;
+  const { file, section, compareBaseRef, compareTargetRef, compareMode, diffRevision } = args;
   return [
     section,
     compareMode ?? "",
     compareBaseRef ?? "",
     compareTargetRef ?? "",
+    diffRevision ?? 0,
     file.path,
     file.originalPath ?? "",
     file.indexStatus,
@@ -176,6 +183,7 @@ function createGitClient(ctx: RepoContext): GitClient {
     compareBaseRef?: string,
     compareTargetRef?: string | null,
     compareMode?: CompareMode,
+    diffRevision?: number,
   ) => {
     const cacheKey = buildDiffCacheKey({
       file,
@@ -183,6 +191,7 @@ function createGitClient(ctx: RepoContext): GitClient {
       compareBaseRef,
       compareTargetRef,
       compareMode,
+      diffRevision,
     });
 
     const cached = diffCache.get(cacheKey);
@@ -237,13 +246,21 @@ function createGitClient(ctx: RepoContext): GitClient {
     searchCompareCommits: (query: string) => searchCompareCommits(query, 1000, ctx.cwd),
     getMergeBase: (baseRef: string) => getMergeBase(baseRef, ctx.cwd),
     getDiffUnsupportedReason,
-    getDiffPatch: async (file, section, compareBaseRef, compareTargetRef, compareMode) => {
+    getDiffPatch: async (
+      file,
+      section,
+      compareBaseRef,
+      compareTargetRef,
+      compareMode,
+      diffRevision,
+    ) => {
       const cacheKey = buildDiffCacheKey({
         file,
         section,
         compareBaseRef,
         compareTargetRef,
         compareMode,
+        diffRevision,
       });
 
       const cached = diffCache.get(cacheKey);
@@ -255,6 +272,7 @@ function createGitClient(ctx: RepoContext): GitClient {
         compareBaseRef,
         compareTargetRef,
         compareMode,
+        diffRevision,
       );
       if (reason) return null;
 
@@ -347,6 +365,8 @@ export function ReviewProvider({
   const [client, setClient] = useState<GitClient | null>(null);
   const [status, setStatus] = useState<GitRepoStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [watcherMode, setWatcherMode] = useState<RepoMonitorMode | null>(null);
+  const [diffRevision, setDiffRevision] = useState(0);
   const [compareState, setCompareState] = useState<CompareState | null>(null);
   const [fileTrees, setFileTrees] = useState<{
     staged: FileTreeSnapshot;
@@ -361,10 +381,10 @@ export function ReviewProvider({
   const latestStatusRef = useRef<GitRepoStatus | null>(null);
   const latestCompareRef = useRef<CompareState | null>(null);
   const compareResolutionRef = useRef<CompareResolution | null>(null);
-  const statusRevision = useRef(0);
-  const compareRevision = useRef(0);
   const monitorRef = useRef<{ dispose: () => Promise<void> } | null>(null);
   const fileTreeSignatureRef = useRef({ staged: "", changes: "", compare: "" });
+  const refreshStatusRef = useRef<() => void>(() => {});
+  const refreshCompareRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     if (bootstrap) {
@@ -408,9 +428,13 @@ export function ReviewProvider({
   }, [client]);
 
   useEffect(() => {
+    refreshStatusRef.current = refreshStatus;
+  }, [refreshStatus]);
+
+  useEffect(() => {
     if (!client) return;
     refreshStatus();
-  }, [client, refreshStatus, statusRevision.current]);
+  }, [client, refreshStatus]);
 
   const refreshCompare = useCallback(() => {
     if (!client || !compareState) return;
@@ -431,6 +455,14 @@ export function ReviewProvider({
       }
     })();
   }, [client, compareState]);
+
+  const bumpDiffRevision = useCallback(() => {
+    setDiffRevision((revision) => revision + 1);
+  }, []);
+
+  useEffect(() => {
+    refreshCompareRef.current = refreshCompare;
+  }, [refreshCompare]);
 
   const startCompare = useCallback(
     async (target: CompareTarget): Promise<CompareState | null> => {
@@ -461,14 +493,13 @@ export function ReviewProvider({
       if (!client) return;
       action()
         .then(() => {
-          statusRevision.current += 1;
-          compareRevision.current += 1;
+          bumpDiffRevision();
           refreshStatus();
           refreshCompare();
         })
         .catch(() => {});
     },
-    [client, refreshCompare, refreshStatus],
+    [bumpDiffRevision, client, refreshCompare, refreshStatus],
   );
 
   useEffect(() => {
@@ -476,12 +507,13 @@ export function ReviewProvider({
 
     let cancelled = false;
 
-    void createRepoMonitor(client.ctx, () => {
+    void createRepoMonitor(client.ctx, (kind) => {
       if (cancelled) return;
-      statusRevision.current += 1;
-      compareRevision.current += 1;
-      refreshStatus();
-      refreshCompare();
+      if (kind === "content") {
+        bumpDiffRevision();
+      }
+      refreshStatusRef.current();
+      refreshCompareRef.current();
     }).then((monitor) => {
       if (cancelled) {
         void monitor.dispose();
@@ -489,15 +521,17 @@ export function ReviewProvider({
       }
 
       monitorRef.current = monitor;
+      setWatcherMode(monitor.mode);
     });
 
     return () => {
       cancelled = true;
       const monitor = monitorRef.current;
       monitorRef.current = null;
+      setWatcherMode(null);
       void monitor?.dispose();
     };
-  }, [client, refreshCompare, refreshStatus]);
+  }, [bumpDiffRevision, client]);
 
   useEffect(() => {
     const nextStatus = status ?? null;
@@ -538,6 +572,8 @@ export function ReviewProvider({
         ? {
             status,
             error,
+            watcherMode,
+            diffRevision,
             compareState,
             fileTrees,
             client,
@@ -557,6 +593,7 @@ export function ReviewProvider({
       client,
       compareState,
       error,
+      diffRevision,
       fileTrees,
       refreshCompare,
       refreshStatus,
@@ -564,6 +601,7 @@ export function ReviewProvider({
       startCompare,
       status,
       stopCompare,
+      watcherMode,
     ],
   );
 

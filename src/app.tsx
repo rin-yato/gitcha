@@ -143,10 +143,11 @@ function App() {
       <StatusDialog
         theme={theme}
         gitRoot={git.client.ctx.root}
+        watcherMode={git.watcherMode}
         onClose={() => dialog.clear()}
       />,
     );
-  }, [dialog, git.client.ctx.root, theme]);
+  }, [dialog, git.client.ctx.root, git.watcherMode, theme]);
 
   const showCompareBranchDialog = useCallback(() => {
     dialog.show(

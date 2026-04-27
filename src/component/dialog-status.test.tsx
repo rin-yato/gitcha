@@ -37,7 +37,9 @@ afterEach(() => {
 test("status dialog renders diagnostics", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async () =>
-    new Response(JSON.stringify({ tag_name: "v0.1.7" }), { status: 200 })) as typeof fetch;
+    new Response(JSON.stringify({ tag_name: "v0.1.7" }), {
+      status: 200,
+    })) as unknown as typeof fetch;
 
   try {
     testSetup = await testRender(

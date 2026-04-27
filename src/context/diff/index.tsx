@@ -69,6 +69,7 @@ export function ReviewDiffProvider({ children }: { children: React.ReactNode }) 
         git.compareState?.baseRef,
         git.compareState?.targetRef,
         git.compareState?.mode,
+        git.diffRevision,
       );
 
       if (requestId !== diffLoadRequestRef.current) return;
@@ -86,6 +87,7 @@ export function ReviewDiffProvider({ children }: { children: React.ReactNode }) 
         section === "compare" ? git.compareState?.baseRef : undefined,
         section === "compare" ? git.compareState?.targetRef : undefined,
         section === "compare" ? git.compareState?.mode : undefined,
+        git.diffRevision,
       );
 
       if (requestId !== diffLoadRequestRef.current) return;
@@ -104,6 +106,7 @@ export function ReviewDiffProvider({ children }: { children: React.ReactNode }) 
     git.compareState?.baseRef,
     git.compareState?.targetRef,
     git.compareState?.mode,
+    git.diffRevision,
     selection.focusedFile,
     selection.selectedFile,
     selection.selectedFileSection,

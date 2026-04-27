@@ -31,7 +31,8 @@ test("uses chokidar when available", async () => {
   expect(monitor).toBeDefined();
   expect(monitor.mode).toBe("native");
 
-  allHandler?.("change", "/work/.git/index");
+  const handler: (event: string, filePath: string) => void = allHandler ?? (() => undefined);
+  handler("change", "/work/.git/index");
   await monitor.dispose();
 });
 
