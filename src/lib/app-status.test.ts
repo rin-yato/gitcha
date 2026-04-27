@@ -1,23 +1,51 @@
 import { describe, expect, test } from "bun:test";
 
-import { classifyInstallMethod } from "./app-status";
+import { classifyInstallMethod, getUpgradeCommand, isNewVersionAvailable } from "./app-status";
 
 describe("classifyInstallMethod", () => {
-  test("detects bun link installs", () => {
+  test("detects bun global installs", () => {
     expect(
       classifyInstallMethod("/opt/bun/bin/bun", "/usr/local/bin/node_modules/.bin/gitcha"),
-    ).toBe("bun link");
+    ).toBe("bun add -g gitcha");
   });
 
-  test("detects bun run installs", () => {
-    expect(classifyInstallMethod("/opt/bun/bin/bun", "/work/dist/index.js")).toBe(
-      "bun run dist/index.js",
-    );
-  });
-
-  test("detects binary installs", () => {
+  test("defaults to install script installs", () => {
     expect(classifyInstallMethod("/usr/local/bin/gitcha", "/usr/local/bin/gitcha")).toBe(
-      "binary",
+      "install.sh",
     );
+  });
+
+  test("returns null for source installs", () => {
+    expect(classifyInstallMethod("/opt/bun/bin/bun", "/work/dist/index.js")).toBeNull();
+  });
+});
+
+describe("isNewVersionAvailable", () => {
+  test("detects newer versions", () => {
+    expect(isNewVersionAvailable("0.1.6", "v0.1.7")).toBe(true);
+  });
+
+  test("rejects same versions", () => {
+    expect(isNewVersionAvailable("v0.1.6", "0.1.6")).toBe(false);
+  });
+});
+
+describe("getUpgradeCommand", () => {
+  test("uses bun global install for bun installs", () => {
+    expect(getUpgradeCommand("bun add -g gitcha", "/usr/local/bin/gitcha")).toEqual({
+      command: "bun",
+      args: ["add", "-g", "gitcha@latest"],
+    });
+  });
+
+  test("uses install script for shell installs", () => {
+    expect(getUpgradeCommand("install.sh", "/Users/yato/.local/bin/gc")).toEqual({
+      command: "sh",
+      args: [
+        "-c",
+        "curl -fsSL https://raw.githubusercontent.com/rin-yato/gitcha/main/install.sh | sh",
+      ],
+      env: { PREFIX: "/Users/yato/.local" },
+    });
   });
 });

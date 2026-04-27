@@ -4,13 +4,9 @@ import { useEffect, useState } from "react";
 
 import type { Theme } from "@/context/theme/provider";
 
-import {
-  APP_GITHUB_REPOSITORY,
-  classifyInstallMethod,
-  getAppVersion,
-  getInstalledPath,
-} from "@/lib/app-status";
+import { classifyInstallMethod, getAppVersion, getInstalledPath } from "@/lib/app-status";
 import type { RepoMonitorMode } from "@/lib/git";
+import { createLatestReleaseLookup, type ReleaseLookup } from "@/lib/release";
 
 type ReleaseState =
   | { status: "loading" }
@@ -22,6 +18,7 @@ export type StatusDialogProps = {
   gitRoot: string | null;
   watcherMode: RepoMonitorMode | null;
   onClose: () => void;
+  releaseLookup?: ReleaseLookup;
 };
 
 function StatusRow(props: { theme: Theme; label: string; value: string }) {
@@ -37,35 +34,20 @@ function StatusRow(props: { theme: Theme; label: string; value: string }) {
   );
 }
 
-async function fetchLatestRelease(): Promise<string | null> {
-  const response = await fetch(
-    `https://api.github.com/repos/${APP_GITHUB_REPOSITORY.owner}/${APP_GITHUB_REPOSITORY.repo}/releases/latest`,
-    {
-      headers: {
-        Accept: "application/vnd.github+json",
-        "User-Agent": "gitcha",
-      },
-    },
-  );
-
-  if (!response.ok) return null;
-
-  const payload = (await response.json()) as { tag_name?: string; name?: string };
-  return payload.tag_name ?? payload.name ?? null;
-}
-
 export function StatusDialog(props: StatusDialogProps) {
   const { theme, gitRoot, watcherMode, onClose } = props;
   const [release, setRelease] = useState<ReleaseState>({ status: "loading" });
+  const releaseLookup = props.releaseLookup ?? defaultReleaseLookup;
 
   const appVersion = getAppVersion();
   const installedPath = getInstalledPath();
   const installMethod = classifyInstallMethod(process.execPath, installedPath);
+  const installLabel = installMethod ?? "Unknown";
 
   useEffect(() => {
     let cancelled = false;
 
-    void fetchLatestRelease()
+    void releaseLookup()
       .then((version) => {
         if (cancelled) return;
         setRelease({ status: "loaded", version });
@@ -78,7 +60,7 @@ export function StatusDialog(props: StatusDialogProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [releaseLookup]);
 
   useKeyboard((event) => {
     if (event.name !== "escape") return;
@@ -114,10 +96,12 @@ export function StatusDialog(props: StatusDialogProps) {
         <StatusRow theme={theme} label="Health" value={gitRoot ? "ready" : "unavailable"} />
         <StatusRow theme={theme} label="Watcher" value={watcherMode ?? "starting"} />
         <StatusRow theme={theme} label="Git root" value={gitRoot ?? "Not available"} />
-        <StatusRow theme={theme} label="Install" value={installMethod} />
+        <StatusRow theme={theme} label="Install" value={installLabel} />
         <StatusRow theme={theme} label="Version" value={appVersion} />
         <StatusRow theme={theme} label="New version" value={releaseLabel} />
       </box>
     </box>
   );
 }
+
+const defaultReleaseLookup = createLatestReleaseLookup();

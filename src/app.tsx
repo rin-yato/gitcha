@@ -15,6 +15,7 @@ import { type Theme, type ThemeMode, ThemeProvider, useTheme } from "@/context/t
 import { ReviewViewProvider, useReviewView } from "@/context/view";
 
 import type { CompareTarget } from "@/lib/git";
+import { upgradeApp } from "@/lib/upgrade";
 
 import {
   buildCommandMap,
@@ -149,6 +150,10 @@ function App() {
     );
   }, [dialog, git.client.ctx.root, git.watcherMode, theme]);
 
+  const handleUpgrade = useCallback(() => {
+    void upgradeApp();
+  }, []);
+
   const showCompareBranchDialog = useCallback(() => {
     dialog.show(
       <CompareBranchDialogLoader
@@ -188,6 +193,7 @@ function App() {
         shrinkSidebar: layout.shrinkSidebar,
         growSidebar: layout.growSidebar,
         toggleSidebar: layout.toggleSidebar,
+        upgradeApp: handleUpgrade,
       },
     });
 
@@ -207,6 +213,7 @@ function App() {
     showCompareBranchDialog,
     showThemeDialog,
     showStatusDialog,
+    handleUpgrade,
     theme,
     view,
   ]);

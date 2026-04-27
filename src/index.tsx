@@ -7,11 +7,31 @@ import { createRoot } from "@opentui/react";
 
 import { bootstrapReviewSession } from "@/context/session/session";
 
+import { buildCli } from "@/lib/cli";
 import { createStartupBenchmarkRecorder } from "@/lib/startup-benchmark";
 import { parsers } from "@/lib/treesitter/parsers";
+import { upgradeApp } from "@/lib/upgrade";
 
 import { AppRootWithBootstrap } from "@/app";
 import { registerRenderables } from "@/renderable/register";
+
+const version = process.env.CHANGES_APP_VERSION ?? "dev";
+const cli = buildCli(version);
+
+if (cli.shouldShowVersion) {
+  console.log(version);
+  process.exit(0);
+}
+
+if (cli.shouldShowHelp) {
+  console.log(cli.helpText);
+  process.exit(0);
+}
+
+if (cli.command === "upgrade") {
+  const code = await upgradeApp();
+  process.exit(code);
+}
 
 addDefaultParsers(parsers);
 registerRenderables();

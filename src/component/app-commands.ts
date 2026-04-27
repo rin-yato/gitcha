@@ -7,6 +7,7 @@ const SUGGESTED_COMMAND_IDS = [
   "toggle-compare",
   "toggle-diff-view",
   "status",
+  "upgrade",
 ] as const;
 
 export type CommandHost = {
@@ -18,6 +19,7 @@ export type CommandHost = {
   shrinkSidebar: () => void;
   growSidebar: () => void;
   toggleSidebar: () => void;
+  upgradeApp: () => void;
 };
 
 export function buildCommandMap(commands: CommandOption[]): Record<string, CommandOption> {
@@ -82,6 +84,13 @@ export function buildCommandOptions(args: {
       category: "View",
       slash: "i",
       run: showStatusDialog,
+    },
+    {
+      id: "upgrade",
+      label: "Upgrade",
+      category: "Action",
+      slash: "g",
+      run: app.upgradeApp,
     },
     {
       id: "toggle-diff-view",

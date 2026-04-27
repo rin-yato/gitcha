@@ -18,6 +18,7 @@ describe("buildCommandOptions", () => {
         shrinkSidebar: () => {},
         growSidebar: () => {},
         toggleSidebar: () => {},
+        upgradeApp: () => {},
       },
     });
 
