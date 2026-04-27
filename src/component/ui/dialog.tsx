@@ -78,7 +78,13 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
       {children}
       {topDialog ? (
         <box position="absolute" top={0} left={0} width="100%" height="100%" zIndex={3000}>
-          <Overlay onMouseUp={() => clear()}>{topDialog.element}</Overlay>
+          <Overlay
+            onMouseUp={(e) => {
+              if (e.target?.id === "dialog-overlay") clear();
+            }}
+          >
+            {topDialog.element}
+          </Overlay>
         </box>
       ) : null}
     </DialogContext.Provider>

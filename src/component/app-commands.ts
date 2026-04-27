@@ -2,7 +2,12 @@ import type { CommandOption } from "@/component/dialog-command";
 import type { DialogSelectOption } from "@/component/ui/dialog-select";
 
 const COMMAND_CATEGORIES = ["View", "Action", "Layout", "Appearance"] as const;
-const SUGGESTED_COMMAND_IDS = ["refresh", "toggle-compare", "toggle-diff-view"] as const;
+const SUGGESTED_COMMAND_IDS = [
+  "refresh",
+  "toggle-compare",
+  "toggle-diff-view",
+  "status",
+] as const;
 
 export type CommandHost = {
   toggleDiffViewMode: () => void;
@@ -25,6 +30,7 @@ export function buildCommandSelectOptions(
   const suggestedCommands = commands.filter((command) =>
     SUGGESTED_COMMAND_IDS.includes(command.id as (typeof SUGGESTED_COMMAND_IDS)[number]),
   );
+  const suggestedIds = new Set(suggestedCommands.map((command) => command.id));
 
   return [
     ...suggestedCommands.map((command) => ({
@@ -35,7 +41,7 @@ export function buildCommandSelectOptions(
     })),
     ...COMMAND_CATEGORIES.flatMap((category) =>
       commands
-        .filter((command) => command.category === category)
+        .filter((command) => command.category === category && !suggestedIds.has(command.id))
         .map((command) => ({
           title: command.label,
           value: command.id,
@@ -50,9 +56,10 @@ export function buildCommandOptions(args: {
   refresh: () => void;
   showCompareBranchDialog: () => void;
   showThemeDialog: () => void;
+  showStatusDialog: () => void;
   app: CommandHost;
 }): CommandOption[] {
-  const { refresh, showCompareBranchDialog, showThemeDialog, app } = args;
+  const { refresh, showCompareBranchDialog, showThemeDialog, showStatusDialog, app } = args;
 
   return [
     {
@@ -68,6 +75,13 @@ export function buildCommandOptions(args: {
       category: "Action",
       slash: "r",
       run: refresh,
+    },
+    {
+      id: "status",
+      label: "Status",
+      category: "View",
+      slash: "i",
+      run: showStatusDialog,
     },
     {
       id: "toggle-diff-view",

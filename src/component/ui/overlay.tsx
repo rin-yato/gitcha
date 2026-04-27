@@ -1,12 +1,15 @@
+import type { MouseEvent } from "@opentui/core";
+
 import type React from "react";
 
 export function Overlay(props: {
   children: React.ReactNode;
   backgroundColor?: string;
-  onMouseUp?: () => void;
+  onMouseUp?: (e: MouseEvent) => void;
 }) {
   return (
     <box
+      id="dialog-overlay"
       position="absolute"
       top={0}
       left={0}
@@ -18,7 +21,7 @@ export function Overlay(props: {
       zIndex={90}
       justifyContent="center"
       alignItems="center"
-      onMouseUp={props.onMouseUp}
+      onMouseUp={(e) => props.onMouseUp?.(e)}
     >
       {props.children}
     </box>

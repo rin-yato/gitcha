@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
 
+import "@opentui/react/runtime-plugin-support";
+
 import { addDefaultParsers, createCliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
 

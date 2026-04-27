@@ -23,6 +23,7 @@ import {
 } from "@/component/app-commands";
 import { DialogCommand } from "@/component/dialog-command";
 import { CompareDialog } from "@/component/dialog-compare";
+import { StatusDialog } from "@/component/dialog-status";
 import { ThemeDialog } from "@/component/dialog-theme";
 import { DiffPane } from "@/component/diff-pane";
 import { Sidebar } from "@/component/sidebar/index";
@@ -137,6 +138,16 @@ function App() {
     dialog.replace(<ThemeDialog theme={theme} onClose={() => dialog.clear()} />);
   }, [dialog, theme]);
 
+  const showStatusDialog = useCallback(() => {
+    dialog.replace(
+      <StatusDialog
+        theme={theme}
+        gitRoot={git.client.ctx.root}
+        onClose={() => dialog.clear()}
+      />,
+    );
+  }, [dialog, git.client.ctx.root, theme]);
+
   const showCompareBranchDialog = useCallback(() => {
     dialog.show(
       <CompareBranchDialogLoader
@@ -166,6 +177,7 @@ function App() {
       refresh,
       showCompareBranchDialog,
       showThemeDialog,
+      showStatusDialog,
       app: {
         toggleDiffViewMode: diff.toggleDiffViewMode,
         exitCompareMode: view.exitCompareMode,
@@ -193,6 +205,7 @@ function App() {
     selection,
     showCompareBranchDialog,
     showThemeDialog,
+    showStatusDialog,
     theme,
     view,
   ]);

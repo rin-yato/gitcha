@@ -141,6 +141,8 @@ export interface FileDiffSource {
  */
 export type RepoChangeKind = "content" | "metadata";
 
+export type RepoMonitorMode = "native" | "polling";
+
 /**
  * Listener notified when the repo changes.
  */
@@ -150,6 +152,7 @@ export type RepoChangeListener = (kind: RepoChangeKind) => void;
  * Disposable repo monitor handle.
  */
 export interface RepoMonitor {
+  mode: RepoMonitorMode;
   dispose: () => Promise<void>;
 }
 

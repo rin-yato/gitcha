@@ -13,6 +13,9 @@ type BuildTarget =
     : never;
 
 const bunfsRoot = "/$bunfs/root/";
+const { version: appVersion } = JSON.parse(fs.readFileSync("package.json", "utf8")) as {
+  version: string;
+};
 
 export function createBuildMatrixConfig(
   env: BuildMatrixEnv,
@@ -38,6 +41,7 @@ export function createBuildMatrixConfig(
     entrypoints: ["./src/index.tsx", workerSourcePath],
     minify: true,
     define: {
+      "process.env.CHANGES_APP_VERSION": JSON.stringify(appVersion),
       OTUI_TREE_SITTER_WORKER_PATH: `"${bunfsRoot}${workerRelativePath}"`,
     },
   };
