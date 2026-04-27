@@ -277,6 +277,7 @@ function App() {
       width="100%"
       height="100%"
       backgroundColor={theme.background}
+      paddingY={1}
     >
       <Sidebar
         theme={theme}
