@@ -1,6 +1,6 @@
 import { memo, useMemo } from "react";
 
-import { createSyntaxStyle, detectFiletype } from "@/context/theme";
+import { createSyntaxStyle, getSupportedSyntaxFiletype } from "@/context/theme";
 
 import { DiffHeader } from "./diff-header";
 import { DiffRenderablePane } from "./diff-renderable-pane";
@@ -43,7 +43,7 @@ export const DiffPane = memo(function DiffPane(props: DiffPaneProps) {
     diffViewMode,
   } = props;
 
-  const filetype = useMemo(() => detectFiletype(selectedFile), [selectedFile]);
+  const filetype = useMemo(() => getSupportedSyntaxFiletype(selectedFile), [selectedFile]);
 
   const syntaxStyle = useMemo(() => createSyntaxStyle(theme), [theme]);
 
@@ -76,7 +76,7 @@ export const DiffPane = memo(function DiffPane(props: DiffPaneProps) {
             fileKey={selectedFileKey}
             diffContent={diffContent!}
             viewMode={diffViewMode}
-            filetype={filetype ?? "text"}
+            filetype={filetype}
             syntaxStyle={syntaxStyle}
           />
         )

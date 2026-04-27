@@ -1,10 +1,30 @@
 import { parseColor, pathToFiletype, SyntaxStyle } from "@opentui/core";
 
+import { parsers } from "@/lib/treesitter/parsers";
+
 import type { Theme } from "./provider";
+
+const BUILTIN_SYNTAX_FILETYPES = new Set([
+  "javascript",
+  "javascriptreact",
+  "markdown",
+  "typescript",
+  "typescriptreact",
+]);
+
+const SUPPORTED_SYNTAX_FILETYPES = new Set([
+  ...BUILTIN_SYNTAX_FILETYPES,
+  ...parsers.map((parser) => parser.filetype),
+]);
 
 export function detectFiletype(filePath: string | null): string | undefined {
   if (!filePath) return undefined;
   return pathToFiletype(filePath);
+}
+
+export function getSupportedSyntaxFiletype(filePath: string | null): string | undefined {
+  const filetype = detectFiletype(filePath);
+  return filetype && SUPPORTED_SYNTAX_FILETYPES.has(filetype) ? filetype : "markdown";
 }
 
 export function createSyntaxStyle(theme: Theme): SyntaxStyle {

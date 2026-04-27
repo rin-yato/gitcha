@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { detectFiletype } from "./syntax";
+import { detectFiletype, getSupportedSyntaxFiletype } from "./syntax";
 
 describe("detectFiletype", () => {
   test("returns undefined for null input", () => {
@@ -234,5 +234,19 @@ describe("detectFiletype", () => {
     test("empty string returns undefined", () => {
       expect(detectFiletype("")).toBeUndefined();
     });
+  });
+});
+
+describe("getSupportedSyntaxFiletype", () => {
+  test("keeps supported filetypes", () => {
+    expect(getSupportedSyntaxFiletype("src/app.tsx")).toBe("typescriptreact");
+    expect(getSupportedSyntaxFiletype("README.md")).toBe("markdown");
+    expect(getSupportedSyntaxFiletype("package.json")).toBe("json");
+  });
+
+  test("drops unsupported filetypes", () => {
+    expect(getSupportedSyntaxFiletype("Makefile")).toBeUndefined();
+    expect(getSupportedSyntaxFiletype("Dockerfile")).toBeUndefined();
+    expect(getSupportedSyntaxFiletype("script.zig")).toBeUndefined();
   });
 });

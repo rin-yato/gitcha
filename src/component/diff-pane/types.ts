@@ -23,7 +23,7 @@ export interface DiffRenderablePaneProps {
   diffContent: string;
   viewMode: DiffViewMode;
   theme: Theme;
-  filetype: string;
+  filetype?: string;
   syntaxStyle: ReturnType<typeof createSyntaxStyle>;
 }
 
@@ -32,7 +32,7 @@ export interface DiffContentProps {
   diffContent: string;
   viewMode: DiffViewMode;
   theme: Theme;
-  filetype: string;
+  filetype?: string;
   syntaxStyle: ReturnType<typeof createSyntaxStyle>;
   onScrollStateChange: (
     scrollTop: number,
