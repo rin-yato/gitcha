@@ -475,7 +475,10 @@ export function Sidebar(props: SidebarProps) {
           setScrollTop(scrollRef.current.scrollTop);
         }}
         scrollbarOptions={{
-          trackOptions: { backgroundColor: theme.surface },
+          trackOptions: {
+            foregroundColor: `${theme.textMuted}80`,
+            backgroundColor: "transparent",
+          },
         }}
       >
         {error ? <ErrorMessage error={error} theme={theme} /> : null}
