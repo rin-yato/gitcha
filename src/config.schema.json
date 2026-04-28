@@ -52,6 +52,14 @@
       "minimum": 20,
       "maximum": 80
     },
+    "padding": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      },
+      "minItems": 4,
+      "maxItems": 4
+    },
     "keybindings": {
       "type": "object",
       "additionalProperties": false,

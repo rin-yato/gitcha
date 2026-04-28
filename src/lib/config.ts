@@ -7,6 +7,7 @@ import { DEFAULT_THEME_ID, THEME_IDS, type ThemeId } from "@/themes";
 export const MIN_SIDEBAR_WIDTH = 20;
 export const MAX_SIDEBAR_WIDTH = 80;
 export const DEFAULT_SIDEBAR_WIDTH = 40;
+export const DEFAULT_APP_PADDING = [0, 0, 0, 0] as const;
 
 const CONFIG_FILE_NAME = "gitcha.json";
 
@@ -33,12 +34,14 @@ export type AppKeybindings = Record<AppKeybindingId, string[]>;
 export type AppConfig = {
   themeId: ThemeId;
   sidebarWidth: number;
+  padding: [number, number, number, number];
   keybindings: AppKeybindings;
 };
 
 type AppConfigFile = {
   themeId?: string;
   sidebarWidth?: number;
+  padding?: unknown;
   keybindings?: Partial<Record<AppKeybindingId, string | string[]>>;
 };
 
@@ -73,6 +76,7 @@ export function createDefaultAppConfig(): AppConfig {
   return {
     themeId: DEFAULT_THEME_ID,
     sidebarWidth: DEFAULT_SIDEBAR_WIDTH,
+    padding: [...DEFAULT_APP_PADDING],
     keybindings: cloneKeybindings(DEFAULT_KEYBINDINGS),
   };
 }
@@ -166,6 +170,7 @@ export function resolveAppConfig(config: unknown): AppConfig {
   return {
     themeId: normalizeThemeId(file.themeId),
     sidebarWidth: normalizeSidebarWidth(file.sidebarWidth ?? DEFAULT_SIDEBAR_WIDTH),
+    padding: normalizePadding(file.padding),
     keybindings: normalizeKeybindings(file.keybindings),
   };
 }
@@ -202,6 +207,7 @@ export function serializeAppConfig(config: AppConfig): string {
       $schema: "https://raw.githubusercontent.com/rin-yato/gitcha/main/src/config.schema.json",
       themeId: config.themeId,
       sidebarWidth: config.sidebarWidth,
+      padding: config.padding,
       keybindings: config.keybindings,
     },
     null,
@@ -248,6 +254,19 @@ function normalizeShortcutList(
     .filter((shortcut): shortcut is string => Boolean(shortcut));
 
   return normalized.length > 0 ? Array.from(new Set(normalized)) : [...fallback];
+}
+
+function normalizePadding(value: unknown): [number, number, number, number] {
+  if (!Array.isArray(value) || value.length !== 4) return [...DEFAULT_APP_PADDING];
+
+  const normalized = value.map((entry) => {
+    if (typeof entry !== "number" || Number.isNaN(entry)) return null;
+    return Math.round(entry);
+  });
+
+  if (normalized.some((entry) => entry === null)) return [...DEFAULT_APP_PADDING];
+
+  return normalized as [number, number, number, number];
 }
 
 function normalizeShortcutToken(token: string): string | null {

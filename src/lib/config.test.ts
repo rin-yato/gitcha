@@ -20,6 +20,7 @@ describe("config", () => {
 
     expect(config.themeId).toBe("opencode");
     expect(config.sidebarWidth).toBe(40);
+    expect(config.padding).toEqual([0, 0, 0, 0]);
     expect(config.keybindings.openCommandPalette).toEqual(["/"]);
   });
 
@@ -27,12 +28,20 @@ describe("config", () => {
     const config = resolveAppConfig({
       themeId: "unknown",
       sidebarWidth: 12,
+      padding: [2, 3, 4, 5],
       keybindings: { refresh: "ctrl+r" },
     });
 
     expect(config.themeId).toBe("opencode");
     expect(config.sidebarWidth).toBe(20);
+    expect(config.padding).toEqual([2, 3, 4, 5]);
     expect(config.keybindings.refresh).toEqual(["ctrl+r"]);
+  });
+
+  test("falls back to default padding for invalid values", () => {
+    const config = resolveAppConfig({ padding: [1, 2, 3] });
+
+    expect(config.padding).toEqual([0, 0, 0, 0]);
   });
 
   test("normalizes theme ids", () => {
@@ -67,10 +76,14 @@ describe("config", () => {
 
     const config = createDefaultAppConfig();
     config.sidebarWidth = 48;
+    config.padding = [1, 2, 3, 4];
 
     await saveAppConfig(config, { path });
 
     expect(readFileSync(path, "utf8")).toContain('"sidebarWidth": 48');
+    expect(readFileSync(path, "utf8")).toContain(
+      '"padding": [\n    1,\n    2,\n    3,\n    4\n  ]',
+    );
 
     rmSync(dir, { recursive: true, force: true });
   });
@@ -80,5 +93,6 @@ describe("config", () => {
 
     expect(json).toContain('"$schema"');
     expect(json).toContain('"sidebarWidth": 40');
+    expect(json).toContain('"padding": [\n    0,\n    0,\n    0,\n    0\n  ]');
   });
 });

@@ -332,7 +332,10 @@ function App({ config }: AppProps) {
       width="100%"
       height="100%"
       backgroundColor={theme.background}
-      paddingY={1}
+      paddingTop={config.padding[0]}
+      paddingRight={config.padding[1]}
+      paddingBottom={config.padding[2]}
+      paddingLeft={config.padding[3]}
     >
       <Sidebar
         theme={theme}
