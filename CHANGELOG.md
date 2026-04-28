@@ -1,5 +1,22 @@
 
 
+## [0.1.7](https://github.com/rin-yato/differ/compare/v0.1.6...v0.1.7) (2026-04-28)
+
+
+### Bug Fixes
+
+* fallback to markdown for filetype ([9df16d4](https://github.com/rin-yato/differ/commit/9df16d4b6fceca0d0d124a627922acf8ad71a4fa))
+* unable to run the app on mac ([38288d5](https://github.com/rin-yato/differ/commit/38288d5e887eca8daccbfc752b34394ea3644e1b))
+
+
+### Features
+
+* add configuration ([1b0facc](https://github.com/rin-yato/differ/commit/1b0faccbe3150c5c3061c0a438666fcc3fcf9552))
+* add padding configuration ([f90f98d](https://github.com/rin-yato/differ/commit/f90f98da8dfe6895d4c3538c799e7383366d1c6c))
+* add version and upgrade ([94f27b3](https://github.com/rin-yato/differ/commit/94f27b33c29b0575774ef58ed1be163cf11ec765))
+* switch to chokidar ([48bbd89](https://github.com/rin-yato/differ/commit/48bbd89635b17b2a19874f0912570cb56a4d359e))
+* update diff on file changes ([3ecb2b2](https://github.com/rin-yato/differ/commit/3ecb2b2c34db0dc8b8f3ef2cd5a9917e08473481))
+
 ## [0.1.6](https://github.com/rin-yato/differ/compare/v0.1.5...v0.1.6) (2026-04-25)
 
 ## [0.1.5](https://github.com/rin-yato/differ/compare/v0.1.4...v0.1.5) (2026-04-25)

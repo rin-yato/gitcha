@@ -1,6 +1,6 @@
 {
   "name": "gitcha",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "A terminal UI for reviewing code changes with syntax highlighting",
   "type": "module",
   "main": "dist/index.js",
