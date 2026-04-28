@@ -1,12 +1,17 @@
 import { describe, expect, test } from "bun:test";
 
-import { classifyInstallMethod, getUpgradeCommand, isNewVersionAvailable } from "./app-status";
+import {
+  classifyInstallMethod,
+  getInstalledPath,
+  getUpgradeCommand,
+  isNewVersionAvailable,
+} from "./app-status";
 
 describe("classifyInstallMethod", () => {
   test("detects bun global installs", () => {
-    expect(
-      classifyInstallMethod("/opt/bun/bin/bun", "/usr/local/bin/node_modules/.bin/gitcha"),
-    ).toBe("bun add -g gitcha");
+    expect(classifyInstallMethod("/opt/bun/bin/bun", "/opt/bun/bin/bun")).toBe(
+      "bun add -g gitcha",
+    );
   });
 
   test("defaults to install script installs", () => {
@@ -16,7 +21,31 @@ describe("classifyInstallMethod", () => {
   });
 
   test("returns null for source installs", () => {
-    expect(classifyInstallMethod("/opt/bun/bin/bun", "/work/dist/index.js")).toBeNull();
+    expect(classifyInstallMethod("/opt/bun/bin/bun", "/work/src/index.tsx")).toBeNull();
+  });
+});
+
+describe("getInstalledPath", () => {
+  test("uses the command path when argv contains one", () => {
+    const originalArgv1 = process.argv[1];
+    process.argv[1] = "/usr/local/bin/gc";
+
+    try {
+      expect(getInstalledPath()).toBe("/usr/local/bin/gc");
+    } finally {
+      process.argv[1] = originalArgv1 ?? process.execPath;
+    }
+  });
+
+  test("falls back to execPath when argv is only a subcommand", () => {
+    const originalArgv1 = process.argv[1];
+    process.argv[1] = "upgrade";
+
+    try {
+      expect(getInstalledPath()).toBe(process.execPath);
+    } finally {
+      process.argv[1] = originalArgv1 ?? process.execPath;
+    }
   });
 });
 

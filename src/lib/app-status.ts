@@ -18,20 +18,23 @@ export function getAppVersion(): string {
 }
 
 export function getInstalledPath(): string {
-  return process.argv[1] ?? process.execPath;
+  const candidate = process.argv[1];
+
+  if (
+    candidate &&
+    (candidate.includes(path.sep) || candidate.includes("/") || candidate.includes("\\"))
+  ) {
+    return candidate;
+  }
+
+  return process.execPath;
 }
 
 export function classifyInstallMethod(
   execPath: string,
   installedPath: string,
 ): InstallMethod | null {
-  if (
-    execPath.includes("bun") &&
-    (installedPath.includes(`${path.sep}.bun${path.sep}bin${path.sep}`) ||
-      installedPath.includes(`${path.sep}node_modules${path.sep}.bin${path.sep}`))
-  ) {
-    return "bun add -g gitcha";
-  }
+  const fileName = path.basename(installedPath);
 
   if (
     installedPath.endsWith(`${path.sep}src${path.sep}index.tsx`) ||
@@ -40,7 +43,14 @@ export function classifyInstallMethod(
     return null;
   }
 
-  const fileName = path.basename(installedPath);
+  if (execPath.includes("bun")) {
+    return "bun add -g gitcha";
+  }
+
+  if (fileName === "gc" || fileName === "gitcha") {
+    return "install.sh";
+  }
+
   const parentDir = path.basename(path.dirname(installedPath));
   if (parentDir === "bin" && (fileName === "gc" || fileName === "gitcha")) {
     return "install.sh";
