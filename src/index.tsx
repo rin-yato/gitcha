@@ -9,7 +9,6 @@ import { bootstrapReviewSession } from "@/context/session/session";
 
 import { buildCli } from "@/lib/cli";
 import { createDefaultAppConfig, loadAppConfig } from "@/lib/config";
-import { createStartupBenchmarkRecorder } from "@/lib/startup-benchmark";
 import { parsers } from "@/lib/treesitter/parsers";
 import { upgradeApp } from "@/lib/upgrade";
 
@@ -37,15 +36,8 @@ if (cli.command === "upgrade") {
 addDefaultParsers(parsers);
 registerRenderables();
 
-const startupBenchmarkPath = process.env.CHANGES_STARTUP_BENCHMARK_PATH;
-const benchmark = startupBenchmarkPath
-  ? createStartupBenchmarkRecorder(startupBenchmarkPath)
-  : null;
-
-benchmark?.markBootstrapStarted();
 const bootstrap = bootstrapReviewSession();
 const config = await loadAppConfig().catch(() => createDefaultAppConfig());
-benchmark?.markRendererStarted();
 const renderer = await createCliRenderer({
   exitOnCtrlC: false,
   autoFocus: false,
@@ -56,8 +48,6 @@ const renderer = await createCliRenderer({
     process.exit(0);
   },
 });
-
-benchmark?.markRendererReady();
 
 renderer.keyInput.on("keypress", (key) => {
   if (key.name === "`" || (key.ctrl && key.name === "l")) {
@@ -75,24 +65,6 @@ renderer.keyInput.on("keypress", (key) => {
   }
 });
 
-benchmark?.markRenderCalled();
 createRoot(renderer as never).render(
   <AppRootWithBootstrap bootstrap={bootstrap} initialConfig={config} />,
 );
-benchmark?.markFirstPaint();
-
-async function finalizeStartupBenchmark() {
-  if (!benchmark) return;
-
-  try {
-    await bootstrap;
-    benchmark.markBootstrapResolved();
-  } catch (error) {
-    benchmark.markBootstrapRejected(error);
-  }
-
-  await benchmark.writeSnapshot();
-  renderer.destroy();
-}
-
-void finalizeStartupBenchmark();

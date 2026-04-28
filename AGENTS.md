@@ -16,7 +16,7 @@
 - `src/context/` - shared state, providers, and app-level hooks.
 - `src/lib/` - git/fs/tree-sitter utilities and other non-UI logic.
 - `src/themes/` - theme data and theme types.
-- `scripts/` - build, install, and benchmark scripts.
+- `scripts/` - build and install scripts.
 
 ## Commands
 
@@ -35,15 +35,6 @@ Always run `bun run fix`, instead of `bun run ci` or `bun run check`. This way i
 - `bun run build` - compile the CLI to `dist/gitcha`.
 - `bun run setup` - build if needed, will run `bun link`, then we can use the `gitcha` cmd.
 
-### Benchmarks
-
-- `bun run bench` - run the startup benchmark with the default fixture.
-- `bun run bench:repo` - benchmark the default `https://github.com/anomalyco/opentui` fixture explicitly.
-- `bun run bench:json --out=benchmarks/latest.json` - write a machine-readable benchmark report.
-- `bun run bench:latest` - refresh `benchmarks/latest.json` with the current results.
-- `bun run bench:compare` - compare current results against `benchmarks/latest.json`.
-- `bun run bench:reset-fixture` - clear the cached benchmark repository and fixture state.
-
 ## Code Conventions
 
 - TypeScript is strict; keep types explicit where inference is unclear.
@@ -60,4 +51,3 @@ Always run `bun run fix`, instead of `bun run ci` or `bun run check`. This way i
 
 - The app always works against the current real git repository context
 - The build bundles the Tree-sitter worker, so `bun run build` should be used to verify changes that touch parser or build wiring.
-- For perf work, focus on repo detection, status refresh, file-tree construction, and first diff load.
