@@ -38,6 +38,17 @@ type CompareData = {
   defaultCompareTarget: CompareTarget | null;
 };
 
+export function mergeCompareData(
+  current: CompareData | null,
+  patch: Partial<CompareData>,
+): CompareData {
+  return {
+    branches: patch.branches ?? current?.branches ?? [],
+    commits: patch.commits ?? current?.commits ?? [],
+    defaultCompareTarget: patch.defaultCompareTarget ?? current?.defaultCompareTarget ?? null,
+  };
+}
+
 type AppRootProps = {
   bootstrap: Promise<ReviewBootstrap>;
   initialConfig: AppConfig;
@@ -61,20 +72,37 @@ function CompareBranchDialogLoader(props: {
   const loadSearchResults = useCallback(
     async (nextQuery: string) => {
       const normalizedQuery = nextQuery.trim();
-      const [branches, commits] = await Promise.all([
-        props.client.searchCompareBranches(normalizedQuery).catch(() => []),
-        props.client.searchCompareCommits(normalizedQuery).catch(() => []),
-      ]);
-
       setResults({
-        branches: branches.map((branch) => ({ ref: branch, label: branch })),
-        commits: commits.map((commit) => ({
-          ref: commit.ref,
-          message: `${commit.shortRef} ${commit.message}`,
-          origin: commit.origin,
-        })),
+        branches: [],
+        commits: [],
         defaultCompareTarget: data?.defaultCompareTarget ?? null,
       });
+
+      void props.client
+        .searchCompareBranches(normalizedQuery)
+        .then((branches) => {
+          setResults((current) =>
+            mergeCompareData(current, {
+              branches: branches.map((branch) => ({ ref: branch, label: branch })),
+            }),
+          );
+        })
+        .catch(() => {});
+
+      void props.client
+        .searchCompareCommits(normalizedQuery)
+        .then((commits) => {
+          setResults((current) =>
+            mergeCompareData(current, {
+              commits: commits.map((commit) => ({
+                ref: commit.ref,
+                message: `${commit.shortRef} ${commit.message}`,
+                origin: commit.origin,
+              })),
+            }),
+          );
+        })
+        .catch(() => {});
     },
     [data?.defaultCompareTarget, props.client],
   );
@@ -82,22 +110,41 @@ function CompareBranchDialogLoader(props: {
   useEffect(() => {
     const controller = new AbortController();
 
-    void Promise.all([
-      props.client.getCompareBranches().catch(() => []),
-      props.client.getRecentCommitSummaries(30).catch(() => []),
-      props.client.getCompareTarget().catch(() => null),
-    ]).then(([branches, commits, defaultCompareTarget]) => {
-      if (controller.signal.aborted) return;
-      setData({
-        branches: branches.map((branch) => ({ ref: branch, label: branch })),
-        commits: commits.map((commit) => ({
-          ref: commit.ref,
-          message: `${commit.shortRef} ${commit.message}`,
-          origin: commit.origin,
-        })),
-        defaultCompareTarget,
-      });
-    });
+    void props.client
+      .getCompareBranches()
+      .then((branches) => {
+        if (controller.signal.aborted) return;
+        setData((current) =>
+          mergeCompareData(current, {
+            branches: branches.map((branch) => ({ ref: branch, label: branch })),
+          }),
+        );
+      })
+      .catch(() => {});
+
+    void props.client
+      .getRecentCommitSummaries(30)
+      .then((commits) => {
+        if (controller.signal.aborted) return;
+        setData((current) =>
+          mergeCompareData(current, {
+            commits: commits.map((commit) => ({
+              ref: commit.ref,
+              message: `${commit.shortRef} ${commit.message}`,
+              origin: commit.origin,
+            })),
+          }),
+        );
+      })
+      .catch(() => {});
+
+    void props.client
+      .getCompareTarget()
+      .then((defaultCompareTarget) => {
+        if (controller.signal.aborted) return;
+        setData((current) => mergeCompareData(current, { defaultCompareTarget }));
+      })
+      .catch(() => {});
 
     return () => controller.abort();
   }, [props.client]);

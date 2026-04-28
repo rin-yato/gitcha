@@ -1,10 +1,85 @@
 import path from "path";
 
+import { gitExecutor } from "./executor";
 import { gitStatusParser } from "./parser";
 import type { RepoChangeListener, RepoContext, RepoMonitor } from "./types";
 
 const POLL_INTERVAL_MS = 1000;
 const WATCH_SETTLE_DELAY_MS = 100;
+
+type IgnoredPathCache = {
+  exactPaths: Set<string>;
+  directoryPrefixes: string[];
+};
+
+function isGitDirPath(filePath: string, repoGitDir: string, repoGitDirPrefix: string): boolean {
+  return filePath === repoGitDir || filePath.startsWith(repoGitDirPrefix);
+}
+
+function normalizeWatchedPath(filePath: string): string {
+  return path.resolve(filePath);
+}
+
+export async function loadIgnoredPathCache(ctx: RepoContext): Promise<IgnoredPathCache> {
+  const output = await gitExecutor
+    .run(["ls-files", "-oi", "--exclude-standard", "--directory", "--no-empty-directory"], {
+      cwd: ctx.root,
+    })
+    .catch(() => "");
+
+  const exactPaths = new Set<string>();
+  const directoryPrefixes: string[] = [];
+
+  for (const line of output.split(/\r?\n/).filter(Boolean)) {
+    const isDirectory = line.endsWith("/");
+    const relativePath = isDirectory ? line.slice(0, -1) : line;
+    if (!relativePath) continue;
+
+    const absolutePath = normalizeWatchedPath(path.join(ctx.root, relativePath));
+    if (isDirectory) {
+      directoryPrefixes.push(`${absolutePath}${path.sep}`);
+      continue;
+    }
+
+    exactPaths.add(absolutePath);
+  }
+
+  directoryPrefixes.sort((left, right) => right.length - left.length);
+
+  return { exactPaths, directoryPrefixes };
+}
+
+export function pathIsIgnored(
+  filePath: string,
+  root: string,
+  cache: IgnoredPathCache,
+): boolean {
+  const normalized = path.isAbsolute(filePath)
+    ? normalizeWatchedPath(filePath)
+    : normalizeWatchedPath(path.join(root, filePath));
+
+  if (cache.exactPaths.has(normalized)) return true;
+
+  return cache.directoryPrefixes.some((prefix) => normalized.startsWith(prefix));
+}
+
+function createIgnoredMatcher(ctx: RepoContext, cacheGetter: () => IgnoredPathCache) {
+  return (filePath: string) => {
+    const repoGitDir = path.join(ctx.root, ".git");
+    if (isGitDirPath(filePath, repoGitDir, `${repoGitDir}${path.sep}`)) {
+      return false;
+    }
+
+    if (
+      filePath.includes(`${path.sep}node_modules${path.sep}`) ||
+      filePath.endsWith(`${path.sep}node_modules`)
+    ) {
+      return true;
+    }
+
+    return pathIsIgnored(filePath, ctx.root, cacheGetter());
+  };
+}
 
 function serializeRepoStatus(ctx: RepoContext): Promise<string> {
   return gitStatusParser.getRepoStatus(ctx.cwd, { includeUntracked: true }).then((status) =>
@@ -69,9 +144,15 @@ async function createChokidarMonitor(
     const { default: chokidar } = await import("chokidar");
     const repoGitDir = path.join(ctx.root, ".git");
     const repoGitDirPrefix = `${repoGitDir}${path.sep}`;
+    let ignoredPathCache = await loadIgnoredPathCache(ctx);
 
     let disposed = false;
     let timeout: ReturnType<typeof setTimeout> | null = null;
+
+    const ignored = createIgnoredMatcher(ctx, () => ignoredPathCache);
+    const refreshIgnoredPathCache = async () => {
+      ignoredPathCache = await loadIgnoredPathCache(ctx).catch(() => ignoredPathCache);
+    };
 
     const watcher = chokidar.watch(ctx.root, {
       ignoreInitial: true,
@@ -79,12 +160,7 @@ async function createChokidarMonitor(
         stabilityThreshold: WATCH_SETTLE_DELAY_MS,
         pollInterval: WATCH_SETTLE_DELAY_MS,
       },
-      ignored: (filePath) => {
-        return (
-          filePath.includes(`${path.sep}node_modules${path.sep}`) ||
-          filePath.endsWith(`${path.sep}node_modules`)
-        );
-      },
+      ignored,
     });
 
     const scheduleContentChange = () => {
@@ -96,11 +172,18 @@ async function createChokidarMonitor(
       }, WATCH_SETTLE_DELAY_MS);
     };
 
-    const onAll = (event: string, path: string) => {
+    const onAll = (event: string, filePath: string) => {
       if (disposed) return;
 
-      if (path === repoGitDir || path.startsWith(repoGitDirPrefix)) {
+      if (isGitDirPath(filePath, repoGitDir, repoGitDirPrefix)) {
         onChange("metadata");
+        void refreshIgnoredPathCache();
+        return;
+      }
+
+      if (filePath.endsWith(`${path.sep}.gitignore`)) {
+        onChange("metadata");
+        void refreshIgnoredPathCache();
         return;
       }
 

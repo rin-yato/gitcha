@@ -428,13 +428,13 @@ export function ReviewProvider({
   }, [client]);
 
   useEffect(() => {
-    refreshStatusRef.current = refreshStatus;
-  }, [refreshStatus]);
-
-  useEffect(() => {
     if (!client) return;
     refreshStatus();
   }, [client, refreshStatus]);
+
+  useEffect(() => {
+    refreshStatusRef.current = refreshStatus;
+  }, [refreshStatus]);
 
   const refreshCompare = useCallback(() => {
     if (!client || !compareState) return;
@@ -456,13 +456,13 @@ export function ReviewProvider({
     })();
   }, [client, compareState]);
 
-  const bumpDiffRevision = useCallback(() => {
-    setDiffRevision((revision) => revision + 1);
-  }, []);
-
   useEffect(() => {
     refreshCompareRef.current = refreshCompare;
   }, [refreshCompare]);
+
+  const bumpDiffRevision = useCallback(() => {
+    setDiffRevision((revision) => revision + 1);
+  }, []);
 
   const startCompare = useCallback(
     async (target: CompareTarget): Promise<CompareState | null> => {
