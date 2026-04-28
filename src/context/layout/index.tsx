@@ -1,6 +1,13 @@
 import type React from "react";
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 
+import {
+  clampSidebarWidth,
+  DEFAULT_SIDEBAR_WIDTH,
+  MAX_SIDEBAR_WIDTH,
+  MIN_SIDEBAR_WIDTH,
+} from "@/lib/config";
+
 export type ReviewLayoutState = {
   isSidebarOpen: boolean;
   sidebarWidth: number;
@@ -9,15 +16,27 @@ export type ReviewLayoutState = {
   growSidebar: () => void;
 };
 
-export const MIN_SIDEBAR_WIDTH = 20;
-export const MAX_SIDEBAR_WIDTH = 80;
+export { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH };
 
 const ReviewLayoutContext = createContext<ReviewLayoutState | null>(null);
 
-export function ReviewLayoutProvider({ children }: { children: React.ReactNode }) {
+export function ReviewLayoutProvider({
+  children,
+  initialSidebarWidth = DEFAULT_SIDEBAR_WIDTH,
+}: {
+  children: React.ReactNode;
+  initialSidebarWidth?: number;
+}) {
+  const resolvedInitialSidebarWidth = clampSidebarWidth(initialSidebarWidth);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [sidebarWidth, setSidebarWidth] = useState(40);
-  const previousSidebarWidthRef = useRef(40);
+  const [sidebarWidth, setSidebarWidth] = useState(resolvedInitialSidebarWidth);
+  const previousSidebarWidthRef = useRef(resolvedInitialSidebarWidth);
+
+  const commitSidebarWidth = useCallback((nextWidth: number) => {
+    const clampedWidth = clampSidebarWidth(nextWidth);
+    previousSidebarWidthRef.current = clampedWidth;
+    setSidebarWidth(clampedWidth);
+  }, []);
 
   const toggleSidebar = useCallback(() => {
     setIsSidebarOpen((open) => {
@@ -25,7 +44,8 @@ export function ReviewLayoutProvider({ children }: { children: React.ReactNode }
         previousSidebarWidthRef.current = sidebarWidth;
         setSidebarWidth(0);
       } else {
-        setSidebarWidth(previousSidebarWidthRef.current);
+        const nextWidth = previousSidebarWidthRef.current;
+        setSidebarWidth(nextWidth);
       }
       return !open;
     });
@@ -34,20 +54,20 @@ export function ReviewLayoutProvider({ children }: { children: React.ReactNode }
   const shrinkSidebar = useCallback(() => {
     if (!isSidebarOpen) {
       setIsSidebarOpen(true);
-      setSidebarWidth(Math.max(MIN_SIDEBAR_WIDTH, previousSidebarWidthRef.current - 5));
+      commitSidebarWidth(previousSidebarWidthRef.current - 5);
       return;
     }
-    setSidebarWidth((w) => Math.max(MIN_SIDEBAR_WIDTH, w - 5));
-  }, [isSidebarOpen]);
+    commitSidebarWidth(sidebarWidth - 5);
+  }, [commitSidebarWidth, isSidebarOpen]);
 
   const growSidebar = useCallback(() => {
     if (!isSidebarOpen) {
       setIsSidebarOpen(true);
-      setSidebarWidth(Math.min(MAX_SIDEBAR_WIDTH, previousSidebarWidthRef.current + 5));
+      commitSidebarWidth(previousSidebarWidthRef.current + 5);
       return;
     }
-    setSidebarWidth((w) => Math.min(MAX_SIDEBAR_WIDTH, w + 5));
-  }, [isSidebarOpen]);
+    commitSidebarWidth(sidebarWidth + 5);
+  }, [commitSidebarWidth, isSidebarOpen]);
 
   const value = useMemo<ReviewLayoutState>(
     () => ({

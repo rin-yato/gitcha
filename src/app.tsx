@@ -14,6 +14,7 @@ import {
 import { type Theme, type ThemeMode, ThemeProvider, useTheme } from "@/context/theme/provider";
 import { ReviewViewProvider, useReviewView } from "@/context/view";
 
+import { type AppConfig, matchesAnyShortcut, openAppConfig } from "@/lib/config";
 import type { CompareTarget } from "@/lib/git";
 import { upgradeApp } from "@/lib/upgrade";
 
@@ -29,7 +30,7 @@ import { ThemeDialog } from "@/component/dialog-theme";
 import { DiffPane } from "@/component/diff-pane";
 import { Sidebar } from "@/component/sidebar/index";
 import { DialogProvider, useDialog } from "@/component/ui/dialog";
-import { Toast, ToastProvider } from "@/component/ui/toast";
+import { Toast, ToastProvider, useToast } from "@/component/ui/toast";
 
 type CompareData = {
   branches: { ref: string; label: string; description?: string }[];
@@ -39,6 +40,11 @@ type CompareData = {
 
 type AppRootProps = {
   bootstrap: Promise<ReviewBootstrap>;
+  initialConfig: AppConfig;
+};
+
+type AppProps = {
+  config: AppConfig;
 };
 
 function CompareBranchDialogLoader(props: {
@@ -116,9 +122,10 @@ function CompareBranchDialogLoader(props: {
   );
 }
 
-function App() {
+function App({ config }: AppProps) {
   const renderer = useRenderer();
   const theme = useTheme();
+  const toast = useToast();
   const git = useReviewSession();
   const selection = useReviewSelection();
   const diff = useReviewDiff();
@@ -154,6 +161,14 @@ function App() {
     void upgradeApp();
   }, []);
 
+  const handleOpenConfigFile = useCallback(() => {
+    void openAppConfig().then((opened) => {
+      if (!opened) {
+        toast.error("Set $EDITOR or $VISUAL to open gitcha.json.");
+      }
+    });
+  }, [toast]);
+
   const showCompareBranchDialog = useCallback(() => {
     dialog.show(
       <CompareBranchDialogLoader
@@ -184,6 +199,7 @@ function App() {
       showCompareBranchDialog,
       showThemeDialog,
       showStatusDialog,
+      keybindings: config.keybindings,
       app: {
         toggleDiffViewMode: diff.toggleDiffViewMode,
         exitCompareMode: view.exitCompareMode,
@@ -193,6 +209,7 @@ function App() {
         shrinkSidebar: layout.shrinkSidebar,
         growSidebar: layout.growSidebar,
         toggleSidebar: layout.toggleSidebar,
+        openConfigFile: handleOpenConfigFile,
         upgradeApp: handleUpgrade,
       },
     });
@@ -213,7 +230,9 @@ function App() {
     showCompareBranchDialog,
     showThemeDialog,
     showStatusDialog,
+    handleOpenConfigFile,
     handleUpgrade,
+    config.keybindings,
     theme,
     view,
   ]);
@@ -221,52 +240,88 @@ function App() {
   useKeyboard((event) => {
     if (dialog.stack.length > 0) return;
 
-    switch (event.name) {
-      case "/":
-        showCommandPalette();
-        return;
-      case "up":
-      case "k":
-        selection.focusPreviousRow();
-        return;
-      case "down":
-      case "j":
-        selection.focusNextRow();
-        return;
-      case "space":
-        diff.toggleDiffViewMode();
-        return;
-      case "r":
-        refresh();
-        return;
-      case "v":
-        showCompareBranchDialog();
-        return;
-      case "s":
-        selection.stageSelectedFile();
-        return;
-      case "u":
-        selection.unstageSelectedFile();
-        return;
-      case "x":
-        selection.discardSelectedFile();
-        return;
-      case "[":
-        layout.shrinkSidebar();
-        return;
-      case "]":
-        layout.growSidebar();
-        return;
-      case "\\":
-        layout.toggleSidebar();
-        return;
-      case "escape":
-        if (view.viewMode === "compare") {
-          view.exitCompareMode();
-        } else {
-          renderer.destroy();
-        }
-        return;
+    if (matchesAnyShortcut(event, config.keybindings.openCommandPalette)) {
+      showCommandPalette();
+      return;
+    }
+
+    if (matchesAnyShortcut(event, config.keybindings.moveUp)) {
+      selection.focusPreviousRow();
+      return;
+    }
+
+    if (matchesAnyShortcut(event, config.keybindings.moveDown)) {
+      selection.focusNextRow();
+      return;
+    }
+
+    if (matchesAnyShortcut(event, config.keybindings.toggleDiffView)) {
+      diff.toggleDiffViewMode();
+      return;
+    }
+
+    if (matchesAnyShortcut(event, config.keybindings.refresh)) {
+      refresh();
+      return;
+    }
+
+    if (matchesAnyShortcut(event, config.keybindings.openCompareDialog)) {
+      showCompareBranchDialog();
+      return;
+    }
+
+    if (matchesAnyShortcut(event, config.keybindings.openThemeDialog)) {
+      showThemeDialog();
+      return;
+    }
+
+    if (matchesAnyShortcut(event, config.keybindings.openStatusDialog)) {
+      showStatusDialog();
+      return;
+    }
+
+    if (matchesAnyShortcut(event, config.keybindings.upgradeApp)) {
+      handleUpgrade();
+      return;
+    }
+
+    if (matchesAnyShortcut(event, config.keybindings.stageSelectedFile)) {
+      selection.stageSelectedFile();
+      return;
+    }
+
+    if (matchesAnyShortcut(event, config.keybindings.unstageSelectedFile)) {
+      selection.unstageSelectedFile();
+      return;
+    }
+
+    if (matchesAnyShortcut(event, config.keybindings.discardSelectedFile)) {
+      selection.discardSelectedFile();
+      return;
+    }
+
+    if (matchesAnyShortcut(event, config.keybindings.shrinkSidebar)) {
+      layout.shrinkSidebar();
+      return;
+    }
+
+    if (matchesAnyShortcut(event, config.keybindings.growSidebar)) {
+      layout.growSidebar();
+      return;
+    }
+
+    if (matchesAnyShortcut(event, config.keybindings.toggleSidebar)) {
+      layout.toggleSidebar();
+      return;
+    }
+
+    if (matchesAnyShortcut(event, config.keybindings.quit)) {
+      if (view.viewMode === "compare") {
+        view.exitCompareMode();
+      } else {
+        renderer.destroy();
+      }
+      return;
     }
   });
 
@@ -310,7 +365,7 @@ function App() {
   );
 }
 
-export function AppRootWithBootstrap({ bootstrap }: AppRootProps) {
+export function AppRootWithBootstrap({ bootstrap, initialConfig }: AppRootProps) {
   const renderer = useRenderer();
   const [mode, setMode] = useState<ThemeMode | null>(renderer.themeMode);
 
@@ -328,15 +383,15 @@ export function AppRootWithBootstrap({ bootstrap }: AppRootProps) {
   }, [renderer]);
 
   return (
-    <ThemeProvider mode={mode ?? undefined}>
+    <ThemeProvider mode={mode ?? undefined} initialThemeId={initialConfig.themeId}>
       <ReviewProvider bootstrap={bootstrap}>
         <ReviewSelectionProvider>
           <ReviewDiffProvider>
             <ReviewViewProvider>
-              <ReviewLayoutProvider>
+              <ReviewLayoutProvider initialSidebarWidth={initialConfig.sidebarWidth}>
                 <DialogProvider>
                   <ToastProvider>
-                    <App />
+                    <App config={initialConfig} />
                   </ToastProvider>
                 </DialogProvider>
               </ReviewLayoutProvider>

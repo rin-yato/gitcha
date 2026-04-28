@@ -24,7 +24,7 @@ export function detectFiletype(filePath: string | null): string | undefined {
 
 export function getSupportedSyntaxFiletype(filePath: string | null): string | undefined {
   const filetype = detectFiletype(filePath);
-  return filetype && SUPPORTED_SYNTAX_FILETYPES.has(filetype) ? filetype : "markdown";
+  return filetype && SUPPORTED_SYNTAX_FILETYPES.has(filetype) ? filetype : undefined;
 }
 
 export function createSyntaxStyle(theme: Theme): SyntaxStyle {

@@ -28,6 +28,22 @@ With `gitcha`, the goal is to make that final review fast and focused.
 - Keyboard navigation with `h/j/k/l` or arrow keys
 - More workflow features are being built out
 
+## Configuration
+
+`gitcha` reads config from `~/.config/gitcha/gitcha.json` on startup.
+
+Supported keys:
+
+- `themeId`
+- `sidebarWidth`
+- `keybindings`
+
+The generated config includes a `$schema` field pointing at:
+
+`https://raw.githubusercontent.com/rin-yato/differ/main/src/config.schema.json`
+
+If you want editor validation, point your local config file at that schema URL.
+
 ## Quick Start
 
 If you already have Bun installed, you can install or run `gitcha` directly:

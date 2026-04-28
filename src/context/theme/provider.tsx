@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
 import { createContext, useContext, useMemo, useState } from "react";
 
+import { normalizeThemeId } from "@/lib/config";
+
 import type { DesktopTheme } from "@/themes/types";
 
-import { DEFAULT_THEME_ID, THEMES, type ThemeId } from "@/themes";
+import { THEME_IDS, THEMES, type ThemeId } from "@/themes";
 
 export interface Theme {
   background: string;
@@ -112,39 +114,12 @@ export function resolveTheme(theme: DesktopTheme, mode: ThemeMode): Theme {
   };
 }
 
-function getThemeId(themeId: string | undefined): ThemeId {
-  if (themeId === "opencode-light") return "opencode";
-  if (themeId && themeId in THEMES) return themeId as ThemeId;
-  return DEFAULT_THEME_ID;
-}
-
 function getThemeMode(mode: string | undefined): ThemeMode {
   return mode === "dark" ? "dark" : "light";
 }
 
-const STORAGE_KEY_THEME_ID = "changes-theme-id";
-
-function readStoredThemeId(): ThemeId | null {
-  if (typeof localStorage !== "object") return null;
-
-  try {
-    const value = localStorage.getItem(STORAGE_KEY_THEME_ID);
-    return value ? getThemeId(value) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeStoredThemeId(themeId: ThemeId) {
-  if (typeof localStorage !== "object") return;
-
-  try {
-    localStorage.setItem(STORAGE_KEY_THEME_ID, themeId);
-  } catch {}
-}
-
 const DEFAULT_THEME_MODE_FROM_ENV = getThemeMode(process.env.CHANGES_THEME_MODE);
-const defaultThemeId = readStoredThemeId() ?? getThemeId(process.env.CHANGES_THEME);
+const defaultThemeId = normalizeThemeId(process.env.CHANGES_THEME);
 const defaultTheme = resolveTheme(THEMES[defaultThemeId], DEFAULT_THEME_MODE_FROM_ENV);
 
 const ThemeContext = createContext<Theme>(defaultTheme);
@@ -152,17 +127,19 @@ const ThemeSettingsContext = createContext<ThemeSettings | null>(null);
 
 export function ThemeProvider({
   children,
-  themeId,
+  initialThemeId,
   mode,
 }: {
   children: ReactNode;
-  themeId?: string;
+  initialThemeId?: string;
   mode?: ThemeMode;
 }) {
-  const [resolvedThemeId, setResolvedThemeId] = useState<ThemeId>(
-    getThemeId(themeId ?? readStoredThemeId()?.toString() ?? process.env.CHANGES_THEME),
+  const [internalThemeId, setInternalThemeId] = useState<ThemeId>(
+    normalizeThemeId(initialThemeId),
   );
+  const resolvedThemeId = internalThemeId;
   const resolvedMode = mode ?? getThemeMode(process.env.CHANGES_THEME_MODE);
+
   const theme = useMemo(
     () => resolveTheme(THEMES[resolvedThemeId], resolvedMode),
     [resolvedMode, resolvedThemeId],
@@ -170,11 +147,10 @@ export function ThemeProvider({
   const themeSettings = useMemo<ThemeSettings>(
     () => ({
       themeId: resolvedThemeId,
-      themeIds: Object.keys(THEMES) as ThemeId[],
+      themeIds: THEME_IDS,
       setThemeId: (nextThemeId) => {
-        const next = getThemeId(nextThemeId);
-        setResolvedThemeId(next);
-        writeStoredThemeId(next);
+        const next = normalizeThemeId(nextThemeId);
+        setInternalThemeId(next);
       },
     }),
     [resolvedThemeId],

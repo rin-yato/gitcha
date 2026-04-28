@@ -8,6 +8,7 @@ import { createRoot } from "@opentui/react";
 import { bootstrapReviewSession } from "@/context/session/session";
 
 import { buildCli } from "@/lib/cli";
+import { createDefaultAppConfig, loadAppConfig } from "@/lib/config";
 import { createStartupBenchmarkRecorder } from "@/lib/startup-benchmark";
 import { parsers } from "@/lib/treesitter/parsers";
 import { upgradeApp } from "@/lib/upgrade";
@@ -43,6 +44,7 @@ const benchmark = startupBenchmarkPath
 
 benchmark?.markBootstrapStarted();
 const bootstrap = bootstrapReviewSession();
+const config = await loadAppConfig().catch(() => createDefaultAppConfig());
 benchmark?.markRendererStarted();
 const renderer = await createCliRenderer({
   exitOnCtrlC: false,
@@ -74,7 +76,9 @@ renderer.keyInput.on("keypress", (key) => {
 });
 
 benchmark?.markRenderCalled();
-createRoot(renderer as never).render(<AppRootWithBootstrap bootstrap={bootstrap} />);
+createRoot(renderer as never).render(
+  <AppRootWithBootstrap bootstrap={bootstrap} initialConfig={config} />,
+);
 benchmark?.markFirstPaint();
 
 async function finalizeStartupBenchmark() {

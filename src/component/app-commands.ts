@@ -1,3 +1,5 @@
+import { type AppKeybindings, formatShortcutLabel } from "@/lib/config";
+
 import type { CommandOption } from "@/component/dialog-command";
 import type { DialogSelectOption } from "@/component/ui/dialog-select";
 
@@ -19,6 +21,7 @@ export type CommandHost = {
   shrinkSidebar: () => void;
   growSidebar: () => void;
   toggleSidebar: () => void;
+  openConfigFile: () => void;
   upgradeApp: () => void;
 };
 
@@ -59,44 +62,54 @@ export function buildCommandOptions(args: {
   showCompareBranchDialog: () => void;
   showThemeDialog: () => void;
   showStatusDialog: () => void;
+  keybindings: AppKeybindings;
   app: CommandHost;
 }): CommandOption[] {
-  const { refresh, showCompareBranchDialog, showThemeDialog, showStatusDialog, app } = args;
+  const {
+    refresh,
+    showCompareBranchDialog,
+    showThemeDialog,
+    showStatusDialog,
+    keybindings,
+    app,
+  } = args;
+
+  const shortcut = (id: keyof AppKeybindings) => formatShortcutLabel(keybindings[id]);
 
   return [
     {
       id: "toggle-compare",
       label: "Compare",
       category: "View",
-      slash: "v",
+      slash: shortcut("openCompareDialog"),
       run: showCompareBranchDialog,
     },
     {
       id: "refresh",
       label: "Refresh",
       category: "Action",
-      slash: "r",
+      slash: shortcut("refresh"),
       run: refresh,
     },
     {
       id: "status",
       label: "Status",
       category: "View",
-      slash: "i",
+      slash: shortcut("openStatusDialog"),
       run: showStatusDialog,
     },
     {
       id: "upgrade",
       label: "Upgrade",
       category: "Action",
-      slash: "g",
+      slash: shortcut("upgradeApp"),
       run: app.upgradeApp,
     },
     {
       id: "toggle-diff-view",
       label: "Diff View",
       category: "View",
-      slash: "space",
+      slash: shortcut("toggleDiffView"),
       run: app.toggleDiffViewMode,
     },
     {
@@ -109,50 +122,56 @@ export function buildCommandOptions(args: {
       id: "stage-file",
       label: "Stage",
       category: "Action",
-      slash: "s",
+      slash: shortcut("stageSelectedFile"),
       run: app.stageSelectedFile,
     },
     {
       id: "unstage-file",
       label: "Unstage",
       category: "Action",
-      slash: "u",
+      slash: shortcut("unstageSelectedFile"),
       run: app.unstageSelectedFile,
     },
     {
       id: "discard-file",
       label: "Discard",
       category: "Action",
-      slash: "x",
+      slash: shortcut("discardSelectedFile"),
       run: app.discardSelectedFile,
     },
     {
       id: "shrink-sidebar",
       label: "Narrow Sidebar",
       category: "Layout",
-      slash: "[",
+      slash: shortcut("shrinkSidebar"),
       run: app.shrinkSidebar,
     },
     {
       id: "grow-sidebar",
       label: "Wider Sidebar",
       category: "Layout",
-      slash: "]",
+      slash: shortcut("growSidebar"),
       run: app.growSidebar,
     },
     {
       id: "toggle-sidebar",
       label: "Toggle Sidebar",
       category: "Layout",
-      slash: "\\",
+      slash: shortcut("toggleSidebar"),
       run: app.toggleSidebar,
     },
     {
       id: "switch-theme",
       label: "Theme",
       category: "Appearance",
-      slash: "t",
+      slash: shortcut("openThemeDialog"),
       run: showThemeDialog,
+    },
+    {
+      id: "open-config",
+      label: "Config",
+      category: "Appearance",
+      run: app.openConfigFile,
     },
   ];
 }
