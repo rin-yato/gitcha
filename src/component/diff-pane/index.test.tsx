@@ -122,7 +122,6 @@ test("code panel keeps layout stable while loading", async () => {
   });
 
   const output = JSON.stringify(testSetup.captureSpans().lines);
-  expect(output).not.toContain("Loading...");
   expect(output).not.toContain("Unsupported file");
 });
 

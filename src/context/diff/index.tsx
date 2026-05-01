@@ -9,6 +9,8 @@ import {
   useState,
 } from "react";
 
+import { BINARY_UNSUPPORTED_REASON, isBinaryPatch } from "@/lib/git";
+
 import { useReviewSelection } from "../selection";
 import { useReviewSession } from "../session/session";
 
@@ -63,23 +65,7 @@ export function ReviewDiffProvider({ children }: { children: React.ReactNode }) 
     setUnsupportedReason(null);
 
     void (async () => {
-      const reason = await git.client.getDiffUnsupportedReason(
-        file,
-        section,
-        git.compareState?.baseRef,
-        git.compareState?.targetRef,
-        git.compareState?.mode,
-        git.diffRevision,
-      );
-
       if (requestId !== diffLoadRequestRef.current) return;
-
-      if (reason) {
-        setDiffContent(null);
-        setUnsupportedReason(reason);
-        setIsLoading(false);
-        return;
-      }
 
       const result = await git.client.getDiffPatch(
         file,
@@ -91,6 +77,13 @@ export function ReviewDiffProvider({ children }: { children: React.ReactNode }) 
       );
 
       if (requestId !== diffLoadRequestRef.current) return;
+
+      if (result && isBinaryPatch(result)) {
+        setDiffContent(null);
+        setUnsupportedReason(BINARY_UNSUPPORTED_REASON);
+        setIsLoading(false);
+        return;
+      }
 
       setDiffContent(result || "No changes");
       setUnsupportedReason(null);

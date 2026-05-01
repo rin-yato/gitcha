@@ -1,26 +1,19 @@
-import { bunFs, type FsBackend } from "@/lib/fs";
+import { bunFs } from "@/lib/fs";
 
-import { gitExecutor } from "./executor";
+import { getRepoRoot } from "./commands";
+import type { RepoContext } from "./types";
 
-export interface RepoContext {
-  root: string;
-  cwd: string;
-  backend: FsBackend;
-  toRootPath: (relativePath: string) => string;
-  toRelativePath: (absolutePath: string) => string;
-}
+export type { RepoContext } from "./types";
 
 export async function detectRepoContext(cwd?: string): Promise<RepoContext | null> {
   const resolvedCwd = cwd ?? process.cwd();
-  const root = await gitExecutor.getRepoRoot(resolvedCwd).catch(() => null);
+  const root = await getRepoRoot(resolvedCwd).catch(() => null);
   if (!root) return null;
-
-  const backend = bunFs;
 
   return {
     root,
     cwd: resolvedCwd,
-    backend,
+    backend: bunFs,
     toRootPath: (relativePath: string): string =>
       relativePath.startsWith("/") ? relativePath : `${root}/${relativePath}`,
     toRelativePath: (absolutePath: string): string =>

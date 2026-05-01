@@ -1,7 +1,6 @@
 import path from "path";
 
-import { gitExecutor } from "./executor";
-import { gitStatusParser } from "./parser";
+import { execGit, getRepoStatus } from "./commands";
 import type { RepoChangeListener, RepoContext, RepoMonitor } from "./types";
 
 const POLL_INTERVAL_MS = 1000;
@@ -21,11 +20,10 @@ function normalizeWatchedPath(filePath: string): string {
 }
 
 export async function loadIgnoredPathCache(ctx: RepoContext): Promise<IgnoredPathCache> {
-  const output = await gitExecutor
-    .run(["ls-files", "-oi", "--exclude-standard", "--directory", "--no-empty-directory"], {
-      cwd: ctx.root,
-    })
-    .catch(() => "");
+  const output = await execGit(
+    ["ls-files", "-oi", "--exclude-standard", "--directory", "--no-empty-directory"],
+    { cwd: ctx.root },
+  ).catch(() => "");
 
   const exactPaths = new Set<string>();
   const directoryPrefixes: string[] = [];
@@ -82,7 +80,7 @@ function createIgnoredMatcher(ctx: RepoContext, cacheGetter: () => IgnoredPathCa
 }
 
 function serializeRepoStatus(ctx: RepoContext): Promise<string> {
-  return gitStatusParser.getRepoStatus(ctx.cwd, { includeUntracked: true }).then((status) =>
+  return getRepoStatus(ctx.cwd, { includeUntracked: true }).then((status) =>
     JSON.stringify({
       branch: status.branch,
       upstream: status.upstream,

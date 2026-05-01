@@ -33,15 +33,13 @@ import {
   getLocalBranches,
   getMergeBase,
   getRecentCommitSummaries,
+  getRepoStatus,
   getRevisionDiffFiles,
-  getUnsupportedReason,
   gitStatusParser,
-  isBinaryDiff,
   loadFileDiffSource,
   pullChanges as pullGitChanges,
   pushChanges as pushGitChanges,
   resolveCompareTarget,
-  SAMPLE_BYTE_LIMIT,
   searchCompareBranches,
   searchCompareCommits,
   stageFile as stageGitFile,
@@ -104,14 +102,6 @@ export type GitClient = {
     compareMode?: CompareMode,
     diffRevision?: number,
   ) => Promise<string | null>;
-  getDiffUnsupportedReason: (
-    file: GitStatusFile,
-    section: "staged" | "changes" | "compare",
-    compareBaseRef?: string,
-    compareTargetRef?: string | null,
-    compareMode?: CompareMode,
-    diffRevision?: number,
-  ) => Promise<string | null>;
   getMergeBase: (baseRef: string) => Promise<string>;
   stageFile: (filePath: string) => Promise<void>;
   unstageFile: (filePath: string) => Promise<void>;
@@ -125,7 +115,6 @@ type DiffCacheKey = string;
 
 type DiffRecord = {
   patch?: string | null;
-  unsupportedReason?: string | null;
 };
 
 function fileTreeSignature(files: GitStatusFile[]): string {
@@ -177,64 +166,9 @@ function buildDiffCacheKey(args: {
 function createGitClient(ctx: RepoContext): GitClient {
   const diffCache = new Map<DiffCacheKey, DiffRecord>();
 
-  const getDiffUnsupportedReason = async (
-    file: GitStatusFile,
-    section: "staged" | "changes" | "compare",
-    compareBaseRef?: string,
-    compareTargetRef?: string | null,
-    compareMode?: CompareMode,
-    diffRevision?: number,
-  ) => {
-    const cacheKey = buildDiffCacheKey({
-      file,
-      section,
-      compareBaseRef,
-      compareTargetRef,
-      compareMode,
-      diffRevision,
-    });
-
-    const cached = diffCache.get(cacheKey);
-    if (cached) return cached.unsupportedReason ?? null;
-
-    const unsupportedReason = getUnsupportedReason(file.path, null);
-    if (unsupportedReason) {
-      diffCache.set(cacheKey, { unsupportedReason });
-      return unsupportedReason;
-    }
-
-    if (file.indexStatus === "?" || file.workingTreeStatus === "?") {
-      const sample = await ctx.backend.readFileSample(
-        ctx.toRootPath(file.path),
-        SAMPLE_BYTE_LIMIT,
-      );
-      const reason = getUnsupportedReason(file.path, sample);
-      diffCache.set(cacheKey, { unsupportedReason: reason });
-      return reason;
-    }
-
-    const reason =
-      section === "compare" && compareBaseRef
-        ? (await isBinaryDiff(
-            file.path,
-            section,
-            compareBaseRef,
-            compareTargetRef ?? undefined,
-            ctx.cwd,
-          ))
-          ? "Binary file - cannot display diff"
-          : null
-        : (await isBinaryDiff(file.path, section, undefined, undefined, ctx.cwd))
-          ? "Binary file - cannot display diff"
-          : null;
-
-    diffCache.set(cacheKey, { unsupportedReason: reason });
-    return reason;
-  };
-
   return {
     ctx,
-    getRepoStatus: (options) => gitStatusParser.getRepoStatus(ctx.cwd, options),
+    getRepoStatus: (options) => getRepoStatus(ctx.cwd, options),
     getLocalBranches: () => getLocalBranches(ctx.cwd),
     getCompareBranches: () => getCompareBranches(ctx.cwd),
     getCompareTarget: () => getCompareTarget(ctx.cwd),
@@ -245,7 +179,6 @@ function createGitClient(ctx: RepoContext): GitClient {
     searchCompareBranches: (query: string) => searchCompareBranches(query, ctx.cwd),
     searchCompareCommits: (query: string) => searchCompareCommits(query, 1000, ctx.cwd),
     getMergeBase: (baseRef: string) => getMergeBase(baseRef, ctx.cwd),
-    getDiffUnsupportedReason,
     getDiffPatch: async (
       file,
       section,
@@ -266,16 +199,6 @@ function createGitClient(ctx: RepoContext): GitClient {
       const cached = diffCache.get(cacheKey);
       if (cached?.patch !== undefined) return cached.patch;
 
-      const reason = await getDiffUnsupportedReason(
-        file,
-        section,
-        compareBaseRef,
-        compareTargetRef,
-        compareMode,
-        diffRevision,
-      );
-      if (reason) return null;
-
       const source = await loadFileDiffSource({
         ctx,
         file,
@@ -283,10 +206,11 @@ function createGitClient(ctx: RepoContext): GitClient {
         compareBaseRef,
         compareTargetRef,
         compareMode,
+        repoRoot: ctx.root,
       });
 
       const patch = source.patch || null;
-      diffCache.set(cacheKey, { patch, unsupportedReason: null });
+      diffCache.set(cacheKey, { patch });
       return patch;
     },
     stageFile: (filePath: string) => stageGitFile(filePath, ctx.cwd),
@@ -385,6 +309,7 @@ export function ReviewProvider({
   const fileTreeSignatureRef = useRef({ staged: "", changes: "", compare: "" });
   const refreshStatusRef = useRef<() => void>(() => {});
   const refreshCompareRef = useRef<() => void>(() => {});
+  const watcherStartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (bootstrap) {
@@ -507,25 +432,33 @@ export function ReviewProvider({
 
     let cancelled = false;
 
-    void createRepoMonitor(client.ctx, (kind) => {
-      if (cancelled) return;
-      if (kind === "content") {
-        bumpDiffRevision();
-      }
-      refreshStatusRef.current();
-      refreshCompareRef.current();
-    }).then((monitor) => {
-      if (cancelled) {
-        void monitor.dispose();
-        return;
-      }
+    watcherStartTimerRef.current = setTimeout(() => {
+      watcherStartTimerRef.current = null;
 
-      monitorRef.current = monitor;
-      setWatcherMode(monitor.mode);
-    });
+      void createRepoMonitor(client.ctx, (kind) => {
+        if (cancelled) return;
+        if (kind === "content") {
+          bumpDiffRevision();
+        }
+        refreshStatusRef.current();
+        refreshCompareRef.current();
+      }).then((monitor) => {
+        if (cancelled) {
+          void monitor.dispose();
+          return;
+        }
+
+        monitorRef.current = monitor;
+        setWatcherMode(monitor.mode);
+      });
+    }, 5000);
 
     return () => {
       cancelled = true;
+      if (watcherStartTimerRef.current) {
+        clearTimeout(watcherStartTimerRef.current);
+        watcherStartTimerRef.current = null;
+      }
       const monitor = monitorRef.current;
       monitorRef.current = null;
       setWatcherMode(null);
