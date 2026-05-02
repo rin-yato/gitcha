@@ -252,11 +252,3 @@ export async function isBinaryDiff(
     false,
   );
 }
-
-export async function createRepoMonitor(
-  ctx: import("./types").RepoContext,
-  onChange: (kind: import("./types").RepoChangeKind) => void,
-): Promise<import("./types").RepoMonitor> {
-  const { createRepoMonitor: createMonitor } = await import("./monitor");
-  return createMonitor(ctx, onChange);
-}

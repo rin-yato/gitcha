@@ -18,11 +18,9 @@ import type {
   GitRepoStatus,
   GitStatusFile,
   RepoContext,
-  RepoMonitorMode,
 } from "@/lib/git";
 import {
   commitChanges as commitGitChanges,
-  createRepoMonitor,
   detectRepoContext,
   discardChanges as discardGitChanges,
   getBranchDiffFiles,
@@ -51,7 +49,6 @@ import { dequal } from "dequal";
 export type ReviewSession = {
   status: GitRepoStatus | null;
   error: string | null;
-  watcherMode: RepoMonitorMode | null;
   diffRevision: number;
   compareState: CompareState | null;
   fileTrees: {
@@ -289,7 +286,7 @@ export function ReviewProvider({
   const [client, setClient] = useState<GitClient | null>(null);
   const [status, setStatus] = useState<GitRepoStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [watcherMode, setWatcherMode] = useState<RepoMonitorMode | null>(null);
+  // const [watcherMode, setWatcherMode] = useState<RepoMonitorMode | null>(null);
   const [diffRevision, setDiffRevision] = useState(0);
   const [compareState, setCompareState] = useState<CompareState | null>(null);
   const [fileTrees, setFileTrees] = useState<{
@@ -305,11 +302,11 @@ export function ReviewProvider({
   const latestStatusRef = useRef<GitRepoStatus | null>(null);
   const latestCompareRef = useRef<CompareState | null>(null);
   const compareResolutionRef = useRef<CompareResolution | null>(null);
-  const monitorRef = useRef<{ dispose: () => Promise<void> } | null>(null);
+  // const monitorRef = useRef<{ dispose: () => Promise<void> } | null>(null);
   const fileTreeSignatureRef = useRef({ staged: "", changes: "", compare: "" });
   const refreshStatusRef = useRef<() => void>(() => {});
   const refreshCompareRef = useRef<() => void>(() => {});
-  const watcherStartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // const watcherStartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (bootstrap) {
@@ -427,44 +424,44 @@ export function ReviewProvider({
     [bumpDiffRevision, client, refreshCompare, refreshStatus],
   );
 
-  useEffect(() => {
-    if (!client || monitorRef.current) return;
-
-    let cancelled = false;
-
-    watcherStartTimerRef.current = setTimeout(() => {
-      watcherStartTimerRef.current = null;
-
-      void createRepoMonitor(client.ctx, (kind) => {
-        if (cancelled) return;
-        if (kind === "content") {
-          bumpDiffRevision();
-        }
-        refreshStatusRef.current();
-        refreshCompareRef.current();
-      }).then((monitor) => {
-        if (cancelled) {
-          void monitor.dispose();
-          return;
-        }
-
-        monitorRef.current = monitor;
-        setWatcherMode(monitor.mode);
-      });
-    }, 5000);
-
-    return () => {
-      cancelled = true;
-      if (watcherStartTimerRef.current) {
-        clearTimeout(watcherStartTimerRef.current);
-        watcherStartTimerRef.current = null;
-      }
-      const monitor = monitorRef.current;
-      monitorRef.current = null;
-      setWatcherMode(null);
-      void monitor?.dispose();
-    };
-  }, [bumpDiffRevision, client]);
+  // useEffect(() => {
+  //   if (!client || monitorRef.current) return;
+  //
+  //   let cancelled = false;
+  //
+  //   watcherStartTimerRef.current = setTimeout(() => {
+  //     watcherStartTimerRef.current = null;
+  //
+  //     void createRepoMonitor(client.ctx, (kind) => {
+  //       if (cancelled) return;
+  //       if (kind === "content") {
+  //         bumpDiffRevision();
+  //       }
+  //       refreshStatusRef.current();
+  //       refreshCompareRef.current();
+  //     }).then((monitor) => {
+  //       if (cancelled) {
+  //         void monitor.dispose();
+  //         return;
+  //       }
+  //
+  //       monitorRef.current = monitor;
+  //       setWatcherMode(monitor.mode);
+  //     });
+  //   }, 5000);
+  //
+  //   return () => {
+  //     cancelled = true;
+  //     if (watcherStartTimerRef.current) {
+  //       clearTimeout(watcherStartTimerRef.current);
+  //       watcherStartTimerRef.current = null;
+  //     }
+  //     const monitor = monitorRef.current;
+  //     monitorRef.current = null;
+  //     setWatcherMode(null);
+  //     void monitor?.dispose();
+  //   };
+  // }, [bumpDiffRevision, client]);
 
   useEffect(() => {
     const nextStatus = status ?? null;
@@ -505,7 +502,6 @@ export function ReviewProvider({
         ? {
             status,
             error,
-            watcherMode,
             diffRevision,
             compareState,
             fileTrees,
@@ -534,7 +530,6 @@ export function ReviewProvider({
       startCompare,
       status,
       stopCompare,
-      watcherMode,
     ],
   );
 

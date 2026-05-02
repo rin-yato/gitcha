@@ -42,7 +42,6 @@ test("status dialog renders diagnostics", async () => {
       <StatusDialog
         theme={theme}
         gitRoot="/work/repo"
-        watcherMode="native"
         onClose={() => {}}
         releaseLookup={createLatestReleaseLookup(
           async () => new Response(JSON.stringify({ tag_name: "v0.1.7" }), { status: 200 }),

@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import type { Theme } from "@/context/theme/provider";
 
 import { classifyInstallMethod, getAppVersion, getInstalledPath } from "@/lib/app-status";
-import type { RepoMonitorMode } from "@/lib/git";
 import { createLatestReleaseLookup, type ReleaseLookup } from "@/lib/release";
 
 type ReleaseState =
@@ -16,7 +15,6 @@ type ReleaseState =
 export type StatusDialogProps = {
   theme: Theme;
   gitRoot: string | null;
-  watcherMode: RepoMonitorMode | null;
   onClose: () => void;
   releaseLookup?: ReleaseLookup;
 };
@@ -35,7 +33,7 @@ function StatusRow(props: { theme: Theme; label: string; value: string }) {
 }
 
 export function StatusDialog(props: StatusDialogProps) {
-  const { theme, gitRoot, watcherMode, onClose } = props;
+  const { theme, gitRoot, onClose } = props;
   const [release, setRelease] = useState<ReleaseState>({ status: "loading" });
   const releaseLookup = props.releaseLookup ?? defaultReleaseLookup;
 
@@ -94,7 +92,6 @@ export function StatusDialog(props: StatusDialogProps) {
 
       <box>
         <StatusRow theme={theme} label="Health" value={gitRoot ? "ready" : "unavailable"} />
-        <StatusRow theme={theme} label="Watcher" value={watcherMode ?? "starting"} />
         <StatusRow theme={theme} label="Git root" value={gitRoot ?? "Not available"} />
         <StatusRow theme={theme} label="Install" value={installLabel} />
         <StatusRow theme={theme} label="Version" value={appVersion} />
