@@ -18,7 +18,7 @@
     "setup": "bun run build && bun link",
     "release": "release-it -i patch",
     "preview": "bun run dist/index.js",
-    "test": "bun test",
+    "test": "bun test src",
     "typecheck": "tsc --noEmit",
     "check": "biome check",
     "fix": "biome check --write --unsafe",
@@ -40,7 +40,7 @@
   },
   "dependencies": {
     "@opentui/core": "^0.1.103",
-    "@opentui/react": "^0.1.103",
+    "@opentui/solid": "^0.1.103",
     "better-result": "^2.9.0",
     "chokidar": "^5.0.0",
     "dequal": "^2.0.3",
@@ -48,8 +48,8 @@
     "fuzzysort": "^3.1.0",
     "isbinaryfile": "^6.0.0",
     "meow": "^14.1.0",
-    "react": "^19.2.5",
-    "remeda": "^2.33.7"
+    "remeda": "^2.33.7",
+    "solid-js": "^1.9.9"
   },
   "release-it": {
     "git": {
