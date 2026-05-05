@@ -23,6 +23,8 @@ describe("config", () => {
     const loaded = config.fresh({ path });
 
     expect(loaded).toEqual({
+      theme: "opencode",
+      themeMode: "light",
       sidebar: { defaultOpen: true, defaultWidth: 40 },
       window: { paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0 },
     });
@@ -40,6 +42,8 @@ describe("config", () => {
     const loaded = config.fresh({ path });
 
     expect(loaded).toEqual({
+      theme: "opencode",
+      themeMode: "light",
       sidebar: { defaultOpen: true, defaultWidth: 52 },
       window: { paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 7 },
     });
@@ -77,5 +81,7 @@ describe("config", () => {
 
     expect(loaded.sidebar.defaultOpen).toBe(true);
     expect(loaded.sidebar.defaultWidth).toBe(40);
+    expect(loaded.theme).toBe("opencode");
+    expect(loaded.themeMode).toBe("light");
   });
 });
