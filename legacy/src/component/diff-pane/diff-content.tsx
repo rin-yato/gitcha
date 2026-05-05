@@ -1,10 +1,10 @@
 import { useRenderer } from "@opentui/react";
 
-import { memo, useCallback, useRef } from "react";
-
 import { copySelection } from "@/lib/clipboard";
 
 import { useToast } from "@/component/ui/toast";
+
+import { memo, useCallback, useRef } from "react";
 
 import type { DiffContentProps, DiffRenderableRef } from "./types";
 

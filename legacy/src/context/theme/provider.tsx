@@ -1,11 +1,10 @@
+import { normalizeThemeId } from "@/lib/config";
+
 import type { ReactNode } from "react";
 import { createContext, useContext, useMemo, useState } from "react";
 
-import { normalizeThemeId } from "@/lib/config";
-
-import type { DesktopTheme } from "@/themes/types";
-
 import { THEME_IDS, THEMES, type ThemeId } from "@/themes";
+import type { DesktopTheme } from "@/themes/types";
 
 export interface Theme {
   background: string;

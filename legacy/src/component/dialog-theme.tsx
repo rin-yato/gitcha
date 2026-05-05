@@ -1,11 +1,10 @@
+import { DialogSelect, type DialogSelectOption } from "@/component/ui/dialog-select";
+import { Overlay } from "@/component/ui/overlay";
+
 import { useCallback } from "react";
 
 import type { Theme } from "@/context/theme/provider";
 import { useThemeSettings } from "@/context/theme/provider";
-
-import { DialogSelect, type DialogSelectOption } from "@/component/ui/dialog-select";
-import { Overlay } from "@/component/ui/overlay";
-
 import { THEMES } from "@/themes";
 
 type ThemeOption = DialogSelectOption<string>;

@@ -5,14 +5,13 @@ import "@opentui/react/runtime-plugin-support";
 import { addDefaultParsers, createCliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
 
-import { bootstrapReviewSession } from "@/context/session/session";
-
 import { buildCli } from "@/lib/cli";
 import { createDefaultAppConfig, loadAppConfig } from "@/lib/config";
 import { parsers } from "@/lib/treesitter/parsers";
 import { upgradeApp } from "@/lib/upgrade";
 
 import { AppRootWithBootstrap } from "@/app";
+import { bootstrapReviewSession } from "@/context/session/session";
 import { registerRenderables } from "@/renderable/register";
 
 const version = process.env.CHANGES_APP_VERSION ?? "dev";

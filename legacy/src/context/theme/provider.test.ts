@@ -1,9 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
+import { resolveTheme } from "./provider";
 import opencodeThemeJson from "@/themes/opencode.json";
 import type { DesktopTheme } from "@/themes/types";
-
-import { resolveTheme } from "./provider";
 
 describe("resolveTheme", () => {
   test("maps desktop theme json into app theme tokens", () => {

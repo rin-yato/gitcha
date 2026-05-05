@@ -1,8 +1,8 @@
-import { buildFileKey, type FileSection } from "@/context/selection/utils";
-import type { Theme } from "@/context/theme/provider";
-
 import type { FileTreeNode, GitStatusFile } from "@/lib/git";
 import { gitStatusParser } from "@/lib/git";
+
+import { buildFileKey, type FileSection } from "@/context/selection/utils";
+import type { Theme } from "@/context/theme/provider";
 
 // Status icons - minimal, single character
 const STATUS_ICONS: Record<string, string> = {

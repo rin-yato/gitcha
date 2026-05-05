@@ -1,11 +1,10 @@
 import { memo, useMemo } from "react";
 
-import { createSyntaxStyle, getSupportedSyntaxFiletype } from "@/context/theme";
-
 import { DiffHeader } from "./diff-header";
 import { DiffRenderablePane } from "./diff-renderable-pane";
 import type { DiffPaneProps } from "./types";
 import { formatHeaderLabel } from "./utils";
+import { createSyntaxStyle, getSupportedSyntaxFiletype } from "@/context/theme";
 
 const UnsupportedDiffOverlay = memo(function UnsupportedDiffOverlay({
   reason,
