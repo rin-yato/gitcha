@@ -1,19 +1,5 @@
 import { useKeyboard, useRenderer } from "@opentui/react";
 
-import { useCallback, useEffect, useState } from "react";
-
-import { ReviewDiffProvider, useReviewDiff } from "@/context/diff";
-import { ReviewLayoutProvider, useReviewLayout } from "@/context/layout";
-import { ReviewSelectionProvider, useReviewSelection } from "@/context/selection";
-import {
-  type GitClient,
-  type ReviewBootstrap,
-  ReviewProvider,
-  useReviewSession,
-} from "@/context/session/session";
-import { type Theme, type ThemeMode, ThemeProvider, useTheme } from "@/context/theme/provider";
-import { ReviewViewProvider, useReviewView } from "@/context/view";
-
 import { type AppConfig, matchesAnyShortcut, openAppConfig } from "@/lib/config";
 import type { CompareTarget } from "@/lib/git";
 import { upgradeApp } from "@/lib/upgrade";
@@ -31,6 +17,20 @@ import { DiffPane } from "@/component/diff-pane";
 import { Sidebar } from "@/component/sidebar/index";
 import { DialogProvider, useDialog } from "@/component/ui/dialog";
 import { Toast, ToastProvider, useToast } from "@/component/ui/toast";
+
+import { useCallback, useEffect, useState } from "react";
+
+import { ReviewDiffProvider, useReviewDiff } from "@/context/diff";
+import { ReviewLayoutProvider, useReviewLayout } from "@/context/layout";
+import { ReviewSelectionProvider, useReviewSelection } from "@/context/selection";
+import {
+  type GitClient,
+  type ReviewBootstrap,
+  ReviewProvider,
+  useReviewSession,
+} from "@/context/session/session";
+import { type Theme, type ThemeMode, ThemeProvider, useTheme } from "@/context/theme/provider";
+import { ReviewViewProvider, useReviewView } from "@/context/view";
 
 type CompareData = {
   branches: { ref: string; label: string; description?: string }[];

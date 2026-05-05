@@ -1,7 +1,6 @@
-import { buildFileKey } from "@/context/selection/utils";
-
 import { FileItem } from "./file-item";
 import type { FileListProps } from "./types";
+import { buildFileKey } from "@/context/selection/utils";
 
 export function FileList(props: FileListProps) {
   const {

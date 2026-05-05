@@ -1,5 +1,7 @@
 import { flushSync } from "@opentui/react";
 
+import type { GitStatusFile } from "@/lib/git";
+
 import type React from "react";
 import {
   createContext,
@@ -10,8 +12,6 @@ import {
   useRef,
   useState,
 } from "react";
-
-import type { GitStatusFile } from "@/lib/git";
 
 import { useReviewSession } from "../session/session";
 import type { ViewMode } from "../view";

@@ -1,14 +1,3 @@
-import type React from "react";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-
 import type {
   CompareMode,
   CompareResolution,
@@ -46,6 +35,16 @@ import {
 } from "@/lib/git";
 
 import { dequal } from "dequal";
+import type React from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 export type ReviewSession = {
   status: GitRepoStatus | null;

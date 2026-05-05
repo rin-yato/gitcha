@@ -2,13 +2,12 @@ import { afterEach, expect, test } from "bun:test";
 
 import { testRender } from "@opentui/react/test-utils";
 
-import { act } from "react";
-
-import type { Theme } from "@/context/theme/provider";
-
 import { createLatestReleaseLookup } from "@/lib/release";
 
+import { act } from "react";
+
 import { StatusDialog } from "./dialog-status";
+import type { Theme } from "@/context/theme/provider";
 
 const theme: Theme = {
   background: "#000000",

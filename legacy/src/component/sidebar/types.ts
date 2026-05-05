@@ -1,7 +1,7 @@
+import type { GitStatusFile } from "@/lib/git";
+
 import type { FileSection } from "@/context/selection/utils";
 import type { Theme } from "@/context/theme/provider";
-
-import type { GitStatusFile } from "@/lib/git";
 
 export type FileItemProps = {
   id: string;

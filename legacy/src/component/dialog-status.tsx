@@ -1,11 +1,11 @@
 import { useKeyboard } from "@opentui/react";
 
+import { classifyInstallMethod, getAppVersion, getInstalledPath } from "@/lib/app-status";
+import { createLatestReleaseLookup, type ReleaseLookup } from "@/lib/release";
+
 import { useEffect, useState } from "react";
 
 import type { Theme } from "@/context/theme/provider";
-
-import { classifyInstallMethod, getAppVersion, getInstalledPath } from "@/lib/app-status";
-import { createLatestReleaseLookup, type ReleaseLookup } from "@/lib/release";
 
 type ReleaseState =
   | { status: "loading" }

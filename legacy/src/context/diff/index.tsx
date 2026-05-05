@@ -1,3 +1,5 @@
+import { BINARY_UNSUPPORTED_REASON, isBinaryPatch } from "@/lib/git";
+
 import type React from "react";
 import {
   createContext,
@@ -8,8 +10,6 @@ import {
   useRef,
   useState,
 } from "react";
-
-import { BINARY_UNSUPPORTED_REASON, isBinaryPatch } from "@/lib/git";
 
 import { useReviewSelection } from "../selection";
 import { useReviewSession } from "../session/session";

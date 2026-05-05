@@ -4,13 +4,12 @@ import { afterEach, expect, test } from "bun:test";
 
 import { testRender } from "@opentui/react/test-utils";
 
-import { act } from "react";
-
-import type { Theme } from "@/context/theme/provider";
-
 import { ToastProvider } from "@/component/ui/toast";
 
+import { act } from "react";
+
 import { DiffPane } from ".";
+import type { Theme } from "@/context/theme/provider";
 
 const theme: Theme = {
   background: "#000000",

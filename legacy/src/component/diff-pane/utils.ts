@@ -1,7 +1,7 @@
-import { useMemo } from "react";
-
 import type { GitStatusFile } from "@/lib/git";
 import { computeScrollbarMarkers, parseDiffPositions } from "@/lib/git";
+
+import { useMemo } from "react";
 
 import type { ScrollbarMetrics, ScrollState } from "./types";
 

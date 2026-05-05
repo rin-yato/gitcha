@@ -1,7 +1,7 @@
+import type { CompareTarget } from "@/lib/git";
+
 import type React from "react";
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
-
-import type { CompareTarget } from "@/lib/git";
 
 import { useReviewSession } from "../session/session";
 

@@ -1,12 +1,12 @@
-import type React from "react";
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
-
 import {
   clampSidebarWidth,
   DEFAULT_SIDEBAR_WIDTH,
   MAX_SIDEBAR_WIDTH,
   MIN_SIDEBAR_WIDTH,
 } from "@/lib/config";
+
+import type React from "react";
+import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 
 export type ReviewLayoutState = {
   isSidebarOpen: boolean;

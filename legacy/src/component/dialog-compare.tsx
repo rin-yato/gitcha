@@ -1,12 +1,12 @@
 import { useKeyboard } from "@opentui/react";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-
-import type { Theme } from "@/context/theme/provider";
-
 import type { CompareMode, CompareTarget } from "@/lib/git";
 
 import { DialogSelect, type DialogSelectOption } from "@/component/ui/dialog-select";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import type { Theme } from "@/context/theme/provider";
 
 const compareTabs = [
   { name: "Base branch", description: "Compare against a branch", value: "base-branch" },

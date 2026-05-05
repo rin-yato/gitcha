@@ -3,15 +3,14 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { createSpy } from "@opentui/core/testing";
 import { testRender } from "@opentui/react/test-utils";
 
-import { act } from "react";
-
-import type { Theme } from "@/context/theme/provider";
-
 import { DialogProvider, useDialog } from "@/component/ui/dialog";
 import type { DialogSelectOption } from "@/component/ui/dialog-select";
 import { buildDialogSelectRows } from "@/component/ui/dialog-select";
 
+import { act } from "react";
+
 import { type CommandOption, DialogCommand } from "./dialog-command";
+import type { Theme } from "@/context/theme/provider";
 
 function stripRowKeys(rows: readonly unknown[]) {
   return rows.map((row) => {

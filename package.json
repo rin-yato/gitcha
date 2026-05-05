@@ -13,8 +13,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "dev": "bun run --watch src/index.tsx",
-    "run": "bun run src/index.tsx",
+    "dev": "bun run src/index.tsx",
     "build": "bun run scripts/build.ts",
     "setup": "bun run build && bun link",
     "release": "release-it -i patch",
@@ -41,6 +40,7 @@
   },
   "dependencies": {
     "@opentui/core": "^0.2.2",
+    "@opentui/keymap": "^0.2.2",
     "@opentui/solid": "^0.2.2",
     "better-result": "^2.9.2",
     "chokidar": "^5.0.0",
