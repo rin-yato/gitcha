@@ -1,5 +1,18 @@
 
 
+## [0.1.8](https://github.com/rin-yato/differ/compare/v0.1.7...v0.1.8) (2026-05-05)
+
+
+### Bug Fixes
+
+* try to make upgrade work ([8c72343](https://github.com/rin-yato/differ/commit/8c723437c326720c55cb65afdba7fbcafcac3d41))
+
+
+### Features
+
+* remove benchmarking stuff ([2427904](https://github.com/rin-yato/differ/commit/2427904c61ce97fec873ec029f6139a08f0de10a))
+* update watcher to be aware of gitignore ([4f57aa2](https://github.com/rin-yato/differ/commit/4f57aa26109bb752d07b88d73e5ba5a1d1c26992))
+
 ## [0.1.7](https://github.com/rin-yato/differ/compare/v0.1.6...v0.1.7) (2026-04-28)
 
 
