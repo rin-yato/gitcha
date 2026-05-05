@@ -1,3 +1,5 @@
+import { spawn } from "node:child_process";
+
 import {
   classifyInstallMethod,
   getAppVersion,
@@ -6,7 +8,6 @@ import {
   isNewVersionAvailable,
 } from "./app-status";
 import { createLatestReleaseLookup, type ReleaseLookup } from "./release";
-import { spawn } from "node:child_process";
 
 type UpgradeLogger = {
   log: (message: string) => void;

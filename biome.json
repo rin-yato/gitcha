@@ -13,6 +13,8 @@
             "groups": [
               ["bun", "bun:*"],
               ":BLANK_LINE:",
+              ["node:*"],
+              ":BLANK_LINE:",
               "@opentui/**",
               ":BLANK_LINE:",
               ["solid-js", "solid-js/**"],
