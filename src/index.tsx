@@ -1,36 +1,14 @@
 #!/usr/bin/env bun
 
-import { render, useKeyboard, useRenderer } from "@opentui/solid";
+import { CLI } from "@/lib/cli";
 
-import { createSignal } from "solid-js";
+import { TUI } from "@/tui";
 
-const App = () => {
-  const renderer = useRenderer();
-  const [count, setCount] = createSignal(0);
+const cli = await CLI.run();
 
-  useKeyboard((key) => {
-    if (key.name === "up") {
-      setCount((current) => current + 1);
-      return;
-    }
-
-    if (key.name === "down") {
-      setCount((current) => current - 1);
-      return;
-    }
-
-    if (key.name === "escape") {
-      renderer.destroy();
-    }
+if (cli === "TUI") {
+  await TUI.run().catch((error) => {
+    console.error("Error running TUI:", error);
+    process.exit(1);
   });
-
-  return (
-    <box border padding={1} flexDirection="column" gap={1} width="100%" height="100%">
-      <text fg="#8BD5CA">gitcha SolidJS starter</text>
-      <text>Count: {count()}</text>
-      <text fg="#A0A0A0">Up / Down change the value. Press Esc to quit.</text>
-    </box>
-  );
-};
-
-render(() => <App />);
+}
