@@ -18,6 +18,7 @@ import type {
   GitRepoStatus,
   GitStatusFile,
   RepoContext,
+  RepoMonitorMode,
 } from "@/lib/git";
 import {
   commitChanges as commitGitChanges,
@@ -49,6 +50,7 @@ import { dequal } from "dequal";
 export type ReviewSession = {
   status: GitRepoStatus | null;
   error: string | null;
+  watcherMode: RepoMonitorMode | null;
   diffRevision: number;
   compareState: CompareState | null;
   fileTrees: {
@@ -502,6 +504,7 @@ export function ReviewProvider({
         ? {
             status,
             error,
+            watcherMode: null,
             diffRevision,
             compareState,
             fileTrees,
