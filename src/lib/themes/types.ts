@@ -1,7 +1,5 @@
 export type HexColor = `#${string}`;
 
-export type ColorValue = HexColor | `var(--${string})`;
-
 export interface ThemePaletteColors {
   neutral: HexColor;
   ink: HexColor;
@@ -18,7 +16,7 @@ export interface ThemePaletteColors {
 
 export interface ThemeVariant {
   palette: ThemePaletteColors;
-  overrides?: Record<string, ColorValue>;
+  overrides?: Record<string, string>;
 }
 
 export interface DesktopTheme {
@@ -30,3 +28,29 @@ export interface DesktopTheme {
 }
 
 export type ThemeMode = "light" | "dark";
+
+export interface ThemeTokens {
+  bg: HexColor;
+  bgMuted: HexColor;
+  fg: HexColor;
+  fgMuted: HexColor;
+  surface: HexColor;
+  border: HexColor;
+  accent: HexColor;
+  accentFg: HexColor;
+  added: HexColor;
+  removed: HexColor;
+  modified: HexColor;
+  success: HexColor;
+  warning: HexColor;
+  error: HexColor;
+  syntaxComment?: HexColor;
+  syntaxKeyword?: HexColor;
+  syntaxFunction?: HexColor;
+  syntaxVariable?: HexColor;
+  syntaxString?: HexColor;
+  syntaxNumber?: HexColor;
+  syntaxType?: HexColor;
+  syntaxOperator?: HexColor;
+  syntaxPunctuation?: HexColor;
+}

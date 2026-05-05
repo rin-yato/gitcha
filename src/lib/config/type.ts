@@ -1,3 +1,5 @@
+import { DEFAULT_THEME_ID, THEME_IDS, type ThemeId, type ThemeMode } from "@/lib/themes";
+
 import { TaggedError } from "better-result";
 import { z } from "zod";
 
@@ -10,7 +12,11 @@ export const DEFAULT_WINDOW_PADDING = {
   LEFT: 0,
 } as const;
 
+export const DEFAULT_THEME_MODE: ThemeMode = "light";
+
 export const configSchema = z.object({
+  theme: z.enum(THEME_IDS as [ThemeId, ...ThemeId[]]).default(DEFAULT_THEME_ID),
+  themeMode: z.enum(["light", "dark"]).default(DEFAULT_THEME_MODE),
   sidebar: z
     .object({
       defaultOpen: z.boolean().default(DEFAULT_SIDEBAR_DEFAULT_OPEN),

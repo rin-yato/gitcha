@@ -3,6 +3,7 @@ import { useKeyboard } from "@opentui/solid";
 import { Show } from "solid-js";
 
 import { $sidebar } from "@/store/sidebar.store";
+import { $theme } from "@/store/theme.store";
 
 export function Sidebar() {
   useKeyboard((key) => {
@@ -21,8 +22,11 @@ export function Sidebar() {
 
   return (
     <Show when={$sidebar.open}>
-      <box backgroundColor="gray" width={$sidebar.width}>
-        <text fg="black">Sidebar {$sidebar.width}</text>
+      <box backgroundColor={$theme.token.surface} width={$sidebar.width}>
+        <text fg="black">
+          Sidebar&nbsp;
+          <span style={{ fg: $theme.token.added }}>{$sidebar.width}</span>
+        </text>
       </box>
     </Show>
   );
