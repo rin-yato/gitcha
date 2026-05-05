@@ -1,3 +1,6 @@
+import { spawn } from "node:child_process";
+import { existsSync, statSync } from "node:fs";
+
 import { Result } from "better-result";
 
 import {
@@ -9,8 +12,6 @@ import {
   GitTimeoutError,
 } from "./errors";
 import type { GitCommandOptions, GitCommandOutput, GitResult } from "./types";
-import { spawn } from "node:child_process";
-import { existsSync, statSync } from "node:fs";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_MAX_BUFFER_BYTES = 64 * 1024 * 1024;

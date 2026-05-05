@@ -1,7 +1,8 @@
 import { spawn } from "node:child_process";
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { DEFAULT_THEME_ID, THEME_IDS, type ThemeId } from "@/themes";
 
 export const MIN_SIDEBAR_WIDTH = 20;

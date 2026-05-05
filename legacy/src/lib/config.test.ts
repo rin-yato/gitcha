@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import {
   createDefaultAppConfig,
   getAppConfigPath,
@@ -10,9 +14,6 @@ import {
   saveAppConfig,
   serializeAppConfig,
 } from "./config";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 
 describe("config", () => {
   test("returns the expected default config", () => {
