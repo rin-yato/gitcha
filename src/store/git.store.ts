@@ -1,7 +1,7 @@
 import { mergeProps } from "solid-js";
 import { createStore } from "solid-js/store";
 
-import { Git } from "@/lib/git";
+import { git } from "@/lib/git";
 import type { GitRepoStatus } from "@/lib/git/types";
 
 import { Result } from "better-result";
@@ -11,8 +11,6 @@ type GitState = {
   loading: boolean;
   error: string | null;
 };
-
-const git = new Git();
 
 const [gitState, setGitState] = createStore<GitState>({
   status: null,
