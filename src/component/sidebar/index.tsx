@@ -1,12 +1,13 @@
 import { useKeyboard } from "@opentui/solid";
 
-import { createMemo, onMount, Show } from "solid-js";
+import { createEffect, createMemo, onMount, Show } from "solid-js";
 
 import { $git } from "@/store/git.store";
 import { $sidebar } from "@/store/sidebar.store";
 import { $theme } from "@/store/theme.store";
 
 import { StatusSection } from "./status-section";
+import { collectSidebarFiles } from "./utils";
 
 export function Sidebar() {
   onMount(() => {
@@ -14,6 +15,16 @@ export function Sidebar() {
   });
 
   useKeyboard((key) => {
+    const files = changesFiles();
+
+    if (key.name === "down" || key.name === "j") {
+      return $sidebar.action.selectNext(files);
+    }
+
+    if (key.name === "up" || key.name === "k") {
+      return $sidebar.action.selectPrevious(files);
+    }
+
     if (key.name === "]") {
       return $sidebar.action.increaseWidth();
     }
@@ -54,6 +65,23 @@ export function Sidebar() {
     } satisfies Record<string, StatusSection>;
   });
 
+  const changesFiles = createMemo(() => collectSidebarFiles($git.status));
+
+  createEffect(() => {
+    const files = changesFiles();
+
+    if (files.length === 0) {
+      if ($sidebar.selectedPath !== null) {
+        $sidebar.action.setSelectedPath(null);
+      }
+      return;
+    }
+
+    if (!files.some((file) => file.path === $sidebar.selectedPath)) {
+      $sidebar.action.setSelectedPath(files[0]?.path ?? null);
+    }
+  });
+
   return (
     <Show when={$sidebar.open}>
       <scrollbox
@@ -61,6 +89,8 @@ export function Sidebar() {
         width={$sidebar.width}
         flexDirection="column"
         contentOptions={{ gap: 1 }}
+        scrollX={false}
+        scrollY={true}
       >
         <Show when={$git.loading}>
           <text fg="gray">Loading...</text>
@@ -70,9 +100,13 @@ export function Sidebar() {
           <text fg="red">{$git.error}</text>
         </Show>
 
-        <StatusSection section={changes().conflicts} />
-        <StatusSection section={changes().staged} />
-        <StatusSection section={changes().changes} />
+        <StatusSection
+          section={{ ...changes().conflicts, selectedPath: $sidebar.selectedPath }}
+        />
+        <StatusSection section={{ ...changes().staged, selectedPath: $sidebar.selectedPath }} />
+        <StatusSection
+          section={{ ...changes().changes, selectedPath: $sidebar.selectedPath }}
+        />
       </scrollbox>
     </Show>
   );

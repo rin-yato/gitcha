@@ -9,6 +9,7 @@ export interface StatusSection {
   kind: "conflicts" | "staged" | "changes";
   files: GitStatusFile[];
   count: number;
+  selectedPath?: string | null;
 }
 
 function formatStatusLabel(status: string) {
@@ -72,14 +73,29 @@ export function StatusSection(props: { section: StatusSection }) {
         </text>
 
         <For each={props.section.files}>
-          {(file) => (
-            <text fg="black" truncate maxHeight={1} overflow="hidden" wrapMode="char">
-              <span style={{ fg: sectionAccentFg() }}>
-                {formatSectionStatus(props.section.kind, file)}
-              </span>
-              <span style={{ fg: $theme.token.fgMuted }}>&nbsp;{file.path}</span>
-            </text>
-          )}
+          {(file) => {
+            const isSelected = file.path === props.section.selectedPath;
+
+            return (
+              <box backgroundColor={isSelected ? $theme.token.accent : undefined}>
+                <text
+                  fg={isSelected ? $theme.token.accentFg : "black"}
+                  truncate
+                  maxHeight={1}
+                  wrapMode="char"
+                >
+                  <span style={{ fg: isSelected ? $theme.token.accentFg : sectionAccentFg() }}>
+                    {formatSectionStatus(props.section.kind, file)}
+                  </span>
+                  <span
+                    style={{ fg: isSelected ? $theme.token.accentFg : $theme.token.fgMuted }}
+                  >
+                    &nbsp;{file.path}
+                  </span>
+                </text>
+              </box>
+            );
+          }}
         </For>
       </box>
     </Show>
