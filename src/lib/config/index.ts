@@ -1,6 +1,6 @@
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { Result } from "better-result";
 
@@ -29,17 +29,25 @@ class ConfigManager {
 
   fresh(options: ConfigArgs = {}): AppConfig {
     const path = options.path ?? this.getAppConfigPath(options.homeDir);
+
     const config = this.load(path).match({
       ok: (value) => value,
-      err: () => this.createDefaultAppConfig(),
+      err: () => this.createDefaultAppConfig(path),
     });
 
     this.cache = { path, config };
     return config;
   }
 
-  private createDefaultAppConfig(): AppConfig {
-    return configSchema.parse({});
+  private createDefaultAppConfig(path?: string): AppConfig {
+    const config = configSchema.parse({});
+
+    if (path) {
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`);
+    }
+
+    return config;
   }
 
   private load(path: string) {

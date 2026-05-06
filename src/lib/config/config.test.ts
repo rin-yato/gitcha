@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -28,6 +28,23 @@ describe("config", () => {
       sidebar: { defaultOpen: true, defaultWidth: 40 },
       window: { paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0 },
     });
+  });
+
+  test("writes defaults for a missing file", () => {
+    config.fresh({ path });
+
+    expect(readFileSync(path, "utf8")).toBe(
+      `${JSON.stringify(
+        {
+          theme: "opencode",
+          themeMode: "light",
+          sidebar: { defaultOpen: true, defaultWidth: 40 },
+          window: { paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0 },
+        },
+        null,
+        2,
+      )}\n`,
+    );
   });
 
   test("reads partial config with zod defaults", () => {
