@@ -25,7 +25,12 @@ export function DiffPane() {
 
   return (
     <box backgroundColor={$theme.token.bg} width="100%" flexDirection="column">
-      <box border={["bottom"]} borderColor={`${$theme.token.border}46`} borderStyle="heavy">
+      <box
+        border={["bottom"]}
+        borderColor={`${$theme.token.border}66`}
+        borderStyle="heavy"
+        flexShrink={0}
+      >
         <text fg={$theme.token.fg}>{selectedFile()?.path}</text>
       </box>
 
@@ -35,26 +40,26 @@ export function DiffPane() {
 
       <Show when={diffResource()}>
         {(diff) => (
-          <scrollbox>
-            <diff
-              diff={diff()}
-              filetype={pathToFiletype(selectedFile()?.path ?? "")}
-              syntaxStyle={$theme.syntax}
-              fg={$theme.token.fg}
-              selectionBg={`${$theme.token.accent}16`}
-              addedBg={`${$theme.token.added}12`}
-              removedBg={`${$theme.token.removed}12`}
-              contextBg={$theme.token.bg}
-              lineNumberFg={$theme.token.fgMuted}
-              addedContentBg={`${$theme.token.added}12`}
-              removedContentBg={`${$theme.token.removed}12`}
-              contextContentBg={$theme.token.bg}
-              addedSignColor={$theme.token.added}
-              removedSignColor={$theme.token.removed}
-              addedLineNumberBg={`${$theme.token.added}16`}
-              removedLineNumberBg={`${$theme.token.removed}16`}
-            />
-          </scrollbox>
+          <diff
+            width="100%"
+            height="100%"
+            diff={diff()}
+            filetype={pathToFiletype(selectedFile()?.path ?? "")}
+            syntaxStyle={$theme.syntax}
+            fg={$theme.token.fg}
+            selectionBg={`${$theme.token.accent}16`}
+            addedBg={`${$theme.token.added}12`}
+            removedBg={`${$theme.token.removed}12`}
+            contextBg={$theme.token.bg}
+            lineNumberFg={$theme.token.fgMuted}
+            addedContentBg={`${$theme.token.added}12`}
+            removedContentBg={`${$theme.token.removed}12`}
+            contextContentBg={$theme.token.bg}
+            addedSignColor={$theme.token.added}
+            removedSignColor={$theme.token.removed}
+            addedLineNumberBg={`${$theme.token.added}16`}
+            removedLineNumberBg={`${$theme.token.removed}16`}
+          />
         )}
       </Show>
     </box>
