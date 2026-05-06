@@ -1,0 +1,41 @@
+import { mergeProps } from "solid-js";
+import { createStore } from "solid-js/store";
+
+import { Git } from "@/lib/git";
+import type { GitRepoStatus } from "@/lib/git/types";
+
+import { Result } from "better-result";
+
+type GitState = {
+  status: GitRepoStatus | null;
+  loading: boolean;
+  error: string | null;
+};
+
+const git = new Git();
+
+const [gitState, setGitState] = createStore<GitState>({
+  status: null,
+  loading: false,
+  error: null,
+});
+
+async function refresh() {
+  setGitState({ loading: true, error: null });
+
+  const result = await git.getRepoStatus();
+
+  if (Result.isError(result)) {
+    setGitState({ status: null, loading: false, error: result.error.message });
+    return null;
+  }
+
+  setGitState({ status: result.value, loading: false, error: null });
+  return result.value;
+}
+
+export const $git = mergeProps(gitState, {
+  action: {
+    refresh,
+  },
+});
