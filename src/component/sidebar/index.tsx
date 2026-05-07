@@ -84,30 +84,54 @@ export function Sidebar() {
 
   return (
     <Show when={$sidebar.open}>
-      <scrollbox
-        backgroundColor={$theme.token.surface}
+      <box
+        backgroundColor={$theme.token.bg}
         width={$sidebar.width}
         flexDirection="column"
-        contentOptions={{ gap: 1 }}
-        scrollX={false}
-        scrollY={true}
+        overflow="hidden"
+        paddingRight={1}
       >
-        <Show when={$git.loading}>
-          <text fg="gray">Loading...</text>
-        </Show>
+        <box
+          border={["bottom"]}
+          borderColor={`${$theme.token.border}66`}
+          borderStyle="heavy"
+          flexShrink={0}
+          paddingLeft={1}
+        >
+          <text fg={$theme.token.fg} attributes={1}>
+            Gitcha
+          </text>
+        </box>
 
-        <Show when={$git.error}>
-          <text fg="red">{$git.error}</text>
-        </Show>
+        <scrollbox
+          backgroundColor={$theme.token.surface}
+          width={$sidebar.width}
+          flexDirection="column"
+          contentOptions={{ gap: 1 }}
+          scrollX={false}
+          scrollY={true}
+          flexGrow={1}
+          flexShrink={0}
+        >
+          <Show when={$git.loading}>
+            <text fg="gray">Loading...</text>
+          </Show>
 
-        <StatusSection
-          section={{ ...changes().conflicts, selectedPath: $sidebar.selectedPath }}
-        />
-        <StatusSection section={{ ...changes().staged, selectedPath: $sidebar.selectedPath }} />
-        <StatusSection
-          section={{ ...changes().changes, selectedPath: $sidebar.selectedPath }}
-        />
-      </scrollbox>
+          <Show when={$git.error}>
+            <text fg="red">{$git.error}</text>
+          </Show>
+
+          <StatusSection
+            section={{ ...changes().conflicts, selectedPath: $sidebar.selectedPath }}
+          />
+          <StatusSection
+            section={{ ...changes().staged, selectedPath: $sidebar.selectedPath }}
+          />
+          <StatusSection
+            section={{ ...changes().changes, selectedPath: $sidebar.selectedPath }}
+          />
+        </scrollbox>
+      </box>
     </Show>
   );
 }

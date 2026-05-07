@@ -27,6 +27,11 @@ renderer.keyInput.on("keypress", (key) => {
   if (key.name === "`") {
     renderer.console.toggle();
   }
+
+  if (key.ctrl && key.name === "r" && process.env.GITCHA_DEV) {
+    renderer.destroy();
+    process.exit(100);
+  }
 });
 
 render(TUI, renderer);
