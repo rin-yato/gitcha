@@ -1,5 +1,6 @@
 import { Result } from "better-result";
 
+import { GitRepositoryStateError } from "./errors";
 import { GitExecutor } from "./executor";
 import { gitStatusParser } from "./parser";
 import type {
@@ -15,6 +16,7 @@ export type { GitClientOptions, GitFileStatus, GitResult, GitStatusFile } from "
 export class Git {
   readonly cwd?: string;
   readonly executor: GitExecutorLike;
+  private repoContextPromise?: Promise<GitResult<RepoContext | null>>;
 
   constructor(options: GitClientOptions = {}) {
     this.cwd = options.cwd;
@@ -27,18 +29,57 @@ export class Git {
       });
   }
 
-  getRepoRoot(): Promise<GitResult<string>> {
-    return this.executor.runText(["rev-parse", "--show-toplevel"], {
-      cwd: this.cwd,
-      dedupe: true,
-    });
+  async getRepoRoot(): Promise<GitResult<string>> {
+    const result = await this.getRepoContext();
+
+    if (result.isErr()) return Result.err(result.error);
+
+    if (result.value) return Result.ok(result.value.root);
+
+    return Result.err(
+      new GitRepositoryStateError({
+        message: "Not a git repository",
+        operation: "rev-parse --show-toplevel",
+        stderr: "",
+      }),
+    );
+  }
+
+  async getExecutorCwd(): Promise<string | undefined> {
+    return this.getRepoRoot().then(Result.unwrapOr(this.cwd));
+  }
+
+  async getRepoContext(): Promise<GitResult<RepoContext | null>> {
+    this.repoContextPromise ??= this.executor
+      .runText(["rev-parse", "--show-toplevel"], {
+        cwd: this.cwd,
+        dedupe: true,
+      })
+      .then((result) => {
+        if (Result.isError(result)) return Result.ok(null);
+
+        const root = result.value.trim();
+        const cwd = this.cwd ?? process.cwd();
+        return Result.ok({
+          root,
+          cwd,
+          toRootPath: (relativePath: string) =>
+            relativePath.startsWith("/") ? relativePath : `${root}/${relativePath}`,
+          toRelativePath: (absolutePath: string) =>
+            absolutePath.startsWith(root) ? absolutePath.slice(root.length + 1) : absolutePath,
+        });
+      });
+
+    return this.repoContextPromise;
   }
 
   async getRepoStatus(): Promise<GitResult<GitRepoStatus>> {
+    const cwd = await this.getExecutorCwd();
+
     const output = await this.executor.runText(
       ["status", "--porcelain=v1", "-z", "--branch", "--untracked-files=all"],
       {
-        cwd: this.cwd,
+        cwd,
         dedupe: true,
       },
     );
@@ -55,8 +96,10 @@ export class Git {
     indexStatus: string;
     workingTreeStatus: string;
   }): Promise<GitResult<string>> {
+    const cwd = await this.getExecutorCwd();
+
     const options = {
-      cwd: this.cwd,
+      cwd,
       dedupe: true,
       successExitCodes: [0, 1],
     } as const;
@@ -94,24 +137,6 @@ export class Git {
       ["diff", "--unified=999999999", "--no-ext-diff", "--", file.path],
       options,
     );
-  }
-
-  async detectRepoContext(): Promise<GitResult<RepoContext | null>> {
-    return this.getRepoRoot().then((root) => {
-      if (Result.isError(root)) return Result.ok(null);
-
-      const cwd = this.cwd ?? process.cwd();
-      return Result.ok({
-        root: root.value,
-        cwd,
-        toRootPath: (relativePath: string) =>
-          relativePath.startsWith("/") ? relativePath : `${root.value}/${relativePath}`,
-        toRelativePath: (absolutePath: string) =>
-          absolutePath.startsWith(root.value)
-            ? absolutePath.slice(root.value.length + 1)
-            : absolutePath,
-      });
-    });
   }
 }
 
