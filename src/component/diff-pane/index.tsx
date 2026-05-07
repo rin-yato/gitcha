@@ -44,6 +44,7 @@ export function DiffPane() {
             width="100%"
             height="100%"
             diff={diff()}
+            syncScroll
             filetype={pathToFiletype(selectedFile()?.path ?? "")}
             syntaxStyle={$theme.syntax}
             fg={$theme.token.fg}

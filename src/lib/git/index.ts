@@ -63,24 +63,35 @@ export class Git {
 
     if (file.indexStatus === "?" || file.workingTreeStatus === "?") {
       return this.executor.runText(
-        ["diff", "--no-index", "--no-ext-diff", "--", "/dev/null", file.path],
+        [
+          "diff",
+          "--no-index",
+          "--unified=999999999",
+          "--no-ext-diff",
+          "--",
+          "/dev/null",
+          file.path,
+        ],
         options,
       );
     }
 
     if (file.indexStatus === "U" || file.workingTreeStatus === "U") {
-      return this.executor.runText(["diff", "--cc", "--no-ext-diff", "--", file.path], options);
+      return this.executor.runText(
+        ["diff", "--cc", "--unified=999999999", "--no-ext-diff", "--", file.path],
+        options,
+      );
     }
 
     if (file.indexStatus !== " " && file.workingTreeStatus === " ") {
       return this.executor.runText(
-        ["diff", "--cached", "--unified=3", "--no-ext-diff", "--", file.path],
+        ["diff", "--cached", "--unified=999999999", "--no-ext-diff", "--", file.path],
         options,
       );
     }
 
     return this.executor.runText(
-      ["diff", "--unified=3", "--no-ext-diff", "--", file.path],
+      ["diff", "--unified=999999999", "--no-ext-diff", "--", file.path],
       options,
     );
   }

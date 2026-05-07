@@ -31,7 +31,7 @@ describe("Git#getUnifiedDiff", () => {
     expect(calls[0]?.args).toEqual([
       "diff",
       "--cached",
-      "--unified=3",
+      "--unified=999999999",
       "--no-ext-diff",
       "--",
       "src/file.ts",
@@ -46,7 +46,7 @@ describe("Git#getUnifiedDiff", () => {
 
     expect(calls[0]?.args).toEqual([
       "diff",
-      "--unified=3",
+      "--unified=999999999",
       "--no-ext-diff",
       "--",
       "src/file.ts",
@@ -62,6 +62,7 @@ describe("Git#getUnifiedDiff", () => {
     expect(calls[0]?.args).toEqual([
       "diff",
       "--no-index",
+      "--unified=999999999",
       "--no-ext-diff",
       "--",
       "/dev/null",
