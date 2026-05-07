@@ -13,7 +13,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "dev": "bun run src/index.tsx",
+    "dev": "bun run scripts/dev.ts",
     "build": "bun run scripts/build.ts",
     "setup": "bun run build && bun link",
     "release": "release-it -i patch",

@@ -100,19 +100,7 @@ export function StatusSection(props: { section: StatusSection }) {
 
   return (
     <Show when={props.section.count}>
-      <box width="100%" height="100%" shouldFill flexDirection="column" paddingRight={1}>
-        <box
-          border={["bottom"]}
-          borderColor={`${$theme.token.border}66`}
-          borderStyle="heavy"
-          flexShrink={0}
-          paddingLeft={1}
-        >
-          <text fg={$theme.token.fg} attributes={1}>
-            Gitcha
-          </text>
-        </box>
-
+      <box flexDirection="column">
         <box paddingLeft={1}>
           <text fg={$theme.token.fg}>
             {props.section.title}&nbsp;
