@@ -1,16 +1,12 @@
-import { pathToFiletype } from "@opentui/core";
-
-import { createMemo, createResource, Show } from "solid-js";
+import { createMemo, Match, Switch } from "solid-js";
 
 import { $git } from "@/store/git.store";
 import { $sidebar } from "@/store/sidebar.store";
 import { $theme } from "@/store/theme.store";
 
-import { git } from "@/lib/git";
-
 import { collectSidebarFiles } from "@/component/sidebar/utils";
 
-import { Result } from "better-result";
+import { Diff } from "./diff";
 
 export function DiffPane() {
   const selectedFile = createMemo(() => {
@@ -18,61 +14,28 @@ export function DiffPane() {
     return files.find((file) => file.path === $sidebar.selectedPath) ?? null;
   });
 
-  const [diffResource] = createResource(selectedFile, async (file) => {
-    if (!file) throw new Error("No file selected");
-    return git.getUnifiedDiff(file).then(Result.unwrap);
-  });
-
   return (
-    <box backgroundColor={$theme.token.bg} width="100%" flexDirection="column">
-      <box
-        border={["bottom"]}
-        borderColor={`${$theme.token.border}66`}
-        borderStyle="heavy"
-        flexShrink={0}
-      >
-        <text fg={$theme.token.fg}>{selectedFile()?.path}</text>
-      </box>
+    <Switch>
+      <Match when={selectedFile() === null}>
+        <BlankView />
+      </Match>
 
-      <Show when={diffResource.error}>
-        <text fg="red">Error: {String(diffResource.error)}</text>
-      </Show>
+      <Match when={selectedFile()}>{(file) => <Diff selectedFile={file} />}</Match>
+    </Switch>
+  );
+}
 
-      <Show when={diffResource()}>
-        {(diff) => (
-          <diff
-            width="100%"
-            height="100%"
-            diff={diff()}
-            syncScroll
-            filetype={pathToFiletype(selectedFile()?.path ?? "")}
-            syntaxStyle={$theme.syntax}
-            //
-            //
-            fg={$theme.token.fg}
-            selectionBg={`${$theme.token.accent}16`}
-            //
-            //
-            addedBg={`${$theme.token.added}12`}
-            removedBg={`${$theme.token.removed}12`}
-            addedContentBg={`${$theme.token.added}12`}
-            removedContentBg={`${$theme.token.removed}12`}
-            //
-            //
-            lineNumberFg={$theme.token.fgMuted}
-            addedLineNumberBg={`${$theme.token.added}12`}
-            removedLineNumberBg={`${$theme.token.removed}12`}
-            //
-            //
-            contextBg={$theme.token.bg}
-            contextContentBg={$theme.token.bg}
-            //
-            //
-            addedSignColor={$theme.token.added}
-            removedSignColor={$theme.token.removed}
-          />
-        )}
-      </Show>
+const ASCII_ART = `
+█▀▀ ▀█▀ ▀█▀ █▀▀ █ █ █▀█
+█ █  █   █  █   █▀█ █▀█
+▀▀▀ ▀▀▀  ▀  ▀▀▀ ▀ ▀ ▀ ▀
+`;
+
+function BlankView() {
+  return (
+    <box width="100%" height="100%" alignItems="center" justifyContent="center" gap={1}>
+      <text fg={$theme.token.fgMuted}>{ASCII_ART}</text>
+      <text fg={$theme.token.fgMuted}>worktree is clean</text>
     </box>
   );
 }

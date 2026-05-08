@@ -75,6 +75,7 @@ export function Sidebar() {
   });
 
   const changesFiles = createMemo(() => collectSidebarFiles($git.status));
+  const hasChanges = createMemo(() => changesFiles().length > 0);
 
   createEffect(() => {
     const files = changesFiles();
@@ -92,7 +93,7 @@ export function Sidebar() {
   });
 
   return (
-    <Show when={$sidebar.open}>
+    <Show when={$sidebar.open && hasChanges()}>
       <box
         backgroundColor={$theme.token.bg}
         width={$sidebar.width}
