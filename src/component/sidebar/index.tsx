@@ -1,6 +1,6 @@
 import { useKeyboard } from "@opentui/solid";
 
-import { createEffect, createMemo, onMount, Show } from "solid-js";
+import { createEffect, createMemo, onCleanup, onMount, Show } from "solid-js";
 
 import { $git } from "@/store/git.store";
 import { $sidebar } from "@/store/sidebar.store";
@@ -10,8 +10,17 @@ import { StatusSection } from "./status-section";
 import { collectSidebarFiles } from "./utils";
 
 export function Sidebar() {
+  // Simple git polling
   onMount(() => {
+    const interval = setInterval(() => {
+      void $git.action.refresh();
+    }, 1000);
+
     void $git.action.refresh();
+
+    onCleanup(() => {
+      clearInterval(interval);
+    });
   });
 
   useKeyboard((key) => {
@@ -113,10 +122,6 @@ export function Sidebar() {
           flexGrow={1}
           flexShrink={0}
         >
-          <Show when={$git.loading}>
-            <text fg="gray">Loading...</text>
-          </Show>
-
           <Show when={$git.error}>
             <text fg="red">{$git.error}</text>
           </Show>
