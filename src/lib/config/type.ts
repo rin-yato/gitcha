@@ -22,7 +22,10 @@ export const configSchema = z.object({
       defaultOpen: z.boolean().default(DEFAULT_SIDEBAR_DEFAULT_OPEN),
       defaultWidth: z.number().int().default(DEFAULT_SIDEBAR_DEFAULT_WIDTH),
     })
-    .default({}),
+    .default({
+      defaultOpen: DEFAULT_SIDEBAR_DEFAULT_OPEN,
+      defaultWidth: DEFAULT_SIDEBAR_DEFAULT_WIDTH,
+    }),
   window: z
     .object({
       paddingTop: z.number().int().default(DEFAULT_WINDOW_PADDING.TOP),
@@ -30,7 +33,12 @@ export const configSchema = z.object({
       paddingBottom: z.number().int().default(DEFAULT_WINDOW_PADDING.BOTTOM),
       paddingLeft: z.number().int().default(DEFAULT_WINDOW_PADDING.LEFT),
     })
-    .default({}),
+    .default({
+      paddingTop: DEFAULT_WINDOW_PADDING.TOP,
+      paddingRight: DEFAULT_WINDOW_PADDING.RIGHT,
+      paddingBottom: DEFAULT_WINDOW_PADDING.BOTTOM,
+      paddingLeft: DEFAULT_WINDOW_PADDING.LEFT,
+    }),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
