@@ -40,7 +40,7 @@ Supported keys:
 
 The generated config includes a `$schema` field pointing at:
 
-`https://raw.githubusercontent.com/rin-yato/differ/main/src/config.schema.json`
+`https://raw.githubusercontent.com/rin-yato/gitcha/main/legacy/src/config.schema.json`
 
 If you want editor validation, point your local config file at that schema URL.
 

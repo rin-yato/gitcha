@@ -13,9 +13,9 @@
 ## Repository Map
 
 - `src/component/` - UI components and feature surfaces.
-- `src/context/` - shared state, providers, and app-level hooks.
+- `src/store/` - shared SolidJS stores and reactive state (replaced `src/context/`).
 - `src/lib/` - git/fs/tree-sitter utilities and other non-UI logic.
-- `src/themes/` - theme data and theme types.
+- `src/lib/themes/` - theme data and theme types (was `src/themes/`).
 - `scripts/` - build and install scripts.
 
 ## Commands
@@ -42,12 +42,49 @@ Always run `bun run fix`, instead of `bun run ci` or `bun run check`. This way i
 - Avoid `let` and in-place mutation unless it meaningfully simplifies the code.
 - Keep functions small and local unless the logic is clearly reusable.
 - Use `@/` path aliases for imports under `src/`.
-- JSX uses `@opentui/react` as the import source, not `react`.
+- JSX uses `@opentui/solid` as the import source (SolidJS, not React).
 - Follow Biome import ordering and formatting.
 - Prefer kebab-case for new component files and folders.
 - Keep comments brief and only for non-obvious logic.
 
+## Error Handling
+
+All domain and I/O errors must use `better-result` typed results instead of thrown exceptions.
+
+- **Async operations**: wrap with `Result.tryPromise({ try: async () => ..., catch: (e) => normalizeError(e) })`.
+- **Sync operations**: wrap with `Result.try({ try: () => ..., catch: (e) => normalizeError(e) })`.
+- **Return type**: prefer `Result<T, Error>` over `Promise<T>` or `T` whenever a call can fail.
+- **Never catch silently**: always propagate the error as a `Result.err(...)` so callers can decide.
+- **Consumer pattern**: check with `Result.isOk(result)` / `Result.isError(result)` and branch explicitly.
+- **Tagged errors**: use `TaggedError` from `better-result` when the error type matters downstream.
+
+Examples:
+
+```typescript
+import { Result, TaggedError } from "better-result";
+
+class CopyFailedError extends TaggedError("CopyFailed") {
+  constructor(readonly cause: unknown) {
+    super("Clipboard copy failed");
+  }
+}
+
+async function copy(text: string): Promise<Result<void, CopyFailedError>> {
+  return Result.tryPromise({
+    try: async () => { /* ... */ },
+    catch: (e) => new CopyFailedError(e),
+  });
+}
+
+const result = await copy("hello");
+if (Result.isOk(result)) {
+  $toast.action.success("Copied");
+} else {
+  $toast.action.error(result.error.message);
+}
+```
+
 ## Project Notes
 
-- The app always works against the current real git repository context
+- The app always works against the current real git repository context.
 - The build bundles the Tree-sitter worker, so `bun run build` should be used to verify changes that touch parser or build wiring.
