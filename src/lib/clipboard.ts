@@ -1,79 +1,62 @@
 import type { CliRenderer } from "@opentui/core";
 
-// import type { ToastState } from "@/component/ui/toast";
+import { $toast } from "@/store/toast.store";
 
-import childProcess from "child_process";
+import { Result } from "better-result";
+import { spawn } from "child_process";
 
 export async function copyToClipboard(
   text: string,
   copyOsc52: (value: string) => boolean,
-): Promise<void> {
-  const platform = process.platform;
-
-  // Try native clipboard commands
-  try {
-    if (platform === "darwin") {
-      // macOS: use pbcopy
-      await spawnClipboard("pbcopy", [], text);
-      return;
-    }
-
-    if (platform === "linux") {
-      // Linux: try wl-copy (Wayland), then xclip, then xsel
-      const isWayland = !!process.env.WAYLAND_DISPLAY;
-
-      if (isWayland) {
-        try {
-          await spawnClipboard("wl-copy", [], text);
-          return;
-        } catch {
-          // Fall through to X11 tools
-        }
-      }
-
-      try {
-        await spawnClipboard("xclip", ["-selection", "clipboard"], text);
-        return;
-      } catch {
-        // Try xsel
-      }
-
-      try {
-        await spawnClipboard("xsel", ["--clipboard", "--input"], text);
-        return;
-      } catch {
-        // Fall through to OSC52
-      }
-    }
-
-    if (platform === "win32") {
-      // Windows: use clip.exe
-      await spawnClipboard("clip.exe", [], text);
-      return;
-    }
-  } catch {
-    // Native clipboard failed, fall through to OSC52
+): Promise<Result<void, Error>> {
+  for (const { cmd, args } of getClipboardCommands()) {
+    const result = await trySpawnClipboard(cmd, args, text);
+    if (Result.isOk(result)) return result;
   }
 
-  // Fallback: renderer OSC52 utility (works in many terminals, including over SSH)
-  copyOsc52(text);
+  if (copyOsc52(text)) return Result.ok(undefined);
+
+  return Result.err(new Error("Failed to copy to clipboard"));
 }
 
-/**
- * Spawn a clipboard command and pipe text to it
- */
-function spawnClipboard(cmd: string, args: string[], text: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const proc = childProcess.spawn(cmd, args, { stdio: ["pipe", "ignore", "ignore"] });
+function getClipboardCommands(): Array<{ cmd: string; args: string[] }> {
+  if (process.platform === "darwin") return [{ cmd: "pbcopy", args: [] }];
+  if (process.platform === "win32") return [{ cmd: "clip.exe", args: [] }];
+  if (process.platform !== "linux") return [];
 
-    proc.on("error", reject);
-    proc.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`${cmd} exited with code ${code}`));
-    });
+  return process.env.WAYLAND_DISPLAY
+    ? [
+        { cmd: "wl-copy", args: [] },
+        { cmd: "xclip", args: ["-selection", "clipboard"] },
+        { cmd: "xsel", args: ["--clipboard", "--input"] },
+      ]
+    : [
+        { cmd: "xclip", args: ["-selection", "clipboard"] },
+        { cmd: "xsel", args: ["--clipboard", "--input"] },
+      ];
+}
 
-    proc.stdin?.write(text);
-    proc.stdin?.end();
+function trySpawnClipboard(
+  cmd: string,
+  args: string[],
+  text: string,
+): Promise<Result<void, Error>> {
+  return Result.tryPromise({
+    try: async () => {
+      await new Promise<void>((resolve, reject) => {
+        const proc = spawn(cmd, args, { stdio: ["pipe", "ignore", "ignore"] });
+
+        proc.on("error", reject);
+        proc.on("close", (code) => {
+          if (code === 0) resolve();
+          else reject(new Error(`${cmd} exited with code ${code ?? "unknown"}`));
+        });
+
+        proc.stdin?.write(text);
+        proc.stdin?.end();
+      });
+    },
+    catch: (error) => (error instanceof Error ? error : new Error(String(error))),
   });
 }
 
@@ -81,9 +64,13 @@ export async function copySelection(renderer: CliRenderer): Promise<void> {
   const selectedText = renderer.getSelection()?.getSelectedText();
   if (!selectedText) return;
 
-  return (
-    copyToClipboard(selectedText, renderer.copyToClipboardOSC52)
-      // .then(() => toast.success("Copied to clipboard"))
-      .finally(() => renderer.clearSelection())
-  );
+  const result = await copyToClipboard(selectedText, renderer.copyToClipboardOSC52);
+
+  if (Result.isOk(result)) {
+    $toast.action.success("Copied to clipboard");
+  } else {
+    $toast.action.error(result.error.message);
+  }
+
+  renderer.clearSelection();
 }

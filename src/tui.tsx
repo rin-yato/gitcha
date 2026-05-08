@@ -6,6 +6,7 @@ import { parsers } from "@/lib/treesitter/parsers";
 
 import { DiffPane } from "@/component/diff-pane";
 import { Sidebar } from "@/component/sidebar";
+import { Toast } from "@/component/ui/toast";
 
 addDefaultParsers(parsers);
 
@@ -26,6 +27,8 @@ export function TUI() {
     <box width="100%" height="100%" flexDirection="row">
       <Sidebar />
       <DiffPane />
+
+      <Toast />
     </box>
   );
 }
