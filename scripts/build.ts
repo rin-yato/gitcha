@@ -5,7 +5,7 @@ const outdir = "dist";
 const result = await Bun.build({
   target: "bun",
   outdir,
-  entrypoints: ["./src/index.tsx"],
+  entrypoints: ["./src/index.tsx", "./src/lib/treesitter/parser.worker.ts"],
   minify: true,
   sourcemap: "linked",
   plugins: [solidPlugin],
