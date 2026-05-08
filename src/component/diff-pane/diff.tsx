@@ -4,17 +4,17 @@ import { type Accessor, createResource, Show } from "solid-js";
 
 import { $theme } from "@/store/theme.store";
 
-import { type GitStatusFile, git } from "@/lib/git";
+import { type GitScopedFile, git, toGitUnifiedDiffTarget } from "@/lib/git";
 
 import { Result } from "better-result";
 
 interface DiffProps {
-  selectedFile: Accessor<GitStatusFile>;
+  selectedFile: Accessor<GitScopedFile>;
 }
 
 export function Diff(props: DiffProps) {
-  const [diffResource] = createResource(props.selectedFile, async (file) => {
-    return git.getUnifiedDiff(file).then(Result.unwrap);
+  const [diffResource] = createResource(props.selectedFile, async (selectedFile) => {
+    return git.getUnifiedDiff(toGitUnifiedDiffTarget(selectedFile)).then(Result.unwrap);
   });
 
   return (
@@ -25,7 +25,7 @@ export function Diff(props: DiffProps) {
         borderStyle="heavy"
         flexShrink={0}
       >
-        <text fg={$theme.token.fg}>{props.selectedFile().path}</text>
+        <text fg={$theme.token.fg}>{props.selectedFile().file.path}</text>
       </box>
 
       <Show when={diffResource.error}>
@@ -39,7 +39,7 @@ export function Diff(props: DiffProps) {
             height="100%"
             diff={diff()}
             syncScroll
-            filetype={pathToFiletype(props.selectedFile().path ?? "")}
+            filetype={pathToFiletype(props.selectedFile().file.path ?? "")}
             syntaxStyle={$theme.syntax}
             //
             //

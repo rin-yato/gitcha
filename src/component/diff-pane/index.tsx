@@ -4,14 +4,15 @@ import { $git } from "@/store/git.store";
 import { $sidebar } from "@/store/sidebar.store";
 import { $theme } from "@/store/theme.store";
 
+import { findGitScopedFile } from "@/lib/git";
+
 import { collectSidebarFiles } from "@/component/sidebar/utils";
 
 import { Diff } from "./diff";
 
 export function DiffPane() {
   const selectedFile = createMemo(() => {
-    const files = collectSidebarFiles($git.status);
-    return files.find((file) => file.path === $sidebar.selectedPath) ?? null;
+    return findGitScopedFile(collectSidebarFiles($git.status), $sidebar.selectedTarget);
   });
 
   return (

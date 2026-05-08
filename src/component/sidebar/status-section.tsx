@@ -3,20 +3,25 @@ import { createMemo, For, Show } from "solid-js";
 import { $sidebar } from "@/store/sidebar.store";
 import { $theme } from "@/store/theme.store";
 
-import type { GitStatusFile } from "@/lib/git";
+import type { GitFileTarget, GitStatusFile } from "@/lib/git";
+import { createGitFileTarget, isGitFileTargetEqual } from "@/lib/git";
 
-export interface StatusSection {
-  title: string;
-  kind: "conflicts" | "staged" | "changes";
-  files: GitStatusFile[];
-  count: number;
-  selectedPath?: string | null;
+import type { SidebarSectionModel } from "./utils";
+
+export interface StatusSectionProps {
+  section: SidebarSectionModel & {
+    selectedTarget?: GitFileTarget | null;
+  };
 }
+
+type StatusSectionRow = SidebarSectionModel & {
+  selectedTarget?: GitFileTarget | null;
+};
 
 type StatusRowProps = {
   file: GitStatusFile;
-  kind: StatusSection["kind"];
-  selectedPath?: string | null;
+  kind: SidebarSectionModel["kind"];
+  selectedTarget?: GitFileTarget | null;
   accentFg: string;
 };
 
@@ -46,7 +51,7 @@ function formatStatusLabel(status: string) {
 }
 
 function formatSectionStatus(
-  section: "conflicts" | "staged" | "changes",
+  section: SidebarSectionModel["kind"],
   file: {
     indexStatus: string;
     workingTreeStatus: string;
@@ -65,7 +70,8 @@ function formatSectionStatus(
 }
 
 function StatusRow(props: StatusRowProps) {
-  const isSelected = createMemo(() => props.file.path === props.selectedPath);
+  const target = createMemo(() => createGitFileTarget(props.kind, props.file.path));
+  const isSelected = createMemo(() => isGitFileTargetEqual(target(), props.selectedTarget));
   const statusLabel = createMemo(() => formatSectionStatus(props.kind, props.file));
 
   return (
@@ -75,7 +81,7 @@ function StatusRow(props: StatusRowProps) {
       paddingRight={1}
       overflow="hidden"
       backgroundColor={isSelected() ? $theme.token.accent : undefined}
-      onMouseUp={() => $sidebar.action.setSelectedPath(props.file.path)}
+      onMouseUp={() => $sidebar.action.setSelectedTarget(target())}
     >
       <text truncate maxHeight={1} wrapMode="char" attributes={isSelected() ? 1 : 0}>
         <span style={{ fg: isSelected() ? $theme.token.accentFg : props.accentFg }}>
@@ -90,30 +96,31 @@ function StatusRow(props: StatusRowProps) {
   );
 }
 
-export function StatusSection(props: { section: StatusSection }) {
+export function StatusSection(props: StatusSectionProps) {
+  const section = createMemo<StatusSectionRow>(() => props.section);
   const sectionAccentFg = createMemo(() => {
-    if (props.section.kind === "conflicts") return $theme.token.removed;
-    if (props.section.kind === "staged") return $theme.token.added;
-    if (props.section.kind === "changes") return $theme.token.modified;
+    if (section().kind === "conflicts") return $theme.token.removed;
+    if (section().kind === "staged") return $theme.token.added;
+    if (section().kind === "changes") return $theme.token.modified;
     return $theme.token.fg;
   });
 
   return (
-    <Show when={props.section.count}>
+    <Show when={section().count}>
       <box flexDirection="column">
         <box paddingLeft={1}>
           <text fg={$theme.token.fg}>
-            {props.section.title}&nbsp;
+            {section().title}&nbsp;
             <span style={{ fg: sectionAccentFg() }}>{props.section.count}</span>
           </text>
         </box>
 
-        <For each={props.section.files}>
+        <For each={section().files}>
           {(file) => (
             <StatusRow
               file={file}
-              kind={props.section.kind}
-              selectedPath={props.section.selectedPath}
+              kind={section().kind}
+              selectedTarget={section().selectedTarget}
               accentFg={sectionAccentFg()}
             />
           )}

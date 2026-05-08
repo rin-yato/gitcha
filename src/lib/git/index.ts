@@ -6,12 +6,29 @@ import { gitStatusParser } from "./parser";
 import type {
   GitClientOptions,
   GitExecutorLike,
+  GitFileSection,
   GitRepoStatus,
   GitResult,
   RepoContext,
 } from "./types";
 
-export type { GitClientOptions, GitFileStatus, GitResult, GitStatusFile } from "./types";
+export {
+  createGitFileTarget,
+  createGitScopedFile,
+  findGitScopedFile,
+  isGitFileTargetEqual,
+  toGitUnifiedDiffTarget,
+} from "./target";
+export type {
+  GitClientOptions,
+  GitFileSection,
+  GitFileStatus,
+  GitFileTarget,
+  GitResult,
+  GitScopedFile,
+  GitStatusFile,
+  GitUnifiedDiffTarget,
+} from "./types";
 
 export class Git {
   readonly cwd?: string;
@@ -95,6 +112,7 @@ export class Git {
     path: string;
     indexStatus: string;
     workingTreeStatus: string;
+    section?: GitFileSection;
   }): Promise<GitResult<string>> {
     const cwd = await this.getExecutorCwd();
 
@@ -119,14 +137,22 @@ export class Git {
       );
     }
 
-    if (file.indexStatus === "U" || file.workingTreeStatus === "U") {
+    if (
+      file.section === "conflicts" ||
+      file.indexStatus === "U" ||
+      file.workingTreeStatus === "U"
+    ) {
       return this.executor.runText(
         ["diff", "--cc", "--unified=999999999", "--no-ext-diff", "--", file.path],
         options,
       );
     }
 
-    if (file.indexStatus !== " " && file.workingTreeStatus === " ") {
+    // Section disambiguates partially staged files that show up in both sidebar lists.
+    if (
+      file.section === "staged" ||
+      (file.indexStatus !== " " && file.workingTreeStatus === " ")
+    ) {
       return this.executor.runText(
         ["diff", "--cached", "--unified=999999999", "--no-ext-diff", "--", file.path],
         options,

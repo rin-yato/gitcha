@@ -1,13 +1,15 @@
 import { useKeyboard } from "@opentui/solid";
 
-import { createEffect, createMemo, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createMemo, For, onCleanup, onMount, Show } from "solid-js";
 
 import { $git } from "@/store/git.store";
 import { $sidebar } from "@/store/sidebar.store";
 import { $theme } from "@/store/theme.store";
 
+import { isGitFileTargetEqual } from "@/lib/git";
+
 import { StatusSection } from "./status-section";
-import { collectSidebarFiles } from "./utils";
+import { collectSidebarFiles, createSidebarSections } from "./utils";
 
 export function Sidebar() {
   // Simple git polling
@@ -23,8 +25,12 @@ export function Sidebar() {
     });
   });
 
+  const sidebarFiles = createMemo(() => collectSidebarFiles($git.status));
+  const sidebarTargets = createMemo(() => sidebarFiles().map((entry) => entry.target));
+  const sections = createMemo(() => createSidebarSections($git.status));
+
   useKeyboard((key) => {
-    const files = changesFiles();
+    const files = sidebarTargets();
 
     if (key.name === "down" || key.name === "j") {
       return $sidebar.action.selectNext(files);
@@ -47,48 +53,20 @@ export function Sidebar() {
     }
   });
 
-  const changes = createMemo(() => {
-    const conflictedFiles = $git.status?.files.conflicted || [];
-    const stagedFiles = $git.status?.files.staged || [];
-    const changedFiles = $git.status?.files.changes.concat($git.status.files.untracked) || [];
-
-    return {
-      conflicts: {
-        title: "Conflicts",
-        kind: "conflicts",
-        files: conflictedFiles,
-        count: conflictedFiles.length,
-      },
-      staged: {
-        title: "Staged",
-        kind: "staged",
-        files: stagedFiles,
-        count: stagedFiles.length,
-      },
-      changes: {
-        title: "Changes",
-        kind: "changes",
-        files: changedFiles,
-        count: changedFiles.length,
-      },
-    } satisfies Record<string, StatusSection>;
-  });
-
-  const changesFiles = createMemo(() => collectSidebarFiles($git.status));
-  const hasChanges = createMemo(() => changesFiles().length > 0);
+  const hasChanges = createMemo(() => sidebarTargets().length > 0);
 
   createEffect(() => {
-    const files = changesFiles();
+    const files = sidebarTargets();
 
     if (files.length === 0) {
-      if ($sidebar.selectedPath !== null) {
-        $sidebar.action.setSelectedPath(null);
+      if ($sidebar.selectedTarget !== null) {
+        $sidebar.action.setSelectedTarget(null);
       }
       return;
     }
 
-    if (!files.some((file) => file.path === $sidebar.selectedPath)) {
-      $sidebar.action.setSelectedPath(files[0]?.path ?? null);
+    if (!files.some((file) => isGitFileTargetEqual(file, $sidebar.selectedTarget))) {
+      $sidebar.action.setSelectedTarget(files[0] ?? null);
     }
   });
 
@@ -127,15 +105,13 @@ export function Sidebar() {
             <text fg="red">{$git.error}</text>
           </Show>
 
-          <StatusSection
-            section={{ ...changes().conflicts, selectedPath: $sidebar.selectedPath }}
-          />
-          <StatusSection
-            section={{ ...changes().staged, selectedPath: $sidebar.selectedPath }}
-          />
-          <StatusSection
-            section={{ ...changes().changes, selectedPath: $sidebar.selectedPath }}
-          />
+          <For each={sections()}>
+            {(section) => (
+              <StatusSection
+                section={{ ...section, selectedTarget: $sidebar.selectedTarget }}
+              />
+            )}
+          </For>
         </scrollbox>
       </box>
     </Show>

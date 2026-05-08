@@ -109,6 +109,47 @@ describe("Git#getUnifiedDiff", () => {
     ]);
   });
 
+  test("uses cached diff for staged view of a partially staged file", async () => {
+    const { calls, executor } = createExecutor();
+    const git = new Git({ executor });
+
+    await git.getUnifiedDiff({
+      path: "src/file.ts",
+      indexStatus: "M",
+      workingTreeStatus: "M",
+      section: "staged",
+    });
+
+    expect(calls[1]?.args).toEqual([
+      "diff",
+      "--cached",
+      "--unified=999999999",
+      "--no-ext-diff",
+      "--",
+      "src/file.ts",
+    ]);
+  });
+
+  test("uses working tree diff for changes view of a partially staged file", async () => {
+    const { calls, executor } = createExecutor();
+    const git = new Git({ executor });
+
+    await git.getUnifiedDiff({
+      path: "src/file.ts",
+      indexStatus: "M",
+      workingTreeStatus: "M",
+      section: "changes",
+    });
+
+    expect(calls[1]?.args).toEqual([
+      "diff",
+      "--unified=999999999",
+      "--no-ext-diff",
+      "--",
+      "src/file.ts",
+    ]);
+  });
+
   test("uses no-index diff for untracked files", async () => {
     const { calls, executor } = createExecutor();
     const git = new Git({ executor });

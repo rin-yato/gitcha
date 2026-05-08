@@ -13,6 +13,22 @@ export interface GitStatusFile {
   originalPath?: string;
 }
 
+export type GitFileSection = "conflicts" | "staged" | "changes";
+
+export interface GitFileTarget {
+  path: string;
+  section: GitFileSection;
+}
+
+export interface GitScopedFile {
+  target: GitFileTarget;
+  file: GitStatusFile;
+}
+
+export interface GitUnifiedDiffTarget extends GitStatusFile {
+  section?: GitFileSection;
+}
+
 export interface CategorizedFiles {
   staged: GitStatusFile[];
   changes: GitStatusFile[];
