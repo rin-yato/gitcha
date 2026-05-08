@@ -47,19 +47,29 @@ export function DiffPane() {
             syncScroll
             filetype={pathToFiletype(selectedFile()?.path ?? "")}
             syntaxStyle={$theme.syntax}
+            //
+            //
             fg={$theme.token.fg}
             selectionBg={`${$theme.token.accent}16`}
+            //
+            //
             addedBg={`${$theme.token.added}12`}
             removedBg={`${$theme.token.removed}12`}
-            contextBg={$theme.token.bg}
-            lineNumberFg={$theme.token.fgMuted}
             addedContentBg={`${$theme.token.added}12`}
             removedContentBg={`${$theme.token.removed}12`}
+            //
+            //
+            lineNumberFg={$theme.token.fgMuted}
+            addedLineNumberBg={`${$theme.token.added}12`}
+            removedLineNumberBg={`${$theme.token.removed}12`}
+            //
+            //
+            contextBg={$theme.token.bg}
             contextContentBg={$theme.token.bg}
+            //
+            //
             addedSignColor={$theme.token.added}
             removedSignColor={$theme.token.removed}
-            addedLineNumberBg={`${$theme.token.added}16`}
-            removedLineNumberBg={`${$theme.token.removed}16`}
           />
         )}
       </Show>

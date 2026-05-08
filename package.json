@@ -39,9 +39,9 @@
     "typescript": "^6.0.3"
   },
   "dependencies": {
-    "@opentui/core": "^0.2.2",
-    "@opentui/keymap": "^0.2.2",
-    "@opentui/solid": "^0.2.2",
+    "@opentui/core": "^0.2.4",
+    "@opentui/keymap": "^0.2.4",
+    "@opentui/solid": "^0.2.4",
     "better-result": "^2.9.2",
     "chokidar": "^5.0.0",
     "dequal": "^2.0.3",
@@ -51,7 +51,7 @@
     "meow": "^14.1.0",
     "remeda": "^2.34.0",
     "solid-js": "^1.9.12",
-    "zod": "^3.25.76"
+    "zod": "^4.4.3"
   },
   "release-it": {
     "git": {
