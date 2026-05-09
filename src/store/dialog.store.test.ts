@@ -2,11 +2,11 @@ import { describe, expect, test } from "bun:test";
 
 import { clearDialog, closeDialog, pushDialog, replaceDialog, topDialog } from "./dialog.store";
 
+const first = { component: (() => null) as never };
+const second = { component: (() => null) as never };
+
 describe("dialog stack helpers", () => {
   test("pushDialog stacks entries", () => {
-    const first = { element: "one" };
-    const second = { element: "two" };
-
     const stack = pushDialog([first], second);
 
     expect(stack.stack).toEqual([first, second]);
@@ -14,9 +14,6 @@ describe("dialog stack helpers", () => {
   });
 
   test("replaceDialog closes existing entries and replaces them", () => {
-    const first = { element: "one" };
-    const second = { element: "two" };
-
     const change = replaceDialog([first], second);
 
     expect(change.stack).toEqual([second]);
@@ -24,9 +21,6 @@ describe("dialog stack helpers", () => {
   });
 
   test("closeDialog removes the top entry", () => {
-    const first = { element: "one" };
-    const second = { element: "two" };
-
     const change = closeDialog([first, second]);
 
     expect(change.stack).toEqual([first]);
@@ -34,9 +28,6 @@ describe("dialog stack helpers", () => {
   });
 
   test("clearDialog removes every entry", () => {
-    const first = { element: "one" };
-    const second = { element: "two" };
-
     const change = clearDialog([first, second]);
 
     expect(change.stack).toEqual([]);
@@ -44,9 +35,6 @@ describe("dialog stack helpers", () => {
   });
 
   test("topDialog returns the last entry", () => {
-    const first = { element: "one" };
-    const second = { element: "two" };
-
     expect(topDialog([first, second])).toEqual(second);
     expect(topDialog([])).toBeNull();
   });
