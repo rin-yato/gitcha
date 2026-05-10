@@ -21,16 +21,14 @@ const renderer = await createCliRenderer({
     },
     keyBindings: [{ action: "copy-selection", name: "y" }],
   },
+  onDestroy() {
+    process.exit(0);
+  },
 });
 
 renderer.keyInput.on("keypress", (key) => {
   if (key.name === "`") {
     renderer.console.toggle();
-  }
-
-  if (key.ctrl && key.name === "r" && process.env.GITCHA_DEV) {
-    renderer.destroy();
-    process.exit(100);
   }
 });
 

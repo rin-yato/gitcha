@@ -4,9 +4,10 @@ import {
   type ScrollBoxRenderable,
   TextAttributes,
 } from "@opentui/core";
-import { useKeyboard, useTerminalDimensions } from "@opentui/solid";
+import { useBindings } from "@opentui/keymap/solid";
+import { useTerminalDimensions } from "@opentui/solid";
 
-import { batch, createEffect, createMemo, For, type JSX, Show } from "solid-js";
+import { batch, createEffect, createMemo, createSignal, For, type JSX, Show } from "solid-js";
 import { createStore } from "solid-js/store";
 
 import { $dialog } from "@/store/dialog.store";
@@ -199,6 +200,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   const dimensions = useTerminalDimensions();
   const filterEnabled = props.skipFilter !== true && props.renderFilter !== false;
 
+  const [inputTarget, setInputTarget] = createSignal<InputRenderable | undefined>(undefined);
   const [store, setStore] = createStore<DialogSelectState>({
     selected: 0,
     filter: "",
@@ -250,7 +252,6 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
     Math.max(1, Math.min(rows().length, Math.floor(dimensions().height / 2) - 6)),
   );
 
-  let input: InputRenderable;
   let scroll: ScrollBoxRenderable | undefined;
 
   const ref: DialogSelectRef<T> = {
@@ -262,6 +263,63 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
     },
   };
   props.ref?.(ref);
+
+  useBindings<InputRenderable>(() => ({
+    target: inputTarget,
+    targetMode: "focus",
+
+    commands: [
+      {
+        name: "dialog-select.close",
+        run: () => $dialog.action.close(),
+      },
+      {
+        name: "dialog-select.move-up",
+        run: () => move(-1),
+      },
+      {
+        name: "dialog-select.move-down",
+        run: () => move(1),
+      },
+      {
+        name: "dialog-select.page-up",
+        run: () => move(-10),
+      },
+      {
+        name: "dialog-select.page-down",
+        run: () => move(10),
+      },
+      {
+        name: "dialog-select.move-home",
+        run: () => moveTo(0),
+      },
+      {
+        name: "dialog-select.move-end",
+        run: () => moveTo(filtered().length - 1),
+      },
+      {
+        name: "dialog-select.submit",
+        run: () => submit(),
+      },
+    ],
+
+    bindings: [
+      { key: "escape", cmd: "dialog-select.close" },
+
+      { key: "up", cmd: "dialog-select.move-up" },
+      { key: "down", cmd: "dialog-select.move-down" },
+      { key: "ctrl+p", cmd: "dialog-select.move-up" },
+      { key: "ctrl+n", cmd: "dialog-select.move-down" },
+
+      { key: "pageup", cmd: "dialog-select.page-up" },
+      { key: "pagedown", cmd: "dialog-select.page-down" },
+
+      { key: "home", cmd: "dialog-select.move-home" },
+      { key: "end", cmd: "dialog-select.move-end" },
+
+      { key: "return", cmd: "dialog-select.submit" },
+    ],
+  }));
 
   function moveTo(next: number, center = false) {
     const items = filtered();
@@ -319,42 +377,6 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
     props.onSelect?.(option.option);
   }
 
-  useKeyboard((key) => {
-    setStore("input", "keyboard");
-
-    if (key.name === "up") {
-      move(-1);
-    }
-
-    if (key.name === "down") {
-      move(1);
-    }
-
-    if (key.name === "pageup") {
-      move(-10);
-    }
-
-    if (key.name === "pagedown") {
-      move(10);
-    }
-
-    if (key.name === "home") {
-      moveTo(0);
-    }
-
-    if (key.name === "end") {
-      moveTo(filtered().length - 1);
-    }
-
-    if (key.name === "return") {
-      submit();
-    }
-
-    if (key.name === "escape") {
-      $dialog.action.close();
-    }
-  });
-
   return (
     <box gap={1} paddingBottom={1}>
       <box paddingLeft={4} paddingRight={4}>
@@ -369,23 +391,17 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
         <Show when={filterEnabled}>
           <box paddingTop={1}>
             <input
+              focused
+              ref={setInputTarget}
               onInput={(value) => {
                 batch(() => {
                   setStore("filter", value);
                   props.onFilter?.(value);
                 });
               }}
-              focusedBackgroundColor={$theme.token.surface}
               cursorColor={$theme.token.accent}
               focusedTextColor={$theme.token.fgMuted}
-              ref={(r) => {
-                input = r;
-                input.traits = { status: "FILTER" };
-                setTimeout(() => {
-                  if (!input || input.isDestroyed) return;
-                  input.focus();
-                }, 1);
-              }}
+              focusedBackgroundColor={$theme.token.surface}
               placeholder={props.placeholder ?? "Search"}
               placeholderColor={$theme.token.fgMuted}
             />

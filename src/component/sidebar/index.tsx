@@ -1,7 +1,8 @@
-import { useKeyboard } from "@opentui/solid";
+import { useBindings } from "@opentui/keymap/solid";
 
 import { createEffect, createMemo, For, onCleanup, onMount, Show } from "solid-js";
 
+import { $dialog } from "@/store/dialog.store";
 import { $git } from "@/store/git.store";
 import { $sidebar } from "@/store/sidebar.store";
 import { $theme } from "@/store/theme.store";
@@ -29,29 +30,51 @@ export function Sidebar() {
   const sidebarTargets = createMemo(() => sidebarFiles().map((entry) => entry.target));
   const sections = createMemo(() => createSidebarSections($git.status));
 
-  useKeyboard((key) => {
-    const files = sidebarTargets();
+  useBindings(() => ({
+    enabled: $dialog.stack.length === 0,
+    commands: [
+      {
+        name: "sidebar.select-next",
+        run() {
+          $sidebar.action.selectNext(sidebarTargets());
+        },
+      },
+      {
+        name: "sidebar.select-prev",
+        run() {
+          $sidebar.action.selectPrevious(sidebarTargets());
+        },
+      },
+      {
+        name: "sidebar.width.increase",
+        run() {
+          $sidebar.action.increaseWidth();
+        },
+      },
+      {
+        name: "sidebar.width.decrease",
+        run() {
+          $sidebar.action.decreaseWidth();
+        },
+      },
+      {
+        name: "sidebar.toggle",
+        run() {
+          $sidebar.action.toggle();
+        },
+      },
+    ],
 
-    if (key.name === "down" || key.name === "j") {
-      return $sidebar.action.selectNext(files);
-    }
-
-    if (key.name === "up" || key.name === "k") {
-      return $sidebar.action.selectPrevious(files);
-    }
-
-    if (key.name === "]") {
-      return $sidebar.action.increaseWidth();
-    }
-
-    if (key.name === "[") {
-      return $sidebar.action.decreaseWidth();
-    }
-
-    if (key.name === "\\") {
-      return $sidebar.action.toggle();
-    }
-  });
+    bindings: [
+      { key: "down", cmd: "sidebar.select-next", desc: "Next file" },
+      { key: "j", cmd: "sidebar.select-next", desc: "Next file" },
+      { key: "up", cmd: "sidebar.select-prev", desc: "Previous file" },
+      { key: "k", cmd: "sidebar.select-prev", desc: "Previous file" },
+      { key: "]", cmd: "sidebar.width.increase", desc: "Widen sidebar" },
+      { key: "[", cmd: "sidebar.width.decrease", desc: "Shrink sidebar" },
+      { key: "\\", cmd: "sidebar.toggle", desc: "Toggle sidebar" },
+    ],
+  }));
 
   const hasChanges = createMemo(() => sidebarTargets().length > 0);
 
