@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
-import { buildDialogSelectRows, type DialogSelectOption } from "./dialog-select";
+import {
+  buildSelectRows,
+  getSelectListHeight,
+  getSelectRowsHeight,
+  type SelectOption,
+} from ".";
 
 function stripRowKeys(rows: readonly unknown[]) {
   return rows.map((row) => {
@@ -14,8 +19,8 @@ function stripRowKeys(rows: readonly unknown[]) {
   });
 }
 
-describe("buildDialogSelectRows", () => {
-  const paletteOptions: DialogSelectOption[] = [
+describe("buildSelectRows", () => {
+  const paletteOptions: SelectOption[] = [
     { title: "Compare", value: "toggle-compare", description: "v", category: "Suggested" },
     { title: "Refresh", value: "refresh", description: "r", category: "Suggested" },
     {
@@ -36,7 +41,7 @@ describe("buildDialogSelectRows", () => {
   ];
 
   test("builds grouped rows in input order", () => {
-    const rows = buildDialogSelectRows(paletteOptions, "");
+    const rows = buildSelectRows(paletteOptions, "");
 
     expect(stripRowKeys(rows)).toEqual(
       stripRowKeys([
@@ -178,7 +183,7 @@ describe("buildDialogSelectRows", () => {
   });
 
   test("filters by title and description", () => {
-    expect(stripRowKeys(buildDialogSelectRows(paletteOptions, "space"))).toEqual(
+    expect(stripRowKeys(buildSelectRows(paletteOptions, "space"))).toEqual(
       stripRowKeys([
         { kind: "group", key: "group:Suggested", label: "Suggested" },
         {
@@ -209,7 +214,7 @@ describe("buildDialogSelectRows", () => {
       ]),
     );
 
-    expect(stripRowKeys(buildDialogSelectRows(paletteOptions, "side"))).toEqual(
+    expect(stripRowKeys(buildSelectRows(paletteOptions, "side"))).toEqual(
       stripRowKeys([
         { kind: "group", key: "group:Layout", label: "Layout" },
         {
@@ -241,7 +246,7 @@ describe("buildDialogSelectRows", () => {
   });
 
   test("ranks title matches ahead of description matches", () => {
-    const rows = buildDialogSelectRows(
+    const rows = buildSelectRows(
       [
         { title: "Alpha Command", value: "alpha", description: "shared", category: "Actions" },
         { title: "Other", value: "beta", description: "Alpha shortcut", category: "Actions" },
@@ -281,7 +286,7 @@ describe("buildDialogSelectRows", () => {
   });
 
   test("omits group headers for ungrouped results", () => {
-    const rows = buildDialogSelectRows(
+    const rows = buildSelectRows(
       [
         { title: "Alpha", value: "a" },
         { title: "Beta", value: "b" },
@@ -307,5 +312,52 @@ describe("buildDialogSelectRows", () => {
         },
       ]),
     );
+  });
+});
+
+describe("select height", () => {
+  test("computes visual row height including group spacing", () => {
+    const rows = buildSelectRows(
+      [
+        { title: "Alpha", value: "a", category: "One" },
+        { title: "Beta", value: "b", category: "Two" },
+      ],
+      "",
+    );
+
+    expect(getSelectRowsHeight(rows)).toBe(5);
+  });
+
+  test("uses explicit height as total select height", () => {
+    expect(
+      getSelectListHeight({
+        contentHeight: 20,
+        terminalHeight: 80,
+        height: 12,
+        filterEnabled: true,
+      }),
+    ).toBe(8);
+  });
+
+  test("clamps list height to available content", () => {
+    expect(
+      getSelectListHeight({
+        contentHeight: 3,
+        terminalHeight: 80,
+        height: 12,
+        filterEnabled: true,
+      }),
+    ).toBe(3);
+  });
+
+  test("gives filterless dialogs more list space", () => {
+    expect(
+      getSelectListHeight({
+        contentHeight: 20,
+        terminalHeight: 80,
+        height: 12,
+        filterEnabled: false,
+      }),
+    ).toBe(10);
   });
 });
