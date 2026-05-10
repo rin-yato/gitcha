@@ -45,15 +45,23 @@ async function loadIgnoredGlobs() {
   return ["**/node_modules/**", "**/.git/**", ...readGitignorePatterns(contents)];
 }
 
-function stopChild() {
-  if (!child) return;
+async function stopChild(signal: NodeJS.Signals = "SIGTERM") {
+  const childToStop = child;
+  if (!childToStop) return;
 
-  child.kill();
   child = null;
+
+  childToStop.kill(signal);
+  await Promise.race([
+    childToStop.exited.catch(() => null),
+    new Promise((resolve) => setTimeout(resolve, 500)),
+  ]);
 }
 
-function start() {
-  stopChild();
+async function start() {
+  await stopChild();
+
+  if (stopping) return;
 
   isRestarting = false;
 
@@ -68,8 +76,11 @@ function start() {
 
     if (exitCode === 100 && !isRestarting) {
       isRestarting = true;
-      start();
+      void start();
+      return;
     }
+
+    void shutdown(exitCode);
   });
 }
 
@@ -86,27 +97,27 @@ watcher.on("all", () => {
   if (timer) clearTimeout(timer);
   timer = setTimeout(() => {
     isRestarting = true;
-    start();
+    void start();
   }, 100);
 });
 
-async function shutdown(signal: NodeJS.Signals) {
+async function shutdown(exitCode: number | null) {
   if (stopping) return;
 
   stopping = true;
   if (timer) clearTimeout(timer);
 
   await watcher.close();
-  stopChild();
-  process.exit(signal === "SIGINT" ? 0 : 1);
+  await stopChild(exitCode === null ? "SIGINT" : "SIGTERM");
+  process.exit(exitCode ?? 0);
 }
 
 process.on("SIGINT", () => {
-  void shutdown("SIGINT");
+  void shutdown(null);
 });
 
 process.on("SIGTERM", () => {
-  void shutdown("SIGTERM");
+  void shutdown(1);
 });
 
-start();
+void start();
