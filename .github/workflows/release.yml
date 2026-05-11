@@ -88,13 +88,13 @@ jobs:
         shell: bash
         run: |
           mkdir -p release-assets
-          cp "bin/${{ matrix.binary }}" "release-assets/${{ matrix.release_name }}"
+          gzip -9 -c "bin/${{ matrix.binary }}" > "release-assets/${{ matrix.release_name }}.gz"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.release_name }}
-          path: release-assets/${{ matrix.release_name }}
+          path: release-assets/${{ matrix.release_name }}.gz
           if-no-files-found: error
 
   # -------------------------------------------------------------------------

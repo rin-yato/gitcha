@@ -57,6 +57,7 @@ if [ "$os_name" = "windows" ]; then
 else
     ASSET="gitcha-$os_name-$arch_name"
 fi
+ARCHIVE="$ASSET.gz"
 
 # get latest tag
 log "Detecting latest release..."
@@ -64,10 +65,11 @@ TAG="$(curl -sL "https://api.github.com/repos/$REPO/releases/latest" | grep '"ta
 [ -n "$TAG" ] || die "Failed to resolve the latest release tag"
 
 # download directly using tag + asset name
-URL="https://github.com/$REPO/releases/download/$TAG/$ASSET"
+URL="https://github.com/$REPO/releases/download/$TAG/$ARCHIVE"
 
-log "Downloading $ASSET..."
-curl -L --fail -o "$TMP/$ASSET" "$URL" || die "Failed to download $ASSET"
+log "Downloading $ARCHIVE..."
+curl -L --fail -o "$TMP/$ARCHIVE" "$URL" || die "Failed to download $ARCHIVE"
+gzip -dc "$TMP/$ARCHIVE" > "$TMP/$ASSET" || die "Failed to decompress $ARCHIVE"
 
 # install
 mkdir -p "$BIN_DIR"
