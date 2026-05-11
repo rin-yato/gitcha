@@ -20,6 +20,7 @@ const buildCli = () =>
   meow(HELP_TEXT, {
     importMeta: import.meta,
     commands: [COMMANDS.version, COMMANDS.which, COMMANDS.help],
+    version: process.env.GITCHA_VERSION,
     autoHelp: true,
     autoVersion: true,
     allowUnknownFlags: true,

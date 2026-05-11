@@ -3,6 +3,8 @@ import solidPlugin from "@opentui/solid/bun-plugin";
 import fs from "fs";
 import path from "path";
 
+import packageJson from "../package.json" with { type: "json" };
+
 type BuildMatrixEnv = NodeJS.ProcessEnv;
 
 type BuildConfig = Parameters<typeof Bun.build>[0];
@@ -18,6 +20,7 @@ const BUNFS_ROOT = "/$bunfs/root/";
 const DEFAULT_OUTFILE = "bin/gitcha";
 const ENTRYPOINT = "./src/index.tsx";
 const WORKER_ENTRYPOINT = "./node_modules/@opentui/core/parser.worker.js";
+const { version } = packageJson;
 
 function createCompileConfig(env: BuildMatrixEnv): NonNullable<BuildConfig["compile"]> {
   const outfile = env.BUILD_OUTFILE ?? DEFAULT_OUTFILE;
@@ -51,6 +54,7 @@ export function createBuildMatrixConfig(
     plugins: [solidPlugin],
     minify: true,
     define: {
+      "process.env.GITCHA_VERSION": JSON.stringify(version),
       OTUI_TREE_SITTER_WORKER_PATH: JSON.stringify(workerPath),
     },
   };

@@ -1,6 +1,9 @@
 import solidPlugin from "@opentui/solid/bun-plugin";
 
+import packageJson from "../package.json" with { type: "json" };
+
 const outdir = "dist";
+const { version } = packageJson;
 
 const result = await Bun.build({
   target: "bun",
@@ -9,6 +12,9 @@ const result = await Bun.build({
   minify: true,
   sourcemap: "linked",
   plugins: [solidPlugin],
+  define: {
+    "process.env.GITCHA_VERSION": JSON.stringify(version),
+  },
   naming: {
     entry: "[name].[ext]",
   },

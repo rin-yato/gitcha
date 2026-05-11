@@ -23,6 +23,7 @@ describe("createBuildMatrixConfig", () => {
     expect(config.define?.OTUI_TREE_SITTER_WORKER_PATH).toBe(
       '"/$bunfs/root/node_modules/@opentui/core/parser.worker.js"',
     );
+    expect(config.define?.["process.env.GITCHA_VERSION"]).toBe('"0.1.8"');
     expect(config.define).not.toHaveProperty("process.env.CHANGES_APP_VERSION");
   });
 
