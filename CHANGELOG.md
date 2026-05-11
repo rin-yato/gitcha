@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.10](https://github.com/rin-yato/differ/compare/v0.1.9...v0.1.10) (2026-05-11)
+
+
+### Features
+
+* add ex command ([7bae245](https://github.com/rin-yato/differ/commit/7bae2450f8431e3acadcc6d477076a998966a18b))
+* add git ex cmd ([164ff5e](https://github.com/rin-yato/differ/commit/164ff5e8de3f309ccf4e05a99cb0c00524d379ca))
+* gzip release assets ([e903ccf](https://github.com/rin-yato/differ/commit/e903ccf957ad3748c3674bcfcfc8ced3452e7f64))
+* sidebar tree view ([64d1759](https://github.com/rin-yato/differ/commit/64d1759b7008837df763bae08ba8e8c11e717d97))
+
 ## [0.1.9](https://github.com/rin-yato/differ/compare/v0.1.8...v0.1.9) (2026-05-11)
 
 
