@@ -2,6 +2,7 @@ import { addDefaultParsers } from "@opentui/core";
 import { KeymapProvider, useBindings } from "@opentui/keymap/solid";
 import { useRenderer, useSelectionHandler } from "@opentui/solid";
 
+import { $dialog } from "@/store/dialog.store";
 import { $exCommand } from "@/store/ex-command.store";
 
 import { copySelection } from "@/lib/clipboard";
@@ -20,7 +21,7 @@ function AppKeymapBindings() {
   const renderer = useRenderer();
 
   useBindings(() => ({
-    enabled: () => !$exCommand.visible,
+    enabled: () => !$exCommand.visible && $dialog.stack.length === 0,
     commands: [
       {
         name: "app.quit",

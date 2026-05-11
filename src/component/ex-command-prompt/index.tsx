@@ -1,113 +1,72 @@
-import {
-  type CliRenderer,
-  type InputRenderable,
-  type KeyEvent,
-  type Renderable,
-  TextAttributes,
-} from "@opentui/core";
-import type { Command } from "@opentui/keymap";
-import type { ExCommandPayload } from "@opentui/keymap/addons/opentui";
+import type { InputRenderable, Renderable, ScrollBoxRenderable } from "@opentui/core";
 import { useBindings, useKeymap, useKeymapSelector } from "@opentui/keymap/solid";
 import { useRenderer } from "@opentui/solid";
 
-import { batch, createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
+import { batch, createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
 
 import { $dialog } from "@/store/dialog.store";
 import { $exCommand } from "@/store/ex-command.store";
 import { $git } from "@/store/git.store";
-import { $sidebar } from "@/store/sidebar.store";
 import { $theme } from "@/store/theme.store";
 import { $toast } from "@/store/toast.store";
 
+import { git } from "@/lib/git";
+import {
+  getGitExCommandInput,
+  isGitExCommandParseError,
+  runGitExCommand,
+} from "@/lib/git/ex-command";
+
+import { Result } from "better-result";
+
+import { createAppExCommands } from "./app-commands";
+import { EX_PROMPT_BODY_WIDTH, EX_PROMPT_OUTPUT_ROWS, EX_PROMPT_WIDTH } from "./constants";
 import {
   applyExPromptSuggestionFromList,
-  EX_PROMPT_MAX_VISIBLE_SUGGESTIONS,
-  type ExArgCount,
-  type ExPromptSuggestion,
   getExPromptCommandText,
   getExPromptSuggestions,
   getSelectedExPromptSuggestionFromList,
   moveExPromptSelectionInList,
   parseExPromptInput,
-} from "./logic";
-
-const EX_PROMPT_WIDTH = 54;
-const EX_PROMPT_CHROME_ROWS = 5;
-const EX_PROMPT_MAX_HEIGHT = EX_PROMPT_CHROME_ROWS + EX_PROMPT_MAX_VISIBLE_SUGGESTIONS;
-
-type AppExCommand = Command<Renderable, KeyEvent, ExCommandPayload> & {
-  name: string;
-  aliases?: string[];
-  nargs?: ExArgCount;
-  title: string;
-  desc: string;
-  category: string;
-  usage: string;
-};
-
-type SuggestionRow = { kind: "empty" } | { kind: "suggestion"; suggestion: ExPromptSuggestion };
-
-function createAppExCommands(renderer: CliRenderer): AppExCommand[] {
-  return [
-    {
-      name: "quit",
-      aliases: ["q"],
-      nargs: "0",
-      title: "Quit",
-      desc: "Quit gitcha",
-      category: "App",
-      usage: ":quit",
-      run() {
-        renderer.destroy();
-      },
-    },
-    {
-      name: "refresh",
-      aliases: ["reload", "r"],
-      nargs: "0",
-      title: "Refresh",
-      desc: "Refresh git status",
-      category: "Git",
-      usage: ":refresh",
-      async run() {
-        await $git.action.refresh();
-        $toast.action.success("Refreshed git status");
-      },
-    },
-    {
-      name: "sidebar",
-      aliases: ["sb"],
-      nargs: "0",
-      title: "Toggle sidebar",
-      desc: "Toggle sidebar",
-      category: "View",
-      usage: ":sidebar",
-      run() {
-        $sidebar.action.toggle();
-      },
-    },
-  ];
-}
+} from "./ex-command-input";
+import {
+  appendGitOutput,
+  buildGitOutputRows,
+  completeGitOutput,
+  failGitOutput,
+  formatGitCommand,
+  type GitOutputState,
+} from "./git-output";
+import { GitOutputView } from "./git-output-view";
+import { PromptInput } from "./prompt-input";
+import { SuggestionList, type SuggestionRow } from "./suggestion-list";
 
 export function ExCommandPrompt() {
   const renderer = useRenderer();
   const manager = useKeymap();
 
   let inputRef: InputRenderable | undefined;
+  let outputScrollRef: ScrollBoxRenderable | undefined;
   let restoreTarget: Renderable | undefined;
 
   const [target, setTarget] = createSignal<InputRenderable | undefined>(undefined);
   const [value, setValue] = createSignal("");
   const [selection, setSelection] = createSignal(0);
+  const [gitOutput, setGitOutput] = createSignal<GitOutputState | null>(null);
 
-  const syncInput = (nextValue: string) => {
-    if (!inputRef) return;
+  const resetRefs = () => {
+    inputRef = undefined;
+    outputScrollRef = undefined;
+  };
 
-    if (inputRef.value !== nextValue) {
-      inputRef.value = nextValue;
-    }
-
-    inputRef.cursorOffset = nextValue.length;
+  const resetPromptState = () => {
+    batch(() => {
+      setValue("");
+      setSelection(0);
+      setGitOutput(null);
+      setTarget(undefined);
+    });
+    resetRefs();
   };
 
   const close = () => {
@@ -115,9 +74,10 @@ export function ExCommandPrompt() {
       $exCommand.action.close();
       setValue("");
       setSelection(0);
+      setGitOutput(null);
       setTarget(undefined);
     });
-    inputRef = undefined;
+    resetRefs();
   };
 
   const restoreFocus = () => {
@@ -138,17 +98,55 @@ export function ExCommandPrompt() {
     if ($exCommand.visible) return;
 
     restoreTarget = renderer.currentFocusedRenderable ?? undefined;
-    inputRef = undefined;
+    resetPromptState();
+    $exCommand.action.open();
+  };
+
+  const syncInput = (nextValue: string) => {
+    if (!inputRef) return;
+
+    if (inputRef.value !== nextValue) {
+      inputRef.value = nextValue;
+    }
+
+    inputRef.cursorOffset = nextValue.length;
+  };
+
+  const executeGitCommand = async (raw: string) => {
+    const input = getGitExCommandInput(raw);
+    const command = formatGitCommand(input);
+
     batch(() => {
-      setTarget(undefined);
-      $exCommand.action.open();
-      setValue("");
       setSelection(0);
+      setGitOutput({ command, status: "running", stdout: "", stderr: "" });
     });
+
+    const result = await runGitExCommand(input, git, {
+      onStdout: (text) => {
+        setGitOutput((current) => appendGitOutput(current, command, "stdout", text));
+      },
+      onStderr: (text) => {
+        setGitOutput((current) => appendGitOutput(current, command, "stderr", text));
+      },
+    });
+
+    if (Result.isOk(result)) {
+      await $git.action.refresh();
+      setGitOutput((current) => completeGitOutput(current, command, result.value.output));
+      $toast.action.success(`${command} completed`);
+      return;
+    }
+
+    if (!isGitExCommandParseError(result.error)) {
+      await $git.action.refresh();
+    }
+
+    setGitOutput((current) => failGitOutput(current, command, result.error));
+    $toast.action.error(`${command} failed`);
   };
 
   const offExCommands = manager.registerLayer({
-    commands: createAppExCommands(renderer).map((command) => ({
+    commands: createAppExCommands({ renderer, executeGitCommand }).map((command) => ({
       ...command,
       namespace: "excommands",
     })),
@@ -165,6 +163,10 @@ export function ExCommandPrompt() {
 
     return currentSuggestions.map((suggestion) => ({ kind: "suggestion", suggestion }));
   });
+  const outputRows = createMemo(() => buildGitOutputRows(gitOutput()));
+  const outputRowsHeight = createMemo(() =>
+    Math.min(outputRows().length, EX_PROMPT_OUTPUT_ROWS),
+  );
   const clampedSelection = createMemo(() =>
     Math.min(selection(), Math.max(suggestions().length - 1, 0)),
   );
@@ -179,7 +181,24 @@ export function ExCommandPrompt() {
   });
 
   const moveSelection = (direction: 1 | -1) => {
+    if (gitOutput()) {
+      outputScrollRef?.scrollBy(direction);
+      return;
+    }
+
     setSelection((current) => moveExPromptSelectionInList(suggestions(), current, direction));
+  };
+
+  const pageOutput = (direction: 1 | -1) => {
+    if (!gitOutput()) return;
+
+    outputScrollRef?.scrollBy(direction, "viewport");
+  };
+
+  const scrollOutputTo = (position: "top" | "bottom") => {
+    if (!gitOutput() || !outputScrollRef) return;
+
+    outputScrollRef.scrollTo(position === "top" ? 0 : outputScrollRef.scrollHeight);
   };
 
   const applySuggestion = (direction?: 1 | -1) => {
@@ -194,6 +213,7 @@ export function ExCommandPrompt() {
     batch(() => {
       setSelection(result.selection);
       setValue(result.value);
+      setGitOutput(null);
     });
     syncInput(result.value);
   };
@@ -232,6 +252,8 @@ export function ExCommandPrompt() {
       return;
     }
 
+    if (parsed.name === ":git") return;
+
     closeAndRestore();
   };
 
@@ -251,39 +273,27 @@ export function ExCommandPrompt() {
     targetMode: "focus",
     enabled: () => $exCommand.visible,
     commands: [
-      {
-        name: "ex-command.close",
-        run: closeAndRestore,
-      },
-      {
-        name: "ex-command.prev",
-        run: () => moveSelection(-1),
-      },
-      {
-        name: "ex-command.next",
-        run: () => moveSelection(1),
-      },
-      {
-        name: "ex-command.complete",
-        run: () => applySuggestion(),
-      },
-      {
-        name: "ex-command.complete-prev",
-        run: () => applySuggestion(-1),
-      },
-      {
-        name: "ex-command.submit",
-        run: execute,
-      },
+      { name: "ex-command.close", run: closeAndRestore },
+      { name: "ex-command.prev", run: () => moveSelection(-1) },
+      { name: "ex-command.next", run: () => moveSelection(1) },
+      { name: "ex-command.page-up", run: () => pageOutput(-1) },
+      { name: "ex-command.page-down", run: () => pageOutput(1) },
+      { name: "ex-command.scroll-top", run: () => scrollOutputTo("top") },
+      { name: "ex-command.scroll-bottom", run: () => scrollOutputTo("bottom") },
+      { name: "ex-command.complete", run: () => applySuggestion() },
+      { name: "ex-command.complete-prev", run: () => applySuggestion(-1) },
+      { name: "ex-command.submit", run: execute },
     ],
     bindings: [
       { key: "escape", cmd: "ex-command.close", desc: "Close ex command prompt" },
-
       { key: "up", cmd: "ex-command.prev", desc: "Previous suggestion" },
       { key: "down", cmd: "ex-command.next", desc: "Next suggestion" },
       { key: "ctrl+p", cmd: "ex-command.prev", desc: "Previous suggestion" },
       { key: "ctrl+n", cmd: "ex-command.next", desc: "Next suggestion" },
-
+      { key: "pageup", cmd: "ex-command.page-up", desc: "Scroll output up" },
+      { key: "pagedown", cmd: "ex-command.page-down", desc: "Scroll output down" },
+      { key: "home", cmd: "ex-command.scroll-top", desc: "Scroll output top" },
+      { key: "end", cmd: "ex-command.scroll-bottom", desc: "Scroll output bottom" },
       { key: "tab", cmd: "ex-command.complete", desc: "Complete suggestion" },
       { key: "shift+tab", cmd: "ex-command.complete-prev", desc: "Previous completion" },
       { key: "return", cmd: "ex-command.submit", desc: "Run ex command" },
@@ -309,6 +319,15 @@ export function ExCommandPrompt() {
     input.focus();
   });
 
+  createEffect<string | null>((previousCommand) => {
+    const command = gitOutput()?.command ?? null;
+    if (command && command !== previousCommand) {
+      outputScrollRef?.scrollTo(0);
+    }
+
+    return command;
+  });
+
   onCleanup(() => {
     offExCommands();
   });
@@ -316,115 +335,79 @@ export function ExCommandPrompt() {
   return (
     <Show when={$exCommand.visible}>
       <box
-        id="ex-command-prompt-shell"
+        id="ex-command-prompt-backdrop"
         position="absolute"
-        left="50%"
-        top="50%"
-        width={EX_PROMPT_WIDTH}
-        marginLeft={-(EX_PROMPT_WIDTH / 2)}
-        marginTop={-Math.ceil(EX_PROMPT_MAX_HEIGHT / 2)}
-        flexDirection="column"
+        top={0}
+        left={0}
+        width="100%"
+        height="100%"
+        justifyContent="center"
+        alignItems="center"
+        backgroundColor="#00000077"
         zIndex={3500}
-        visible={$exCommand.visible}
+        onMouseUp={(event) => {
+          if (event.target?.id === "ex-command-prompt-backdrop") {
+            closeAndRestore();
+          }
+        }}
       >
         <box
-          id="ex-command-prompt"
+          id="ex-command-prompt-shell"
           width={EX_PROMPT_WIDTH}
-          height={EX_PROMPT_CHROME_ROWS}
+          backgroundColor={$theme.token.surface}
+          flexDirection="column"
           border
           borderStyle="single"
-          borderColor={$theme.token.accent}
-          backgroundColor={$theme.token.surface}
-          paddingX={1}
-          paddingY={0}
-          flexDirection="column"
-          title=" Ex Command "
-          titleAlignment="center"
+          borderColor={`${$theme.token.accent}cc`}
         >
-          <text id="ex-command-prompt-hint" fg={$theme.token.fgMuted} height={1}>
-            tab complete | up/down | enter | esc
-          </text>
-          <box width="100%" flexDirection="row" backgroundColor={$theme.token.surface}>
-            <input
-              id="ex-command-input"
-              ref={(input: InputRenderable) => {
+          <box
+            id="ex-command-prompt"
+            width={EX_PROMPT_BODY_WIDTH}
+            backgroundColor={$theme.token.surface}
+            paddingX={1}
+            paddingY={0}
+            flexDirection="column"
+            title=" Ex Command "
+            titleAlignment="center"
+          >
+            <PromptInput
+              value={value}
+              usage={usage}
+              hasSuggestion={() => selectedSuggestion() !== null}
+              setInputRef={(input) => {
                 inputRef = input;
-                input.cursorOffset = value().length;
                 setTarget(input);
               }}
-              width={EX_PROMPT_WIDTH - 3}
-              value={value()}
-              placeholder="refresh"
-              backgroundColor={$theme.token.surface}
-              focusedBackgroundColor={$theme.token.bg}
-              textColor={$theme.token.fg}
-              focusedTextColor={$theme.token.fg}
-              placeholderColor={$theme.token.fgMuted}
-              cursorColor={$theme.token.accent}
               onInput={(nextValue) => {
                 batch(() => {
                   setValue(nextValue);
                   setSelection(0);
+                  const currentOutput = gitOutput();
+                  if (currentOutput?.status !== "running") {
+                    setGitOutput(null);
+                  }
                 });
               }}
             />
           </box>
-          <text
-            id="ex-command-prompt-usage"
-            fg={selectedSuggestion() ? $theme.token.fg : $theme.token.fgMuted}
-            height={1}
-          >
-            {usage()}
-          </text>
-        </box>
-        <box
-          id="ex-command-prompt-list"
-          width={EX_PROMPT_WIDTH}
-          height={suggestionRows().length}
-          backgroundColor={$theme.token.surface}
-          paddingX={1}
-          paddingY={0}
-          flexDirection="column"
-        >
-          <For each={suggestionRows()}>
-            {(row, index) => {
-              if (row.kind === "empty") {
-                return (
-                  <text id="ex-command-prompt-suggestions" fg={$theme.token.fgMuted} height={1}>
-                    (no suggestions)
-                  </text>
-                );
+
+          <box border={["top"]} borderColor={`${$theme.token.border}66`}>
+            <Show
+              when={gitOutput()}
+              fallback={
+                <SuggestionList rows={suggestionRows} selectedIndex={clampedSelection} />
               }
-
-              const isSelected = () => index() === clampedSelection();
-
-              return (
-                <text
-                  id={index() === 0 ? "ex-command-prompt-suggestions" : undefined}
-                  fg={$theme.token.fg}
-                  height={1}
-                >
-                  <span
-                    style={{
-                      fg: isSelected() ? $theme.token.accent : $theme.token.fgMuted,
-                    }}
-                  >
-                    {isSelected() ? "> " : "  "}
-                  </span>
-                  <span
-                    style={{
-                      fg: isSelected() ? $theme.token.fg : $theme.token.success,
-                      attributes: TextAttributes.BOLD,
-                    }}
-                  >
-                    {row.suggestion.label}
-                  </span>
-                  <span style={{ fg: $theme.token.border }}>{"  "}</span>
-                  <span style={{ fg: $theme.token.fgMuted }}>{row.suggestion.desc}</span>
-                </text>
-              );
-            }}
-          </For>
+            >
+              <GitOutputView
+                rows={outputRows}
+                height={outputRowsHeight}
+                setScrollRef={(scroll) => {
+                  outputScrollRef = scroll;
+                  scroll.scrollTo(0);
+                }}
+              />
+            </Show>
+          </box>
         </box>
       </box>
     </Show>

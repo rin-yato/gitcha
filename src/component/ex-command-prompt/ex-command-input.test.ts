@@ -9,7 +9,7 @@ import {
   moveExPromptSelection,
   normalizeExPromptName,
   parseExPromptInput,
-} from "./logic";
+} from "./ex-command-input";
 
 const commands: ExPromptCommand[] = [
   {

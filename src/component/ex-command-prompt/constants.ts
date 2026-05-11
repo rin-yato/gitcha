@@ -1,0 +1,5 @@
+export const EX_PROMPT_WIDTH = 68;
+export const EX_PROMPT_BODY_WIDTH = EX_PROMPT_WIDTH - 2;
+export const EX_PROMPT_INPUT_WIDTH = EX_PROMPT_WIDTH - 6;
+export const EX_PROMPT_CHROME_ROWS = 5;
+export const EX_PROMPT_OUTPUT_ROWS = 12;
