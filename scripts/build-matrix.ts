@@ -1,3 +1,5 @@
+import solidPlugin from "@opentui/solid/bun-plugin";
+
 import fs from "fs";
 import path from "path";
 
@@ -12,46 +14,51 @@ type BuildTarget =
     ? Target
     : never;
 
-const bunfsRoot = "/$bunfs/root/";
-const { version: appVersion } = JSON.parse(fs.readFileSync("package.json", "utf8")) as {
-  version: string;
-};
+const BUNFS_ROOT = "/$bunfs/root/";
+const DEFAULT_OUTFILE = "bin/gitcha";
+const ENTRYPOINT = "./src/index.tsx";
+const WORKER_ENTRYPOINT = "./node_modules/@opentui/core/parser.worker.js";
+
+function createCompileConfig(env: BuildMatrixEnv): NonNullable<BuildConfig["compile"]> {
+  const outfile = env.BUILD_OUTFILE ?? DEFAULT_OUTFILE;
+  const target = env.BUILD_TARGET as BuildTarget | undefined;
+  const compileOptions = { outfile, execArgv: ["--"], autoloadBunfig: false };
+
+  return target ? { ...compileOptions, target } : compileOptions;
+}
+
+function toBunfsPath(filePath: string, cwd: string) {
+  const relativePath = path.relative(cwd, path.resolve(cwd, filePath)).replace(/\\/g, "/");
+
+  return `${BUNFS_ROOT}${relativePath}`;
+}
+
+function resolveOpenTuiWorkerPath(cwd = process.cwd()) {
+  return fs.realpathSync(path.resolve(cwd, WORKER_ENTRYPOINT));
+}
 
 export function createBuildMatrixConfig(
   env: BuildMatrixEnv,
-  workerSourcePath: string,
+  workerSourcePath = WORKER_ENTRYPOINT,
   cwd = process.cwd(),
 ): BuildConfig {
-  const outfile = env.BUILD_OUTFILE ?? "bin/gitcha";
-  const workerRelativePath = path.relative(cwd, workerSourcePath).replace(/\\/g, "/");
-  const compileTarget = env.BUILD_TARGET as BuildTarget | undefined;
+  const workerPath = toBunfsPath(workerSourcePath, cwd);
 
   return {
     target: "bun",
-    compile: compileTarget
-      ? {
-          target: compileTarget,
-          outfile,
-          execArgv: ["--"],
-        }
-      : {
-          outfile,
-          execArgv: ["--"],
-        },
-    entrypoints: ["./src/index.tsx", workerSourcePath],
+    compile: createCompileConfig(env),
+    entrypoints: [ENTRYPOINT, workerSourcePath],
+    plugins: [solidPlugin],
     minify: true,
     define: {
-      "process.env.CHANGES_APP_VERSION": JSON.stringify(appVersion),
-      OTUI_TREE_SITTER_WORKER_PATH: `"${bunfsRoot}${workerRelativePath}"`,
+      OTUI_TREE_SITTER_WORKER_PATH: JSON.stringify(workerPath),
     },
   };
 }
 
 async function main() {
-  const workerSourcePath = fs.realpathSync(
-    path.resolve("node_modules/@opentui/core/parser.worker.js"),
-  );
-  const outfile = process.env.BUILD_OUTFILE ?? "bin/gitcha";
+  const outfile = process.env.BUILD_OUTFILE ?? DEFAULT_OUTFILE;
+  const workerSourcePath = resolveOpenTuiWorkerPath();
   const result = await Bun.build(createBuildMatrixConfig(process.env, workerSourcePath));
 
   if (!result.success) {

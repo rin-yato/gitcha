@@ -15,6 +15,7 @@
   "scripts": {
     "dev": "bun run scripts/dev.ts",
     "build": "bun run scripts/build.ts",
+    "build:matrix": "bun run scripts/build-matrix.ts",
     "setup": "bun run build && bun link",
     "release": "release-it -i patch",
     "preview": "bun run dist/index.js",
