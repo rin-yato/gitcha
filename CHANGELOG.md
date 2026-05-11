@@ -1,4 +1,40 @@
+# Changelog
 
+## [0.1.9](https://github.com/rin-yato/differ/compare/v0.1.8...v0.1.9) (2026-05-11)
+
+
+### Bug Fixes
+
+* clear diff view ([4cc7d69](https://github.com/rin-yato/differ/commit/4cc7d69075aaab6f44ff8f8aeef186e4538978c8))
+
+
+### Features
+
+* add dev script with reload ([8e77555](https://github.com/rin-yato/differ/commit/8e775554fa341f1251d6d7323544429a125040fa))
+* add diff type ([9822081](https://github.com/rin-yato/differ/commit/982208189bd459e2fb479ce87c39f7df254dab89))
+* add simple git polling ([fde844b](https://github.com/rin-yato/differ/commit/fde844bc3153ef85e3463f56d2fc91df10395eb9))
+* add toast and refactor clipboard ([6e43715](https://github.com/rin-yato/differ/commit/6e437155e7bb92c70dbe5bc87601ecc218e9b515))
+* cli entry point ([d893542](https://github.com/rin-yato/differ/commit/d89354288387289207abc3cdf6ac98b8eb21e2fd))
+* config ([8906544](https://github.com/rin-yato/differ/commit/890654421d197e946630b27b551dbb1581905958))
+* console and copy ([be13535](https://github.com/rin-yato/differ/commit/be1353558b0f9a2e9cb3fdad4539a16a17cb1d53))
+* copy selection ([aed1a90](https://github.com/rin-yato/differ/commit/aed1a9046bddedec3e8c0c29fa96e35411d3e8f2))
+* custom build worker ([b24d345](https://github.com/rin-yato/differ/commit/b24d3450bdba36a2d2b67a2c2cbec67a5dba8cee))
+* dialog-select ([c6ea9b4](https://github.com/rin-yato/differ/commit/c6ea9b446acbf81b7b619db382734dd5189727f0))
+* distinguish between staged and unstaged ([fe04a29](https://github.com/rin-yato/differ/commit/fe04a290fc9e79e94cbcf173edf249e76f94e0a8))
+* full file diff ([491f023](https://github.com/rin-yato/differ/commit/491f023577f56159a22418537b65c819b8ab3fcb))
+* improve UI ([52cf2ac](https://github.com/rin-yato/differ/commit/52cf2ac6e6000b2402e7f9c159aae767bede9d80))
+* migrate to keymap module ([84ab0aa](https://github.com/rin-yato/differ/commit/84ab0aaf1b3afb9aa7acb37c172ada8e8cf9aa6f))
+* port core dialog ([8bed817](https://github.com/rin-yato/differ/commit/8bed817a18649a9c608fbd787844d6e513460280))
+* port theme ([b3618e7](https://github.com/rin-yato/differ/commit/b3618e70fc49da9347ddf7a27a72d4439719382f))
+* quit dev process ([2509ed5](https://github.com/rin-yato/differ/commit/2509ed5dc4a694a0ba61eeddc51b39d9c47ad174))
+* repo context ([c08bb13](https://github.com/rin-yato/differ/commit/c08bb13257ac6b39578eb672d32de7537856350f))
+* sidebar store ([1141e34](https://github.com/rin-yato/differ/commit/1141e343780aeae46b00e6d10075a5705644e992))
+* theme store ([26561bb](https://github.com/rin-yato/differ/commit/26561bbf33b903bef600bb09616c1dcbff1d15f6))
+* update js build ([ad37b8b](https://github.com/rin-yato/differ/commit/ad37b8b734623945f38e2c5462b5808d094a70ff))
+* update matrix build ([4a757db](https://github.com/rin-yato/differ/commit/4a757db2194e131708775c68da88ca2f6216431b))
+* version injection ([45bf914](https://github.com/rin-yato/differ/commit/45bf9145aada6ff1ef91e10ed733a5f246a17bba))
+* wire up sidebar status ([1336e7c](https://github.com/rin-yato/differ/commit/1336e7cd58f286555774759b53fafaf027cb4d02))
+* write config ([a7e2c19](https://github.com/rin-yato/differ/commit/a7e2c19869a788e711f13ed71cd38444e757ef92))
 
 ## [0.1.8](https://github.com/rin-yato/differ/compare/v0.1.7...v0.1.8) (2026-05-05)
 
