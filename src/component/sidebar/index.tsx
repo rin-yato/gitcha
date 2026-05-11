@@ -3,6 +3,7 @@ import { useBindings } from "@opentui/keymap/solid";
 import { createEffect, createMemo, For, onCleanup, onMount, Show } from "solid-js";
 
 import { $dialog } from "@/store/dialog.store";
+import { $exCommand } from "@/store/ex-command.store";
 import { $git } from "@/store/git.store";
 import { $sidebar } from "@/store/sidebar.store";
 import { $theme } from "@/store/theme.store";
@@ -31,7 +32,7 @@ export function Sidebar() {
   const sections = createMemo(() => createSidebarSections($git.status));
 
   useBindings(() => ({
-    enabled: $dialog.stack.length === 0,
+    enabled: () => $dialog.stack.length === 0 && !$exCommand.visible,
     commands: [
       {
         name: "sidebar.select-next",

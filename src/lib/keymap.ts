@@ -8,6 +8,7 @@ export function createAppKeymap(renderer: CliRenderer) {
   addons.registerNeovimDisambiguation(keymap);
   addons.registerEscapeClearsPendingSequence(keymap);
   addons.registerBackspacePopsPendingSequence(keymap);
+  addons.registerExCommands(keymap);
 
   return keymap;
 }
