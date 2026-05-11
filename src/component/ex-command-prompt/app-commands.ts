@@ -3,7 +3,7 @@ import type { Command } from "@opentui/keymap";
 import type { ExCommandPayload } from "@opentui/keymap/addons/opentui";
 
 import { $git } from "@/store/git.store";
-import { $sidebar } from "@/store/sidebar.store";
+import { $sidebar } from "@/store/sidebar";
 import { $toast } from "@/store/toast.store";
 
 import type { ExArgCount } from "./ex-command-input";

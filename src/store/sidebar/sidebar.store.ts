@@ -1,4 +1,4 @@
-import { mergeProps } from "solid-js";
+import { batch, mergeProps } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 
 import { $config } from "@/store/config.store";
@@ -6,16 +6,24 @@ import { $config } from "@/store/config.store";
 import type { GitFileTarget } from "@/lib/git";
 import { isGitFileTargetEqual } from "@/lib/git";
 
+import { isSidebarDirectoryKeyForTarget } from "./sidebar-key";
+
+export type SidebarViewMode = "flat" | "tree";
+
 type SidebarState = {
   width: number;
   open: boolean;
   selectedTarget: GitFileTarget | null;
+  viewMode: SidebarViewMode;
+  collapsedDirectoryKeys: string[];
 };
 
 const [sidebarState, setSidebarState] = createStore<SidebarState>({
   width: $config.sidebar.defaultWidth,
   open: $config.sidebar.defaultOpen,
   selectedTarget: null,
+  viewMode: "tree",
+  collapsedDirectoryKeys: [],
 });
 
 const MIN_WIDTH = 15;
@@ -32,19 +40,44 @@ function selectByOffset(files: GitFileTarget[], offset: number): GitFileTarget |
   return files[nextIndex] ?? null;
 }
 
+function setSelectedTarget(selectedTarget: GitFileTarget | null): void {
+  batch(() => {
+    if (selectedTarget) {
+      setSidebarState("collapsedDirectoryKeys", (keys) => {
+        const nextKeys = keys.filter(
+          (key) => !isSidebarDirectoryKeyForTarget(key, selectedTarget),
+        );
+
+        return nextKeys.length === keys.length ? keys : nextKeys;
+      });
+    }
+
+    setSidebarState("selectedTarget", selectedTarget);
+  });
+}
+
 export const $sidebar = mergeProps(sidebarState, {
   action: {
-    setSelectedTarget: (selectedTarget: GitFileTarget | null) => {
-      setSidebarState("selectedTarget", selectedTarget);
-    },
+    setSelectedTarget,
     selectNext: (files: GitFileTarget[]) => {
-      setSidebarState("selectedTarget", selectByOffset(files, 1));
+      setSelectedTarget(selectByOffset(files, 1));
     },
     selectPrevious: (files: GitFileTarget[]) => {
-      setSidebarState("selectedTarget", selectByOffset(files, -1));
+      setSelectedTarget(selectByOffset(files, -1));
     },
     toggle: () => {
       setSidebarState("open", (open) => !open);
+    },
+    toggleViewMode: () => {
+      setSidebarState("viewMode", (viewMode) => (viewMode === "flat" ? "tree" : "flat"));
+    },
+    toggleDirectory: (key: string) => {
+      setSidebarState("collapsedDirectoryKeys", (keys) =>
+        keys.includes(key) ? keys.filter((entry) => entry !== key) : [...keys, key],
+      );
+    },
+    setCollapsedDirectoryKeys: (keys: readonly string[]) => {
+      setSidebarState("collapsedDirectoryKeys", [...keys]);
     },
     increaseWidth: (delta: number = 5) => {
       setSidebarState(

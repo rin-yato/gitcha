@@ -1,7 +1,7 @@
 import { createMemo, Match, Switch } from "solid-js";
 
 import { $git } from "@/store/git.store";
-import { $sidebar } from "@/store/sidebar.store";
+import { $sidebar } from "@/store/sidebar";
 import { $theme } from "@/store/theme.store";
 
 import { findGitScopedFile } from "@/lib/git";

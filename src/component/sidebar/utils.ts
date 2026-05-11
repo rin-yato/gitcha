@@ -1,5 +1,9 @@
+import { createSidebarDirectoryKey } from "@/store/sidebar";
+
 import { createGitScopedFile } from "@/lib/git";
+import { gitStatusParser } from "@/lib/git/parser";
 import type {
+  FileTreeNode,
   GitFileSection,
   GitRepoStatus,
   GitScopedFile,
@@ -11,6 +15,31 @@ export interface SidebarSectionModel {
   kind: GitFileSection;
   files: GitStatusFile[];
   count: number;
+}
+
+export type SidebarListMode = "flat" | "tree";
+
+export type SidebarRow =
+  | {
+      kind: "directory";
+      section: GitFileSection;
+      key: string;
+      name: string;
+      path: string;
+      depth: number;
+      isCollapsed: boolean;
+    }
+  | {
+      kind: "file";
+      section: GitFileSection;
+      name: string;
+      path: string;
+      depth: number;
+      file: GitStatusFile;
+    };
+
+export interface SidebarSectionViewModel extends SidebarSectionModel {
+  rows: SidebarRow[];
 }
 
 export function createSidebarSections(status: GitRepoStatus | null): SidebarSectionModel[] {
@@ -40,9 +69,131 @@ export function createSidebarSections(status: GitRepoStatus | null): SidebarSect
   ];
 }
 
-export function collectSidebarFiles(status: GitRepoStatus | null): GitScopedFile[] {
-  // Keep this in rendered order so keyboard navigation wraps across the visible rows.
-  return createSidebarSections(status).flatMap((section) =>
+function fileName(path: string): string {
+  return path.slice(path.lastIndexOf("/") + 1);
+}
+
+function flattenTreeChain(node: FileTreeNode): { node: FileTreeNode; label: string } {
+  let current = node;
+  let label = node.name;
+
+  while (current.children.length === 1) {
+    const child = current.children[0];
+    if (!child?.isDirectory) break;
+
+    current = child;
+    label = `${label}/${current.name}`;
+  }
+
+  return { node: current, label };
+}
+
+function buildTreeRows(
+  section: GitFileSection,
+  nodes: FileTreeNode[],
+  collapsedDirectoryKeys: ReadonlySet<string>,
+  depth = 0,
+): SidebarRow[] {
+  return nodes.flatMap((node) => {
+    if (node.isDirectory) {
+      const flattened = flattenTreeChain(node);
+      const key = createSidebarDirectoryKey(section, flattened.node.path);
+      const isCollapsed = collapsedDirectoryKeys.has(key);
+
+      return [
+        {
+          kind: "directory",
+          section,
+          key,
+          name: flattened.label,
+          path: flattened.node.path,
+          depth,
+          isCollapsed,
+        },
+        ...(isCollapsed
+          ? []
+          : buildTreeRows(section, flattened.node.children, collapsedDirectoryKeys, depth + 1)),
+      ];
+    }
+
+    if (!node.fileInfo) return [];
+
+    return [
+      {
+        kind: "file",
+        section,
+        name: fileName(node.path),
+        path: node.path,
+        depth,
+        file: node.fileInfo,
+      },
+    ];
+  });
+}
+
+function buildFlatRows(section: GitFileSection, files: GitStatusFile[]): SidebarRow[] {
+  return files.map((file) => ({
+    kind: "file",
+    section,
+    name: file.path,
+    path: file.path,
+    depth: 0,
+    file,
+  }));
+}
+
+export function createSidebarSectionViews(
+  status: GitRepoStatus | null,
+  mode: SidebarListMode = "flat",
+  collapsedDirectoryKeys: readonly string[] = [],
+): SidebarSectionViewModel[] {
+  if (!status?.files) return [];
+
+  const sections = createSidebarSections(status);
+
+  if (mode === "flat") {
+    return sections.map((section) => ({
+      ...section,
+      rows: buildFlatRows(section.kind, section.files),
+    }));
+  }
+
+  const collapsedDirectoryKeySet = new Set(collapsedDirectoryKeys);
+
+  return sections.map((section) => {
+    const snapshot = gitStatusParser.buildFileTreeSnapshot(section.files);
+    return {
+      ...section,
+      rows: buildTreeRows(section.kind, snapshot.tree.children, collapsedDirectoryKeySet),
+    };
+  });
+}
+
+export function createSidebarRows(
+  status: GitRepoStatus | null,
+  mode: SidebarListMode = "flat",
+  collapsedDirectoryKeys: readonly string[] = [],
+): SidebarRow[] {
+  return createSidebarSectionViews(status, mode, collapsedDirectoryKeys).flatMap(
+    (section) => section.rows,
+  );
+}
+
+export function collectSidebarFiles(
+  status: GitRepoStatus | null,
+  mode: SidebarListMode = "flat",
+): GitScopedFile[] {
+  const sections = createSidebarSections(status);
+
+  if (mode === "tree") {
+    return sections.flatMap((section) =>
+      gitStatusParser
+        .buildFileTreeSnapshot(section.files)
+        .orderedFiles.map((file) => createGitScopedFile(section.kind, file)),
+    );
+  }
+
+  return sections.flatMap((section) =>
     section.files.map((file) => createGitScopedFile(section.kind, file)),
   );
 }

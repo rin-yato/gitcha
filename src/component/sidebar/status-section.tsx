@@ -1,28 +1,31 @@
 import { createMemo, For, Show } from "solid-js";
 
-import { $sidebar } from "@/store/sidebar.store";
+import { $sidebar } from "@/store/sidebar";
 import { $theme } from "@/store/theme.store";
 
-import type { GitFileTarget, GitStatusFile } from "@/lib/git";
+import type { GitFileSection, GitFileTarget, GitStatusFile } from "@/lib/git";
 import { createGitFileTarget, isGitFileTargetEqual } from "@/lib/git";
 
-import type { SidebarSectionModel } from "./utils";
+import type { SidebarSectionViewModel } from "./utils";
+
+const DIRECTORY_ICONS = {
+  closed: "▸",
+  open: "▾",
+} as const;
 
 export interface StatusSectionProps {
-  section: SidebarSectionModel & {
+  section: SidebarSectionViewModel & {
     selectedTarget?: GitFileTarget | null;
   };
 }
 
-type StatusSectionRow = SidebarSectionModel & {
-  selectedTarget?: GitFileTarget | null;
-};
-
 type StatusRowProps = {
   file: GitStatusFile;
-  kind: SidebarSectionModel["kind"];
+  kind: GitFileSection;
+  label: string;
   selectedTarget?: GitFileTarget | null;
   accentFg: string;
+  depth?: number;
 };
 
 function formatStatusLabel(status: string) {
@@ -51,7 +54,7 @@ function formatStatusLabel(status: string) {
 }
 
 function formatSectionStatus(
-  section: SidebarSectionModel["kind"],
+  section: GitFileSection,
   file: {
     indexStatus: string;
     workingTreeStatus: string;
@@ -77,7 +80,7 @@ function StatusRow(props: StatusRowProps) {
   return (
     <box
       width="100%"
-      paddingLeft={1}
+      paddingLeft={1 + (props.depth ?? 0) * 2}
       paddingRight={1}
       overflow="hidden"
       backgroundColor={isSelected() ? $theme.token.accent : undefined}
@@ -89,7 +92,7 @@ function StatusRow(props: StatusRowProps) {
         </span>
 
         <span style={{ fg: isSelected() ? $theme.token.accentFg : $theme.token.fgMuted }}>
-          &nbsp;{props.file.path}
+          &nbsp;{props.label}
         </span>
       </text>
     </box>
@@ -97,33 +100,54 @@ function StatusRow(props: StatusRowProps) {
 }
 
 export function StatusSection(props: StatusSectionProps) {
-  const section = createMemo<StatusSectionRow>(() => props.section);
   const sectionAccentFg = createMemo(() => {
-    if (section().kind === "conflicts") return $theme.token.removed;
-    if (section().kind === "staged") return $theme.token.added;
-    if (section().kind === "changes") return $theme.token.modified;
+    if (props.section.kind === "conflicts") return $theme.token.removed;
+    if (props.section.kind === "staged") return $theme.token.added;
+    if (props.section.kind === "changes") return $theme.token.modified;
     return $theme.token.fg;
   });
 
   return (
-    <Show when={section().count}>
+    <Show when={props.section.count}>
       <box flexDirection="column">
         <box paddingLeft={1}>
           <text fg={$theme.token.fg}>
-            {section().title}&nbsp;
+            {props.section.title}&nbsp;
             <span style={{ fg: sectionAccentFg() }}>{props.section.count}</span>
           </text>
         </box>
 
-        <For each={section().files}>
-          {(file) => (
-            <StatusRow
-              file={file}
-              kind={section().kind}
-              selectedTarget={section().selectedTarget}
-              accentFg={sectionAccentFg()}
-            />
-          )}
+        <For each={props.section.rows}>
+          {(row) =>
+            row.kind === "file" ? (
+              <StatusRow
+                file={row.file}
+                kind={row.section}
+                label={row.name}
+                selectedTarget={props.section.selectedTarget}
+                accentFg={sectionAccentFg()}
+                depth={row.depth}
+              />
+            ) : (
+              <box
+                paddingLeft={1 + row.depth * 2}
+                width="100%"
+                overflow="hidden"
+                flexDirection="row"
+                alignItems="center"
+                onMouseUp={() => $sidebar.action.toggleDirectory(row.key)}
+                gap={1}
+              >
+                <text fg={$theme.token.fgMuted}>
+                  {row.isCollapsed ? DIRECTORY_ICONS.closed : DIRECTORY_ICONS.open}
+                </text>
+
+                <text fg={$theme.token.fgMuted} truncate maxHeight={1} wrapMode="char">
+                  {row.name}
+                </text>
+              </box>
+            )
+          }
         </For>
       </box>
     </Show>

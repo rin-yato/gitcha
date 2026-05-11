@@ -5,13 +5,13 @@ import { createEffect, createMemo, For, onCleanup, onMount, Show } from "solid-j
 import { $dialog } from "@/store/dialog.store";
 import { $exCommand } from "@/store/ex-command.store";
 import { $git } from "@/store/git.store";
-import { $sidebar } from "@/store/sidebar.store";
+import { $sidebar } from "@/store/sidebar";
 import { $theme } from "@/store/theme.store";
 
 import { isGitFileTargetEqual } from "@/lib/git";
 
 import { StatusSection } from "./status-section";
-import { collectSidebarFiles, createSidebarSections } from "./utils";
+import { collectSidebarFiles, createSidebarSectionViews } from "./utils";
 
 export function Sidebar() {
   // Simple git polling
@@ -27,9 +27,11 @@ export function Sidebar() {
     });
   });
 
-  const sidebarFiles = createMemo(() => collectSidebarFiles($git.status));
-  const sidebarTargets = createMemo(() => sidebarFiles().map((entry) => entry.target));
-  const sections = createMemo(() => createSidebarSections($git.status));
+  const allSidebarFiles = createMemo(() => collectSidebarFiles($git.status, $sidebar.viewMode));
+  const sidebarTargets = createMemo(() => allSidebarFiles().map((entry) => entry.target));
+  const sections = createMemo(() =>
+    createSidebarSectionViews($git.status, $sidebar.viewMode, $sidebar.collapsedDirectoryKeys),
+  );
 
   useBindings(() => ({
     enabled: () => $dialog.stack.length === 0 && !$exCommand.visible,
@@ -64,6 +66,12 @@ export function Sidebar() {
           $sidebar.action.toggle();
         },
       },
+      {
+        name: "sidebar.view.toggle",
+        run() {
+          $sidebar.action.toggleViewMode();
+        },
+      },
     ],
 
     bindings: [
@@ -73,14 +81,15 @@ export function Sidebar() {
       { key: "k", cmd: "sidebar.select-prev", desc: "Previous file" },
       { key: "]", cmd: "sidebar.width.increase", desc: "Widen sidebar" },
       { key: "[", cmd: "sidebar.width.decrease", desc: "Shrink sidebar" },
+      { key: "v", cmd: "sidebar.view.toggle", desc: "Toggle list mode" },
       { key: "\\", cmd: "sidebar.toggle", desc: "Toggle sidebar" },
     ],
   }));
 
-  const hasChanges = createMemo(() => sidebarTargets().length > 0);
+  const hasChanges = createMemo(() => allSidebarFiles().length > 0);
 
   createEffect(() => {
-    const files = sidebarTargets();
+    const files = allSidebarFiles().map((entry) => entry.target);
 
     if (files.length === 0) {
       if ($sidebar.selectedTarget !== null) {
