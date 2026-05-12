@@ -21,7 +21,7 @@ const [gitState, setGitState] = createStore<GitState>({
 async function refresh() {
   setGitState({ loading: true, error: null });
 
-  const result = await git.getRepoStatus();
+  const result = await git.status.get();
 
   if (Result.isError(result)) {
     setGitState({ status: null, loading: false, error: result.error.message });

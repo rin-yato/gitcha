@@ -1,7 +1,7 @@
 import { Result, TaggedError } from "better-result";
 
-import type { GitError } from "./errors";
-import type { GitCommandOutput, GitExecutorLike } from "./types";
+import type { GitError } from "../errors";
+import type { GitCommandOutput, GitExecutorLike } from "../types";
 
 export class GitExCommandParseError extends TaggedError("GitExCommandParseError")<{
   message: string;

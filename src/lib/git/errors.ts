@@ -66,6 +66,12 @@ export class GitRepositoryStateError extends TaggedError("GitRepositoryStateErro
   stderr: string;
 }>() {}
 
+export class GitInvalidArgumentError extends TaggedError("GitInvalidArgumentError")<{
+  message: string;
+  argument: string;
+  value: unknown;
+}>() {}
+
 export type GitError =
   | GitExecutionError
   | GitMissingError
@@ -74,7 +80,8 @@ export type GitError =
   | GitOutputLimitError
   | GitInvalidWorkingDirectoryError
   | GitParseError
-  | GitRepositoryStateError;
+  | GitRepositoryStateError
+  | GitInvalidArgumentError;
 
 export function formatGitError(error: GitError): string {
   if ("stderr" in error && error.stderr) {

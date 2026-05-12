@@ -1,7 +1,7 @@
 import { createSidebarDirectoryKey } from "@/store/sidebar";
 
 import { createGitScopedFile } from "@/lib/git";
-import { gitStatusParser } from "@/lib/git/parser";
+import { buildFileTreeSnapshot } from "@/lib/git/status";
 import type {
   FileTreeNode,
   GitFileSection,
@@ -161,7 +161,7 @@ export function createSidebarSectionViews(
   const collapsedDirectoryKeySet = new Set(collapsedDirectoryKeys);
 
   return sections.map((section) => {
-    const snapshot = gitStatusParser.buildFileTreeSnapshot(section.files);
+    const snapshot = buildFileTreeSnapshot(section.files);
     return {
       ...section,
       rows: buildTreeRows(section.kind, snapshot.tree.children, collapsedDirectoryKeySet),
@@ -187,9 +187,9 @@ export function collectSidebarFiles(
 
   if (mode === "tree") {
     return sections.flatMap((section) =>
-      gitStatusParser
-        .buildFileTreeSnapshot(section.files)
-        .orderedFiles.map((file) => createGitScopedFile(section.kind, file)),
+      buildFileTreeSnapshot(section.files).orderedFiles.map((file) =>
+        createGitScopedFile(section.kind, file),
+      ),
     );
   }
 

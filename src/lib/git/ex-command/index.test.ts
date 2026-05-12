@@ -2,14 +2,14 @@ import { describe, expect, test } from "bun:test";
 
 import { Result } from "better-result";
 
+import type { GitCommandOutput } from "../types";
 import {
   type GitExCommandClient,
   GitExCommandParseError,
   getGitExCommandInput,
   parseGitExCommandArgs,
   runGitExCommand,
-} from "./ex-command";
-import type { GitCommandOutput } from "./types";
+} from ".";
 
 function unwrapParse(input: string): string[] {
   const result = parseGitExCommandArgs(input);

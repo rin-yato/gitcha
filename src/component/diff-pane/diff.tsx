@@ -14,7 +14,7 @@ interface DiffProps {
 
 export function Diff(props: DiffProps) {
   const [diffResource] = createResource(props.selectedFile, async (selectedFile) => {
-    return git.getUnifiedDiff(toGitUnifiedDiffTarget(selectedFile)).then(Result.unwrap);
+    return git.diff.get(toGitUnifiedDiffTarget(selectedFile)).then(Result.unwrap);
   });
 
   return (

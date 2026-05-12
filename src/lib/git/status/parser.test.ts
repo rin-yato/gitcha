@@ -2,11 +2,11 @@ import { describe, expect, test } from "bun:test";
 
 import { Result } from "better-result";
 
-import { gitStatusParser } from "./parser";
+import { buildFileTree, parseRepoStatusLines, parseStatusLine, toRepoStatus } from ".";
 
 describe("git status parser", () => {
   test("parses status lines and categorizes files", () => {
-    const parsed = gitStatusParser.parseRepoStatusLines([
+    const parsed = parseRepoStatusLines([
       "## feat/a...origin/feat/a [ahead 2, behind 1]",
       "A  src/new.ts",
       " M src/app.ts",
@@ -30,7 +30,7 @@ describe("git status parser", () => {
       ],
     });
 
-    expect(gitStatusParser.toRepoStatus(parsed.value).files).toEqual({
+    expect(toRepoStatus(parsed.value).files).toEqual({
       staged: [{ path: "src/new.ts", indexStatus: "A", workingTreeStatus: " " }],
       changes: [{ path: "src/app.ts", indexStatus: " ", workingTreeStatus: "M" }],
       untracked: [{ path: "untracked.ts", indexStatus: "?", workingTreeStatus: "?" }],
@@ -38,8 +38,8 @@ describe("git status parser", () => {
     });
   });
 
-  test("parses renamed files", () => {
-    expect(gitStatusParser.parseStatusLine("R  old.txt -> new.txt")).toEqual({
+  test("parses renamed status files", () => {
+    expect(parseStatusLine("R  old.txt -> new.txt")).toEqual({
       path: "new.txt",
       originalPath: "old.txt",
       indexStatus: "R",
@@ -48,7 +48,7 @@ describe("git status parser", () => {
   });
 
   test("builds a stable file tree", () => {
-    const tree = gitStatusParser.buildFileTree([
+    const tree = buildFileTree([
       { path: "src/z.ts", indexStatus: " ", workingTreeStatus: "M" },
       { path: "src/a.ts", indexStatus: " ", workingTreeStatus: "M" },
       { path: "README.md", indexStatus: " ", workingTreeStatus: "M" },

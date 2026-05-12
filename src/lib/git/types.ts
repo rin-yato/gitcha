@@ -4,7 +4,19 @@ import type { GitError } from "./errors";
 
 export type GitResult<T, E extends GitError = GitError> = Result<T, E>;
 
-export type GitFileStatus = "?" | "A" | "M" | "D" | "R" | "C" | "U" | "!" | " " | "T";
+export type GitFileStatus =
+  | "?"
+  | "A"
+  | "M"
+  | "D"
+  | "R"
+  | "C"
+  | "U"
+  | "!"
+  | " "
+  | "T"
+  | "B"
+  | "X";
 
 export interface GitStatusFile {
   path: string;
@@ -59,6 +71,25 @@ export interface GitRepoStatus {
   isRepo: boolean;
 }
 
+export type GitBranchScope = "local" | "remote";
+
+export interface GitBranch {
+  ref: string;
+  name: string;
+  scope: GitBranchScope;
+  current: boolean;
+  commitRef: string;
+  upstream?: string;
+  committedAt?: string;
+  lastCommitTitle?: string;
+  authorName?: string;
+  authorEmail?: string;
+}
+
+export type GitBranchListOptions = {
+  scope?: GitBranchScope | "all";
+};
+
 export type CompareMode = "base-branch" | "base-commit" | "single-commit";
 
 export type CompareTarget = {
@@ -73,6 +104,66 @@ export interface CompareResolution {
   targetRef: string | null;
   revisionRange: string;
   baseLabel: string;
+}
+
+export interface GitCommit {
+  ref: string;
+  shortRef: string;
+  title: string;
+  description: string;
+  message: string;
+  authorName: string;
+  authorEmail: string;
+  authoredAt: string;
+  committedAt: string;
+  parentRefs: string[];
+  origin: string;
+}
+
+export type GitCommitQuery = {
+  search?: string;
+  limit?: number;
+  skip?: number;
+  refs?: readonly string[];
+  all?: boolean;
+  path?: string;
+  author?: string;
+  since?: string;
+  until?: string;
+};
+
+export type GitCommitReviewMode = Extract<CompareMode, "base-commit" | "single-commit">;
+
+export type GitReviewTarget =
+  | {
+      mode: "single-commit";
+      ref: string;
+      label?: string;
+    }
+  | {
+      mode: "base-commit";
+      ref: string;
+      compareRef?: string | null;
+      includeUntracked?: boolean;
+      label?: string;
+    };
+
+export interface GitReviewResolution {
+  mode: GitCommitReviewMode;
+  baseRef: string | null;
+  compareRef: string | null;
+  targetRef: string | null;
+  revisionRange: string;
+  baseLabel: string;
+  isRootCommit: boolean;
+  includeUntracked: boolean;
+}
+
+export interface GitReviewStatus {
+  target: GitReviewTarget;
+  resolution: GitReviewResolution;
+  files: CategorizedFiles;
+  totalFiles: number;
 }
 
 export interface FileDiffSource {

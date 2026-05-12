@@ -1,17 +1,49 @@
 import { Result } from "better-result";
 
+import { GitBranchService } from "./branch";
+import { GitCommitService } from "./commit";
+import { GitDiffService } from "./diff";
 import { GitRepositoryStateError } from "./errors";
 import { GitExecutor } from "./executor";
-import { gitStatusParser } from "./parser";
-import type {
-  GitClientOptions,
-  GitExecutorLike,
-  GitFileSection,
-  GitRepoStatus,
-  GitResult,
-  RepoContext,
-} from "./types";
+import { GitReviewService } from "./review";
+import { GitStatusService } from "./status";
+import type { GitClientOptions, GitExecutorLike, GitResult, RepoContext } from "./types";
 
+export type { GitBranchServiceClient } from "./branch";
+export { BRANCH_LIST_FORMAT, GitBranchService, parseBranches } from "./branch";
+export type { GitCommitServiceClient } from "./commit";
+export {
+  GitCommitService,
+  parseCommitParent,
+  parseCommitParentRefs,
+  parseCommits,
+  parseRecentCommitSummaries,
+  parseRootCommit,
+} from "./commit";
+export type { GitDiffServiceClient, GitDiffStatusLine } from "./diff";
+export {
+  GitDiffService,
+  parseBinaryNumstat,
+  parseNameStatus,
+  parseNameStatusLine,
+  toStatusFiles,
+} from "./diff";
+export type { GitReviewServiceClient } from "./review";
+export { GitReviewService } from "./review";
+export type { GitStatusServiceClient, ParsedRepoStatus } from "./status";
+export {
+  buildFileTree,
+  buildFileTreeSnapshot,
+  categorizeFiles,
+  collectFileTreeFiles,
+  GitStatusService,
+  parseNulList,
+  parseRepoStatus,
+  parseRepoStatusLines,
+  parseStatusBranchLine,
+  parseStatusLine,
+  toRepoStatus,
+} from "./status";
 export {
   createGitFileTarget,
   createGitScopedFile,
@@ -20,11 +52,20 @@ export {
   toGitUnifiedDiffTarget,
 } from "./target";
 export type {
+  GitBranch,
+  GitBranchListOptions,
+  GitBranchScope,
   GitClientOptions,
+  GitCommit,
+  GitCommitQuery,
+  GitCommitReviewMode,
   GitFileSection,
   GitFileStatus,
   GitFileTarget,
   GitResult,
+  GitReviewResolution,
+  GitReviewStatus,
+  GitReviewTarget,
   GitScopedFile,
   GitStatusFile,
   GitUnifiedDiffTarget,
@@ -33,6 +74,11 @@ export type {
 export class Git {
   readonly cwd?: string;
   readonly executor: GitExecutorLike;
+  readonly branch: GitBranchService;
+  readonly commit: GitCommitService;
+  readonly diff: GitDiffService;
+  readonly review: GitReviewService;
+  readonly status: GitStatusService;
   private repoContextPromise?: Promise<GitResult<RepoContext | null>>;
 
   constructor(options: GitClientOptions = {}) {
@@ -44,6 +90,26 @@ export class Git {
         maxConcurrency: options.maxConcurrency,
         timeoutMs: options.timeoutMs,
       });
+    this.branch = new GitBranchService({
+      executor: this.executor,
+      getExecutorCwd: () => this.getExecutorCwd(),
+    });
+    this.commit = new GitCommitService({
+      executor: this.executor,
+      getExecutorCwd: () => this.getExecutorCwd(),
+    });
+    this.diff = new GitDiffService({
+      executor: this.executor,
+      getExecutorCwd: () => this.getExecutorCwd(),
+    });
+    this.review = new GitReviewService({
+      executor: this.executor,
+      getExecutorCwd: () => this.getExecutorCwd(),
+    });
+    this.status = new GitStatusService({
+      executor: this.executor,
+      getExecutorCwd: () => this.getExecutorCwd(),
+    });
   }
 
   async getRepoRoot(): Promise<GitResult<string>> {
@@ -88,81 +154,6 @@ export class Git {
       });
 
     return this.repoContextPromise;
-  }
-
-  async getRepoStatus(): Promise<GitResult<GitRepoStatus>> {
-    const cwd = await this.getExecutorCwd();
-
-    const output = await this.executor.runText(
-      ["status", "--porcelain=v1", "-z", "--branch", "--untracked-files=all"],
-      {
-        cwd,
-        dedupe: true,
-      },
-    );
-
-    if (Result.isError(output)) return Result.err(output.error);
-
-    return gitStatusParser
-      .parseRepoStatus(output.value, true)
-      .map((parsed) => gitStatusParser.toRepoStatus(parsed));
-  }
-
-  async getUnifiedDiff(file: {
-    path: string;
-    indexStatus: string;
-    workingTreeStatus: string;
-    section?: GitFileSection;
-  }): Promise<GitResult<string>> {
-    const cwd = await this.getExecutorCwd();
-
-    const options = {
-      cwd,
-      dedupe: true,
-      successExitCodes: [0, 1],
-    } as const;
-
-    if (file.indexStatus === "?" || file.workingTreeStatus === "?") {
-      return this.executor.runText(
-        [
-          "diff",
-          "--no-index",
-          "--unified=999999999",
-          "--no-ext-diff",
-          "--",
-          "/dev/null",
-          file.path,
-        ],
-        options,
-      );
-    }
-
-    if (
-      file.section === "conflicts" ||
-      file.indexStatus === "U" ||
-      file.workingTreeStatus === "U"
-    ) {
-      return this.executor.runText(
-        ["diff", "--cc", "--unified=999999999", "--no-ext-diff", "--", file.path],
-        options,
-      );
-    }
-
-    // Section disambiguates partially staged files that show up in both sidebar lists.
-    if (
-      file.section === "staged" ||
-      (file.indexStatus !== " " && file.workingTreeStatus === " ")
-    ) {
-      return this.executor.runText(
-        ["diff", "--cached", "--unified=999999999", "--no-ext-diff", "--", file.path],
-        options,
-      );
-    }
-
-    return this.executor.runText(
-      ["diff", "--unified=999999999", "--no-ext-diff", "--", file.path],
-      options,
-    );
   }
 }
 
