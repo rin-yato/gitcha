@@ -40,7 +40,7 @@ export function Select<T>(props: SelectProps<T>) {
     () => props.skipFilter !== true && props.renderFilter !== false,
   );
 
-  const [inputTarget, setInputTarget] = createSignal<InputRenderable | undefined>(undefined);
+  const [_inputTarget, setInputTarget] = createSignal<InputRenderable | undefined>(undefined);
   const [store, setStore] = createStore<SelectState>({
     selected: 0,
     filter: "",
@@ -126,9 +126,6 @@ export function Select<T>(props: SelectProps<T>) {
   });
 
   useBindings<InputRenderable>(() => ({
-    target: inputTarget,
-    targetMode: "focus",
-
     commands: [
       ...(props.onClose
         ? [

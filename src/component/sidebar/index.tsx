@@ -1,23 +1,27 @@
 import { useBindings } from "@opentui/keymap/solid";
 
-import { createEffect, createMemo, For, onCleanup, onMount, Show } from "solid-js";
+import { createMemo, For, onCleanup, onMount, Show } from "solid-js";
 
 import { $dialog } from "@/store/dialog.store";
 import { $exCommand } from "@/store/ex-command.store";
 import { $git } from "@/store/git.store";
+import { $review } from "@/store/review.store";
 import { $sidebar } from "@/store/sidebar";
 import { $theme } from "@/store/theme.store";
 
-import { isGitFileTargetEqual } from "@/lib/git";
-
 import { StatusSection } from "./status-section";
-import { collectSidebarFiles, createSidebarSectionViews } from "./utils";
+import {
+  collectReviewFiles,
+  collectSidebarFiles,
+  createReviewSectionViews,
+  createSidebarSectionViews,
+} from "./utils";
 
 export function Sidebar() {
   // Simple git polling
   onMount(() => {
     const interval = setInterval(() => {
-      void $git.action.refresh();
+      if (!$review.active) void $git.action.refresh();
     }, 1000);
 
     void $git.action.refresh();
@@ -27,10 +31,24 @@ export function Sidebar() {
     });
   });
 
-  const allSidebarFiles = createMemo(() => collectSidebarFiles($git.status, $sidebar.viewMode));
+  const allSidebarFiles = createMemo(() =>
+    $review.active
+      ? collectReviewFiles($review.status?.files ?? null, $sidebar.viewMode)
+      : collectSidebarFiles($git.status, $sidebar.viewMode),
+  );
   const sidebarTargets = createMemo(() => allSidebarFiles().map((entry) => entry.target));
   const sections = createMemo(() =>
-    createSidebarSectionViews($git.status, $sidebar.viewMode, $sidebar.collapsedDirectoryKeys),
+    $review.active
+      ? createReviewSectionViews(
+          $review.status?.files ?? null,
+          $sidebar.viewMode,
+          $sidebar.collapsedDirectoryKeys,
+        )
+      : createSidebarSectionViews(
+          $git.status,
+          $sidebar.viewMode,
+          $sidebar.collapsedDirectoryKeys,
+        ),
   );
 
   useBindings(() => ({
@@ -67,9 +85,9 @@ export function Sidebar() {
         },
       },
       {
-        name: "sidebar.view.toggle",
+        name: "review.exit",
         run() {
-          $sidebar.action.toggleViewMode();
+          if ($review.active) $review.action.stop();
         },
       },
     ],
@@ -81,30 +99,13 @@ export function Sidebar() {
       { key: "k", cmd: "sidebar.select-prev", desc: "Previous file" },
       { key: "]", cmd: "sidebar.width.increase", desc: "Widen sidebar" },
       { key: "[", cmd: "sidebar.width.decrease", desc: "Shrink sidebar" },
-      { key: "v", cmd: "sidebar.view.toggle", desc: "Toggle list mode" },
       { key: "\\", cmd: "sidebar.toggle", desc: "Toggle sidebar" },
+      { key: "escape", cmd: "review.exit", desc: "Exit review" },
     ],
   }));
 
-  const hasChanges = createMemo(() => allSidebarFiles().length > 0);
-
-  createEffect(() => {
-    const files = allSidebarFiles().map((entry) => entry.target);
-
-    if (files.length === 0) {
-      if ($sidebar.selectedTarget !== null) {
-        $sidebar.action.setSelectedTarget(null);
-      }
-      return;
-    }
-
-    if (!files.some((file) => isGitFileTargetEqual(file, $sidebar.selectedTarget))) {
-      $sidebar.action.setSelectedTarget(files[0] ?? null);
-    }
-  });
-
   return (
-    <Show when={$sidebar.open && hasChanges()}>
+    <Show when={$sidebar.open}>
       <box
         backgroundColor={$theme.token.bg}
         width={$sidebar.width}
@@ -120,7 +121,9 @@ export function Sidebar() {
           paddingLeft={1}
         >
           <text fg={$theme.token.fg} attributes={1}>
-            Gitcha
+            {$review.active
+              ? `Review: ${$review.status?.resolution.baseLabel ?? "..."}`
+              : "Gitcha"}
           </text>
         </box>
 
@@ -134,8 +137,8 @@ export function Sidebar() {
           flexGrow={1}
           flexShrink={0}
         >
-          <Show when={$git.error}>
-            <text fg="red">{$git.error}</text>
+          <Show when={$review.active ? $review.error : $git.error}>
+            <text fg="red">{$review.active ? $review.error : $git.error}</text>
           </Show>
 
           <For each={sections()}>

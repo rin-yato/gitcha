@@ -3,6 +3,7 @@ import { createSidebarDirectoryKey } from "@/store/sidebar";
 import { createGitScopedFile } from "@/lib/git";
 import { buildFileTreeSnapshot } from "@/lib/git/status";
 import type {
+  CategorizedFiles,
   FileTreeNode,
   GitFileSection,
   GitRepoStatus,
@@ -184,6 +185,67 @@ export function collectSidebarFiles(
   mode: SidebarListMode = "flat",
 ): GitScopedFile[] {
   const sections = createSidebarSections(status);
+
+  if (mode === "tree") {
+    return sections.flatMap((section) =>
+      buildFileTreeSnapshot(section.files).orderedFiles.map((file) =>
+        createGitScopedFile(section.kind, file),
+      ),
+    );
+  }
+
+  return sections.flatMap((section) =>
+    section.files.map((file) => createGitScopedFile(section.kind, file)),
+  );
+}
+
+export function createReviewSections(files: CategorizedFiles | null): SidebarSectionModel[] {
+  if (!files) return [];
+
+  const allFiles = [...files.conflicted, ...files.staged, ...files.changes, ...files.untracked];
+
+  if (allFiles.length === 0) return [];
+
+  return [
+    {
+      title: "Review",
+      kind: "review",
+      files: allFiles,
+      count: allFiles.length,
+    },
+  ];
+}
+
+export function createReviewSectionViews(
+  files: CategorizedFiles | null,
+  mode: SidebarListMode = "flat",
+  collapsedDirectoryKeys: readonly string[] = [],
+): SidebarSectionViewModel[] {
+  const sections = createReviewSections(files);
+
+  if (mode === "flat") {
+    return sections.map((section) => ({
+      ...section,
+      rows: buildFlatRows(section.kind, section.files),
+    }));
+  }
+
+  const collapsedDirectoryKeySet = new Set(collapsedDirectoryKeys);
+
+  return sections.map((section) => {
+    const snapshot = buildFileTreeSnapshot(section.files);
+    return {
+      ...section,
+      rows: buildTreeRows(section.kind, snapshot.tree.children, collapsedDirectoryKeySet),
+    };
+  });
+}
+
+export function collectReviewFiles(
+  files: CategorizedFiles | null,
+  mode: SidebarListMode = "flat",
+): GitScopedFile[] {
+  const sections = createReviewSections(files);
 
   if (mode === "tree") {
     return sections.flatMap((section) =>

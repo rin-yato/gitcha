@@ -11,6 +11,7 @@ import { parsers } from "@/lib/treesitter/parsers";
 
 import { DiffPane } from "@/component/diff-pane";
 import { ExCommandPrompt } from "@/component/ex-command-prompt";
+import { ModeSelect } from "@/component/review/mode-select";
 import { Sidebar } from "@/component/sidebar";
 import { Dialog } from "@/component/ui/dialog";
 import { Toast } from "@/component/ui/toast";
@@ -29,12 +30,23 @@ function AppKeymapBindings() {
           renderer.destroy();
         },
       },
+      {
+        name: "review.open",
+        run() {
+          $dialog.action.show({ component: ModeSelect });
+        },
+      },
     ],
     bindings: [
       {
         key: "q",
         cmd: "app.quit",
         desc: "Quit app",
+      },
+      {
+        key: "v",
+        cmd: "review.open",
+        desc: "Review",
       },
     ],
   }));

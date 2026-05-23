@@ -25,7 +25,7 @@ export interface GitStatusFile {
   originalPath?: string;
 }
 
-export type GitFileSection = "conflicts" | "staged" | "changes";
+export type GitFileSection = "conflicts" | "staged" | "changes" | "review";
 
 export interface GitFileTarget {
   path: string;

@@ -34,8 +34,10 @@ function selectByOffset(files: GitFileTarget[], offset: number): GitFileTarget |
   const currentIndex = files.findIndex((file) =>
     isGitFileTargetEqual(file, sidebarState.selectedTarget),
   );
-  const startIndex = currentIndex === -1 ? 0 : currentIndex;
-  const nextIndex = (startIndex + offset + files.length) % files.length;
+
+  if (currentIndex === -1) return files[0] ?? null;
+
+  const nextIndex = (currentIndex + offset + files.length) % files.length;
 
   return files[nextIndex] ?? null;
 }
