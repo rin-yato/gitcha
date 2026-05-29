@@ -1,5 +1,3 @@
-import { createSidebarDirectoryKey } from "@/store/sidebar";
-
 import { createGitScopedFile } from "@/lib/git";
 import { buildFileTreeSnapshot } from "@/lib/git/status";
 import type {
@@ -10,6 +8,8 @@ import type {
   GitScopedFile,
   GitStatusFile,
 } from "@/lib/git/types";
+
+import { createSidebarDirectoryKey } from "@/context/sidebar";
 
 export interface SidebarSectionModel {
   title: string;

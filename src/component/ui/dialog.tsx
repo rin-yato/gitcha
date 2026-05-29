@@ -2,14 +2,15 @@ import { Dynamic } from "@opentui/solid";
 
 import { createMemo, Show } from "solid-js";
 
-import { $dialog, topDialog } from "@/store/dialog.store";
+import { topDialog, useDialog } from "@/context/dialog";
 
 export function Dialog() {
-  const currentDialog = createMemo(() => topDialog($dialog.stack));
+  const dialog = useDialog();
+  const currentDialog = createMemo(() => topDialog(dialog.state.stack));
 
   return (
     <Show when={currentDialog()}>
-      {(dialog) => (
+      {(entry) => (
         <box
           id="dialog-backdrop"
           position="absolute"
@@ -23,11 +24,11 @@ export function Dialog() {
           backgroundColor="#00000088"
           onMouseUp={(event) => {
             if (event.target?.id === "dialog-backdrop") {
-              $dialog.action.close();
+              dialog.close();
             }
           }}
         >
-          <Dynamic component={dialog().component} />
+          <Dynamic component={entry().component} />
         </box>
       )}
     </Show>

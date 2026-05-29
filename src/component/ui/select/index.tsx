@@ -10,8 +10,6 @@ import { useTerminalDimensions } from "@opentui/solid";
 import { batch, createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { createStore } from "solid-js/store";
 
-import { $theme } from "@/store/theme.store";
-
 import { getScrollAcceleration } from "@/lib/scroll";
 
 import { isDeepEqual } from "remeda";
@@ -20,6 +18,7 @@ import { getSelectListHeight, getSelectRowsHeight } from "./height";
 import { buildRowsFromGroups, getFilteredOptions, groupFilteredOptions } from "./logic";
 import { Option } from "./option";
 import type { SelectOption, SelectProps, SelectRef, SelectState } from "./types";
+import { useTheme } from "@/context/theme";
 
 export { getSelectListHeight, getSelectRowsHeight } from "./height";
 export { buildSelectRows } from "./logic";
@@ -34,6 +33,7 @@ export type {
 } from "./types";
 
 export function Select<T>(props: SelectProps<T>) {
+  const theme = useTheme();
   const scrollAcceleration = getScrollAcceleration();
   const dimensions = useTerminalDimensions();
   const filterEnabled = createMemo(
@@ -247,11 +247,11 @@ export function Select<T>(props: SelectProps<T>) {
     <box gap={1} height={props.height}>
       <box paddingLeft={3} paddingRight={3}>
         <box flexDirection="row" justifyContent="space-between">
-          <text fg={$theme.token.fg} attributes={TextAttributes.BOLD}>
+          <text fg={theme.state.token.fg} attributes={TextAttributes.BOLD}>
             {props.title}
           </text>
           <Show when={props.onClose}>
-            <text fg={$theme.token.fgMuted} onMouseUp={() => props.onClose?.()}>
+            <text fg={theme.state.token.fgMuted} onMouseUp={() => props.onClose?.()}>
               esc
             </text>
           </Show>
@@ -267,11 +267,11 @@ export function Select<T>(props: SelectProps<T>) {
                   props.onFilter?.(value);
                 });
               }}
-              cursorColor={$theme.token.accent}
-              focusedTextColor={$theme.token.fgMuted}
-              focusedBackgroundColor={$theme.token.surface}
+              cursorColor={theme.state.token.accent}
+              focusedTextColor={theme.state.token.fgMuted}
+              focusedBackgroundColor={theme.state.token.surface}
               placeholder={props.placeholder ?? "Search"}
-              placeholderColor={$theme.token.fgMuted}
+              placeholderColor={theme.state.token.fgMuted}
             />
           </box>
         </Show>
@@ -280,7 +280,7 @@ export function Select<T>(props: SelectProps<T>) {
         when={grouped().length > 0}
         fallback={
           <box paddingLeft={4} paddingRight={4} paddingTop={1}>
-            <text fg={$theme.token.fgMuted}>No results found</text>
+            <text fg={theme.state.token.fgMuted}>No results found</text>
           </box>
         }
       >
@@ -303,7 +303,7 @@ export function Select<T>(props: SelectProps<T>) {
                     <Show
                       when={row.categoryView}
                       fallback={
-                        <text fg={$theme.token.accent} attributes={TextAttributes.BOLD}>
+                        <text fg={theme.state.token.accent} attributes={TextAttributes.BOLD}>
                           {row.label}
                         </text>
                       }
@@ -339,7 +339,7 @@ export function Select<T>(props: SelectProps<T>) {
                   }}
                   backgroundColor={
                     active()
-                      ? (row.option.bg ?? $theme.token.accent)
+                      ? (row.option.bg ?? theme.state.token.accent)
                       : RGBA.fromInts(0, 0, 0, 0)
                   }
                   paddingLeft={current() || row.option.gutter ? 1 : 3}

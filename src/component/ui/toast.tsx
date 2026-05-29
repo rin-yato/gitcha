@@ -1,7 +1,7 @@
-import { Show } from "solid-js";
+import { createEffect, onCleanup, Show } from "solid-js";
 
-import { $theme } from "@/store/theme.store";
-import { $toast } from "@/store/toast.store";
+import { useTheme } from "@/context/theme";
+import { useToast } from "@/context/toast";
 
 const VARIANT_COLORS = {
   success: "success",
@@ -11,9 +11,25 @@ const VARIANT_COLORS = {
 } as const;
 
 export function Toast() {
+  const toast = useToast();
+  const theme = useTheme();
+  let autoClearTimer: ReturnType<typeof setTimeout> | null = null;
+
+  createEffect(() => {
+    const current = toast.state.current;
+    if (current) {
+      autoClearTimer = setTimeout(() => {
+        toast.clear();
+      }, current.duration ?? 3000);
+    }
+    onCleanup(() => {
+      if (autoClearTimer) clearTimeout(autoClearTimer);
+    });
+  });
+
   return (
-    <Show when={$toast.current}>
-      {(toast) => (
+    <Show when={toast.state.current}>
+      {(entry) => (
         <box
           position="absolute"
           top={2}
@@ -25,15 +41,15 @@ export function Toast() {
           paddingBottom={1}
           border={["left", "right"]}
           borderStyle="heavy"
-          borderColor={$theme.token[VARIANT_COLORS[toast().variant]]}
-          backgroundColor={$theme.token.surface}
+          borderColor={theme.state.token[VARIANT_COLORS[entry().variant]]}
+          backgroundColor={theme.state.token.surface}
           zIndex={4000}
         >
           <box flexDirection="column">
-            <text fg={$theme.token.fg}>{toast().title}</text>
+            <text fg={theme.state.token.fg}>{entry().title}</text>
 
-            <Show when={toast().description}>
-              {(description) => <text fg={$theme.token.fgMuted}>{description()}</text>}
+            <Show when={entry().description}>
+              {(description) => <text fg={theme.state.token.fgMuted}>{description()}</text>}
             </Show>
           </box>
         </box>

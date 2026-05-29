@@ -1,9 +1,5 @@
 import { createSignal, onMount } from "solid-js";
 
-import { $dialog } from "@/store/dialog.store";
-import { $review } from "@/store/review.store";
-import { $theme } from "@/store/theme.store";
-
 import { git } from "@/lib/git";
 import type { GitCommit, GitReviewTarget } from "@/lib/git/types";
 
@@ -11,6 +7,10 @@ import { Select } from "@/component/ui/select";
 import type { SelectOption } from "@/component/ui/select/types";
 
 import { Result } from "better-result";
+
+import { useDialog } from "@/context/dialog";
+import { useReview } from "@/context/review";
+import { useTheme } from "@/context/theme";
 
 interface CommitPickerProps {
   mode: "single-commit" | "base-commit";
@@ -28,6 +28,9 @@ function toOptions(commits: GitCommit[]): SelectOption<GitCommit>[] {
 }
 
 export function CommitPicker(props: CommitPickerProps) {
+  const review = useReview();
+  const dialog = useDialog();
+  const theme = useTheme();
   const [options, setOptions] = createSignal<SelectOption<GitCommit>[]>([]);
 
   let lastKey = 0;
@@ -58,18 +61,18 @@ export function CommitPicker(props: CommitPickerProps) {
         ? { mode: "single-commit", ref: commit.ref, label: commit.shortRef }
         : { mode: "base-commit", ref: commit.ref, label: commit.shortRef };
 
-    $review.action.start(target);
-    $dialog.action.clear();
+    review.start(target);
+    dialog.clear();
   }
 
   return (
-    <box width={70} backgroundColor={$theme.token.surface} padding={1}>
+    <box width={70} backgroundColor={theme.state.token.surface} padding={1}>
       <Select
         height={25}
         title="Select Commit"
         placeholder="Search commits..."
         options={options()}
-        onClose={() => $dialog.action.close()}
+        onClose={() => dialog.close()}
         onFilter={(value) => loadCommits(value)}
         onSelect={handleSelect}
       />

@@ -13,7 +13,7 @@
 ## Repository Map
 
 - `src/component/` - UI components and feature surfaces.
-- `src/store/` - shared SolidJS stores and reactive state (replaced `src/context/`).
+- `src/context/` - shared SolidJS stores and reactive state, backed by Context API providers and hooks.
 - `src/lib/` - git/fs/tree-sitter utilities and other non-UI logic.
 - `src/lib/themes/` - theme data and theme types (was `src/themes/`).
 - `scripts/` - build and install scripts.

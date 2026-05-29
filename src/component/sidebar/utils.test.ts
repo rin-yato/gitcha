@@ -1,10 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
-import { createSidebarDirectoryKey } from "@/store/sidebar";
-
 import type { GitRepoStatus, GitStatusFile } from "@/lib/git/types";
 
 import { collectSidebarFiles, createSidebarRows } from "./utils";
+import { createSidebarDirectoryKey } from "@/context/sidebar";
 
 function createStatus(files: GitStatusFile[]): GitRepoStatus {
   return {

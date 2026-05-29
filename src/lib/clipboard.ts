@@ -1,7 +1,5 @@
 import type { CliRenderer } from "@opentui/core";
 
-import { $toast } from "@/store/toast.store";
-
 import { Result } from "better-result";
 import { spawn } from "child_process";
 
@@ -60,16 +58,20 @@ function trySpawnClipboard(
   });
 }
 
-export async function copySelection(renderer: CliRenderer): Promise<void> {
+export async function copySelection(
+  renderer: CliRenderer,
+  onSuccess: () => void,
+  onError: (message: string) => void,
+): Promise<void> {
   const selectedText = renderer.getSelection()?.getSelectedText();
   if (!selectedText) return;
 
   const result = await copyToClipboard(selectedText, renderer.copyToClipboardOSC52);
 
   if (Result.isOk(result)) {
-    $toast.action.success("Copied to clipboard");
+    onSuccess();
   } else {
-    $toast.action.error(result.error.message);
+    onError(result.error.message);
   }
 
   renderer.clearSelection();

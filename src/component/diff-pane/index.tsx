@@ -1,10 +1,5 @@
 import { createMemo, createResource, Match, Switch } from "solid-js";
 
-import { $git } from "@/store/git.store";
-import { $review } from "@/store/review.store";
-import { $sidebar } from "@/store/sidebar";
-import { $theme } from "@/store/theme.store";
-
 import { findGitScopedFile, git, toGitUnifiedDiffTarget } from "@/lib/git";
 
 import { collectReviewFiles, collectSidebarFiles } from "@/component/sidebar/utils";
@@ -12,21 +7,29 @@ import { collectReviewFiles, collectSidebarFiles } from "@/component/sidebar/uti
 import { Result } from "better-result";
 
 import { Diff } from "./diff";
+import { useGit } from "@/context/git";
+import { useReview } from "@/context/review";
+import { useSidebar } from "@/context/sidebar";
+import { useTheme } from "@/context/theme";
 
 export function DiffPane() {
+  const review = useReview();
+  const sidebar = useSidebar();
+  const gitStore = useGit();
+
   const selectedFile = createMemo(() => {
-    const files = $review.active
-      ? collectReviewFiles($review.status?.files ?? null)
-      : collectSidebarFiles($git.status);
-    return findGitScopedFile(files, $sidebar.selectedTarget);
+    const files = review.state.active
+      ? collectReviewFiles(review.state.status?.files ?? null)
+      : collectSidebarFiles(gitStore.state.status);
+    return findGitScopedFile(files, sidebar.state.selectedTarget);
   });
 
   const [diffResource] = createResource(
     () => selectedFile(),
     async (file) => {
       if (!file) return undefined;
-      if ($review.active) {
-        const target = $review.target;
+      if (review.state.active) {
+        const target = review.state.target;
         if (!target) return undefined;
         return git.review.diff(target, toGitUnifiedDiffTarget(file)).then(Result.unwrap);
       }
@@ -58,11 +61,14 @@ const ASCII_ART = `
 `;
 
 function BlankView() {
+  const review = useReview();
+  const theme = useTheme();
+
   return (
     <box width="100%" height="100%" alignItems="center" justifyContent="center" gap={1}>
-      <text fg={$theme.token.fgMuted}>{ASCII_ART}</text>
-      <text fg={$theme.token.fgMuted}>
-        {$review.active ? "no changes in this review" : "worktree is clean"}
+      <text fg={theme.state.token.fgMuted}>{ASCII_ART}</text>
+      <text fg={theme.state.token.fgMuted}>
+        {review.state.active ? "no changes in this review" : "worktree is clean"}
       </text>
     </box>
   );

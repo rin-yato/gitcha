@@ -4,12 +4,6 @@ import { useRenderer } from "@opentui/solid";
 
 import { batch, createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
 
-import { $dialog } from "@/store/dialog.store";
-import { $exCommand } from "@/store/ex-command.store";
-import { $git } from "@/store/git.store";
-import { $theme } from "@/store/theme.store";
-import { $toast } from "@/store/toast.store";
-
 import { git } from "@/lib/git";
 import {
   getGitExCommandInput,
@@ -40,10 +34,22 @@ import {
 import { GitOutputView } from "./git-output-view";
 import { PromptInput } from "./prompt-input";
 import { SuggestionList, type SuggestionRow } from "./suggestion-list";
+import { useDialog } from "@/context/dialog";
+import { useExCommand } from "@/context/ex-command";
+import { useGit } from "@/context/git";
+import { useSidebar } from "@/context/sidebar";
+import { useTheme } from "@/context/theme";
+import { useToast } from "@/context/toast";
 
 export function ExCommandPrompt() {
   const renderer = useRenderer();
   const manager = useKeymap();
+  const dialog = useDialog();
+  const exCommand = useExCommand();
+  const theme = useTheme();
+  const gitStore = useGit();
+  const toast = useToast();
+  const sidebar = useSidebar();
 
   let inputRef: InputRenderable | undefined;
   let outputScrollRef: ScrollBoxRenderable | undefined;
@@ -71,7 +77,7 @@ export function ExCommandPrompt() {
 
   const close = () => {
     batch(() => {
-      $exCommand.action.close();
+      exCommand.close();
       setValue("");
       setSelection(0);
       setGitOutput(null);
@@ -95,11 +101,11 @@ export function ExCommandPrompt() {
   };
 
   const open = () => {
-    if ($exCommand.visible) return;
+    if (exCommand.state.visible) return;
 
     restoreTarget = renderer.currentFocusedRenderable ?? undefined;
     resetPromptState();
-    $exCommand.action.open();
+    exCommand.open();
   };
 
   const syncInput = (nextValue: string) => {
@@ -131,22 +137,28 @@ export function ExCommandPrompt() {
     });
 
     if (Result.isOk(result)) {
-      await $git.action.refresh();
+      await gitStore.refresh();
       setGitOutput((current) => completeGitOutput(current, command, result.value.output));
-      $toast.action.success(`${command} completed`);
+      toast.success(`${command} completed`);
       return;
     }
 
     if (!isGitExCommandParseError(result.error)) {
-      await $git.action.refresh();
+      await gitStore.refresh();
     }
 
     setGitOutput((current) => failGitOutput(current, command, result.error));
-    $toast.action.error(`${command} failed`);
+    toast.error(`${command} failed`);
   };
 
   const offExCommands = manager.registerLayer({
-    commands: createAppExCommands({ renderer, executeGitCommand }).map((command) => ({
+    commands: createAppExCommands({
+      renderer,
+      executeGitCommand,
+      refresh: () => gitStore.refresh(),
+      notify: (msg) => toast.success(msg),
+      toggleSidebar: () => sidebar.toggle(),
+    }).map((command) => ({
       ...command,
       namespace: "excommands",
     })),
@@ -237,18 +249,18 @@ export function ExCommandPrompt() {
 
     if (!result.ok) {
       if (result.reason === "not-found") {
-        $toast.action.error(`Unknown ex command ${parsed.name}`);
+        toast.error(`Unknown ex command ${parsed.name}`);
         return;
       }
 
       if (result.reason === "invalid-args") {
-        $toast.action.warning(
+        toast.warning(
           `Usage: ${result.command ? (getExPromptCommandText(result.command, "usage") ?? parsed.name) : parsed.name}`,
         );
         return;
       }
 
-      $toast.action.error(`Command ${parsed.name} failed`);
+      toast.error(`Command ${parsed.name} failed`);
       return;
     }
 
@@ -258,7 +270,7 @@ export function ExCommandPrompt() {
   };
 
   useBindings(() => ({
-    enabled: () => $dialog.stack.length === 0 && !$exCommand.visible,
+    enabled: () => dialog.state.stack.length === 0 && !exCommand.state.visible,
     commands: [
       {
         name: "ex-command.open",
@@ -271,7 +283,7 @@ export function ExCommandPrompt() {
   useBindings<InputRenderable>(() => ({
     target,
     targetMode: "focus",
-    enabled: () => $exCommand.visible,
+    enabled: () => exCommand.state.visible,
     commands: [
       { name: "ex-command.close", run: closeAndRestore },
       { name: "ex-command.prev", run: () => moveSelection(-1) },
@@ -311,7 +323,7 @@ export function ExCommandPrompt() {
   });
 
   createEffect(() => {
-    if (!$exCommand.visible) return;
+    if (!exCommand.state.visible) return;
 
     const input = target();
     if (!input || input.isDestroyed) return;
@@ -333,7 +345,7 @@ export function ExCommandPrompt() {
   });
 
   return (
-    <Show when={$exCommand.visible}>
+    <Show when={exCommand.state.visible}>
       <box
         id="ex-command-prompt-backdrop"
         position="absolute"
@@ -354,16 +366,16 @@ export function ExCommandPrompt() {
         <box
           id="ex-command-prompt-shell"
           width={EX_PROMPT_WIDTH}
-          backgroundColor={$theme.token.surface}
+          backgroundColor={theme.state.token.surface}
           flexDirection="column"
           border
           borderStyle="single"
-          borderColor={`${$theme.token.accent}cc`}
+          borderColor={`${theme.state.token.accent}cc`}
         >
           <box
             id="ex-command-prompt"
             width={EX_PROMPT_BODY_WIDTH}
-            backgroundColor={$theme.token.surface}
+            backgroundColor={theme.state.token.surface}
             paddingX={1}
             paddingY={0}
             flexDirection="column"
@@ -391,7 +403,7 @@ export function ExCommandPrompt() {
             />
           </box>
 
-          <box border={["top"]} borderColor={`${$theme.token.border}66`}>
+          <box border={["top"]} borderColor={`${theme.state.token.border}66`}>
             <Show
               when={gitOutput()}
               fallback={

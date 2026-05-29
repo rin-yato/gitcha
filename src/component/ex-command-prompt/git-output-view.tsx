@@ -2,10 +2,10 @@ import { type ScrollBoxRenderable, TextAttributes } from "@opentui/core";
 
 import { type Accessor, For } from "solid-js";
 
-import { $theme } from "@/store/theme.store";
-
 import { EX_PROMPT_BODY_WIDTH, EX_PROMPT_OUTPUT_ROWS } from "./constants";
 import type { GitOutputRow } from "./git-output";
+import type { ThemeState } from "@/context/theme";
+import { useTheme } from "@/context/theme";
 
 type GitOutputViewProps = {
   rows: Accessor<GitOutputRow[]>;
@@ -14,13 +14,15 @@ type GitOutputViewProps = {
 };
 
 export function GitOutputView(props: GitOutputViewProps) {
+  const theme = useTheme();
+
   return (
     <scrollbox
       id="ex-command-prompt-output"
       width={EX_PROMPT_BODY_WIDTH}
       height={props.height()}
       maxHeight={EX_PROMPT_OUTPUT_ROWS}
-      backgroundColor={$theme.token.surface}
+      backgroundColor={theme.state.token.surface}
       scrollX={false}
       scrollY={true}
       horizontalScrollbarOptions={{ visible: false }}
@@ -34,7 +36,7 @@ export function GitOutputView(props: GitOutputViewProps) {
         {(row, index) => (
           <text
             id={index() === 0 ? "ex-command-prompt-output-row" : undefined}
-            fg={getOutputRowColor(row)}
+            fg={getOutputRowColor(row, theme.state.token)}
             height={1}
             wrapMode="word"
             attributes={row.bold ? TextAttributes.BOLD : undefined}
@@ -47,8 +49,8 @@ export function GitOutputView(props: GitOutputViewProps) {
   );
 }
 
-function getOutputRowColor(row: GitOutputRow): string {
-  if (row.stream === "stderr") return $theme.token.warning;
-  if (row.bold) return $theme.token.accent;
-  return $theme.token.fg;
+function getOutputRowColor(row: GitOutputRow, token: ThemeState["token"]): string {
+  if (row.stream === "stderr") return token.warning;
+  if (row.bold) return token.accent;
+  return token.fg;
 }

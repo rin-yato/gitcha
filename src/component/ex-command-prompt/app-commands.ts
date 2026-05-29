@@ -2,10 +2,6 @@ import type { CliRenderer, KeyEvent, Renderable } from "@opentui/core";
 import type { Command } from "@opentui/keymap";
 import type { ExCommandPayload } from "@opentui/keymap/addons/opentui";
 
-import { $git } from "@/store/git.store";
-import { $sidebar } from "@/store/sidebar";
-import { $toast } from "@/store/toast.store";
-
 import type { ExArgCount } from "./ex-command-input";
 
 export type AppExCommand = Command<Renderable, KeyEvent, ExCommandPayload> & {
@@ -21,6 +17,9 @@ export type AppExCommand = Command<Renderable, KeyEvent, ExCommandPayload> & {
 type CreateAppExCommandsOptions = {
   renderer: CliRenderer;
   executeGitCommand: (raw: string) => Promise<void>;
+  refresh: () => Promise<unknown>;
+  notify: (message: string) => void;
+  toggleSidebar: () => void;
 };
 
 export function createAppExCommands(options: CreateAppExCommandsOptions): AppExCommand[] {
@@ -46,8 +45,8 @@ export function createAppExCommands(options: CreateAppExCommandsOptions): AppExC
       category: "Git",
       usage: ":refresh",
       async run() {
-        await $git.action.refresh();
-        $toast.action.success("Refreshed git status");
+        await options.refresh();
+        options.notify("Refreshed git status");
       },
     },
     {
@@ -59,7 +58,7 @@ export function createAppExCommands(options: CreateAppExCommandsOptions): AppExC
       category: "View",
       usage: ":sidebar",
       run() {
-        $sidebar.action.toggle();
+        options.toggleSidebar();
       },
     },
     {

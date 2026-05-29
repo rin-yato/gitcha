@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { clearDialog, closeDialog, pushDialog, replaceDialog, topDialog } from "./dialog.store";
+import { clearDialog, closeDialog, pushDialog, replaceDialog, topDialog } from "./dialog";
 
 const first = { component: (() => null) as never };
 const second = { component: (() => null) as never };

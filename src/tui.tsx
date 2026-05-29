@@ -2,9 +2,6 @@ import { addDefaultParsers } from "@opentui/core";
 import { KeymapProvider, useBindings } from "@opentui/keymap/solid";
 import { useRenderer, useSelectionHandler } from "@opentui/solid";
 
-import { $dialog } from "@/store/dialog.store";
-import { $exCommand } from "@/store/ex-command.store";
-
 import { copySelection } from "@/lib/clipboard";
 import { createAppKeymap } from "@/lib/keymap";
 import { parsers } from "@/lib/treesitter/parsers";
@@ -16,13 +13,32 @@ import { Sidebar } from "@/component/sidebar";
 import { Dialog } from "@/component/ui/dialog";
 import { Toast } from "@/component/ui/toast";
 
+import { DialogProvider, useDialog } from "@/context/dialog";
+import { ExCommandProvider, useExCommand } from "@/context/ex-command";
+import { GitProvider } from "@/context/git";
+import { ReviewProvider } from "@/context/review";
+import { SidebarProvider } from "@/context/sidebar";
+import { ThemeProvider } from "@/context/theme";
+import { ToastProvider, useToast } from "@/context/toast";
+
 addDefaultParsers(parsers);
 
 function AppKeymapBindings() {
   const renderer = useRenderer();
+  const dialog = useDialog();
+  const exCommand = useExCommand();
+  const toast = useToast();
+
+  useSelectionHandler(() => {
+    copySelection(
+      renderer,
+      () => toast.success("Copied to clipboard"),
+      (msg) => toast.error(msg),
+    );
+  });
 
   useBindings(() => ({
-    enabled: () => !$exCommand.visible && $dialog.stack.length === 0,
+    enabled: () => !exCommand.state.visible && dialog.state.stack.length === 0,
     commands: [
       {
         name: "app.quit",
@@ -33,7 +49,7 @@ function AppKeymapBindings() {
       {
         name: "review.open",
         run() {
-          $dialog.action.show({ component: ModeSelect });
+          dialog.show({ component: ModeSelect });
         },
       },
     ],
@@ -56,22 +72,32 @@ export function TUI() {
   const renderer = useRenderer();
   const keymap = createAppKeymap(renderer);
 
-  useSelectionHandler(() => {
-    copySelection(renderer);
-  });
-
   return (
     <KeymapProvider keymap={keymap}>
-      <AppKeymapBindings />
+      <ThemeProvider>
+        <GitProvider>
+          <ReviewProvider>
+            <SidebarProvider>
+              <DialogProvider>
+                <ToastProvider>
+                  <ExCommandProvider>
+                    <AppKeymapBindings />
 
-      <Dialog />
-      <ExCommandPrompt />
-      <Toast />
+                    <Dialog />
+                    <ExCommandPrompt />
+                    <Toast />
 
-      <box width="100%" height="100%" flexDirection="row">
-        <Sidebar />
-        <DiffPane />
-      </box>
+                    <box width="100%" height="100%" flexDirection="row">
+                      <Sidebar />
+                      <DiffPane />
+                    </box>
+                  </ExCommandProvider>
+                </ToastProvider>
+              </DialogProvider>
+            </SidebarProvider>
+          </ReviewProvider>
+        </GitProvider>
+      </ThemeProvider>
     </KeymapProvider>
   );
 }

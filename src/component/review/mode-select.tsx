@@ -1,10 +1,9 @@
-import { $dialog } from "@/store/dialog.store";
-import { $theme } from "@/store/theme.store";
-
 import { Select } from "@/component/ui/select";
 import type { SelectOption } from "@/component/ui/select/types";
 
 import { CommitPicker } from "./commit-picker";
+import { useDialog } from "@/context/dialog";
+import { useTheme } from "@/context/theme";
 
 type ReviewMode = "single-commit" | "base-commit";
 
@@ -22,15 +21,18 @@ const MODE_OPTIONS: SelectOption<ReviewMode>[] = [
 ];
 
 export function ModeSelect() {
+  const dialog = useDialog();
+  const theme = useTheme();
+
   return (
-    <box width={50} backgroundColor={$theme.token.surface} padding={1}>
+    <box width={50} backgroundColor={theme.state.token.surface} padding={1}>
       <Select
         title="Review Mode"
         options={MODE_OPTIONS}
         skipFilter
-        onClose={() => $dialog.action.close()}
+        onClose={() => dialog.close()}
         onSelect={(option) => {
-          $dialog.action.show({
+          dialog.show({
             component: () => <CommitPicker mode={option.value} />,
           });
         }}

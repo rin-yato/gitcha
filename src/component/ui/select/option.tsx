@@ -2,7 +2,7 @@ import { TextAttributes } from "@opentui/core";
 
 import { createMemo, type JSX, Show } from "solid-js";
 
-import { $theme } from "@/store/theme.store";
+import { useTheme } from "@/context/theme";
 
 export function Option(props: {
   title: string;
@@ -12,10 +12,11 @@ export function Option(props: {
   footer?: JSX.Element | string;
   gutter?: () => JSX.Element;
 }) {
+  const theme = useTheme();
   const fg = createMemo(() => {
-    if (props.active) return $theme.token.accentFg;
-    if (props.current) return $theme.token.accent;
-    return $theme.token.fg;
+    if (props.active) return theme.state.token.accentFg;
+    if (props.current) return theme.state.token.accent;
+    return theme.state.token.fg;
   });
 
   return (
@@ -41,7 +42,11 @@ export function Option(props: {
         {props.title}
 
         <Show when={props.description}>
-          <span style={{ fg: props.active ? $theme.token.accentFg : $theme.token.fgMuted }}>
+          <span
+            style={{
+              fg: props.active ? theme.state.token.accentFg : theme.state.token.fgMuted,
+            }}
+          >
             &nbsp;
             {props.description}
           </span>
@@ -50,7 +55,7 @@ export function Option(props: {
 
       <Show when={props.footer}>
         <box flexShrink={0}>
-          <text fg={props.active ? $theme.token.accentFg : $theme.token.fgMuted}>
+          <text fg={props.active ? theme.state.token.accentFg : theme.state.token.fgMuted}>
             {props.footer}
           </text>
         </box>

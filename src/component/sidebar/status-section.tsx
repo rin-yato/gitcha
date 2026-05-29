@@ -1,12 +1,11 @@
 import { createMemo, For, Show } from "solid-js";
 
-import { $sidebar } from "@/store/sidebar";
-import { $theme } from "@/store/theme.store";
-
 import type { GitFileSection, GitFileTarget, GitStatusFile } from "@/lib/git";
 import { createGitFileTarget, isGitFileTargetEqual } from "@/lib/git";
 
 import type { SidebarSectionViewModel } from "./utils";
+import { useSidebar } from "@/context/sidebar";
+import { useTheme } from "@/context/theme";
 
 const DIRECTORY_ICONS = {
   closed: "▸",
@@ -73,6 +72,8 @@ function formatSectionStatus(
 }
 
 function StatusRow(props: StatusRowProps) {
+  const sidebar = useSidebar();
+  const theme = useTheme();
   const target = createMemo(() => createGitFileTarget(props.kind, props.file.path));
   const isSelected = createMemo(() => isGitFileTargetEqual(target(), props.selectedTarget));
   const statusLabel = createMemo(() => formatSectionStatus(props.kind, props.file));
@@ -83,15 +84,17 @@ function StatusRow(props: StatusRowProps) {
       paddingLeft={1 + (props.depth ?? 0) * 2}
       paddingRight={1}
       overflow="hidden"
-      backgroundColor={isSelected() ? $theme.token.accent : undefined}
-      onMouseUp={() => $sidebar.action.setSelectedTarget(target())}
+      backgroundColor={isSelected() ? theme.state.token.accent : undefined}
+      onMouseUp={() => sidebar.setSelectedTarget(target())}
     >
       <text truncate maxHeight={1} wrapMode="char" attributes={isSelected() ? 1 : 0}>
-        <span style={{ fg: isSelected() ? $theme.token.accentFg : props.accentFg }}>
+        <span style={{ fg: isSelected() ? theme.state.token.accentFg : props.accentFg }}>
           {statusLabel()}
         </span>
 
-        <span style={{ fg: isSelected() ? $theme.token.accentFg : $theme.token.fgMuted }}>
+        <span
+          style={{ fg: isSelected() ? theme.state.token.accentFg : theme.state.token.fgMuted }}
+        >
           &nbsp;{props.label}
         </span>
       </text>
@@ -100,18 +103,20 @@ function StatusRow(props: StatusRowProps) {
 }
 
 export function StatusSection(props: StatusSectionProps) {
+  const sidebar = useSidebar();
+  const theme = useTheme();
   const sectionAccentFg = createMemo(() => {
-    if (props.section.kind === "conflicts") return $theme.token.removed;
-    if (props.section.kind === "staged") return $theme.token.added;
-    if (props.section.kind === "changes") return $theme.token.modified;
-    return $theme.token.fg;
+    if (props.section.kind === "conflicts") return theme.state.token.removed;
+    if (props.section.kind === "staged") return theme.state.token.added;
+    if (props.section.kind === "changes") return theme.state.token.modified;
+    return theme.state.token.fg;
   });
 
   return (
     <Show when={props.section.count}>
       <box flexDirection="column">
         <box paddingLeft={1}>
-          <text fg={$theme.token.fg}>
+          <text fg={theme.state.token.fg}>
             {props.section.title}&nbsp;
             <span style={{ fg: sectionAccentFg() }}>{props.section.count}</span>
           </text>
@@ -135,14 +140,14 @@ export function StatusSection(props: StatusSectionProps) {
                 overflow="hidden"
                 flexDirection="row"
                 alignItems="center"
-                onMouseUp={() => $sidebar.action.toggleDirectory(row.key)}
+                onMouseUp={() => sidebar.toggleDirectory(row.key)}
                 gap={1}
               >
-                <text fg={$theme.token.fgMuted}>
+                <text fg={theme.state.token.fgMuted}>
                   {row.isCollapsed ? DIRECTORY_ICONS.closed : DIRECTORY_ICONS.open}
                 </text>
 
-                <text fg={$theme.token.fgMuted} truncate maxHeight={1} wrapMode="char">
+                <text fg={theme.state.token.fgMuted} truncate maxHeight={1} wrapMode="char">
                   {row.name}
                 </text>
               </box>

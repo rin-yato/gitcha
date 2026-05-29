@@ -1,6 +1,6 @@
 import { pathToFiletype } from "@opentui/core";
 
-import { $theme } from "@/store/theme.store";
+import { useTheme } from "@/context/theme";
 
 interface DiffProps {
   filePath: string;
@@ -8,15 +8,17 @@ interface DiffProps {
 }
 
 export function Diff(props: DiffProps) {
+  const theme = useTheme();
+
   return (
-    <box backgroundColor={$theme.token.bg} width="100%" flexDirection="column">
+    <box backgroundColor={theme.state.token.bg} width="100%" flexDirection="column">
       <box
         border={["bottom"]}
-        borderColor={`${$theme.token.border}66`}
+        borderColor={`${theme.state.token.border}66`}
         borderStyle="heavy"
         flexShrink={0}
       >
-        <text fg={$theme.token.fg}>{props.filePath}</text>
+        <text fg={theme.state.token.fg}>{props.filePath}</text>
       </box>
 
       <diff
@@ -25,20 +27,20 @@ export function Diff(props: DiffProps) {
         diff={props.diff}
         syncScroll
         filetype={pathToFiletype(props.filePath ?? "")}
-        syntaxStyle={$theme.syntax}
-        fg={$theme.token.fg}
-        selectionBg={`${$theme.token.accent}16`}
-        addedBg={`${$theme.token.added}12`}
-        removedBg={`${$theme.token.removed}12`}
-        addedContentBg={`${$theme.token.added}12`}
-        removedContentBg={`${$theme.token.removed}12`}
-        lineNumberFg={$theme.token.fgMuted}
-        addedLineNumberBg={`${$theme.token.added}12`}
-        removedLineNumberBg={`${$theme.token.removed}12`}
-        contextBg={$theme.token.bg}
-        contextContentBg={$theme.token.bg}
-        addedSignColor={$theme.token.added}
-        removedSignColor={$theme.token.removed}
+        syntaxStyle={theme.state.syntax}
+        fg={theme.state.token.fg}
+        selectionBg={`${theme.state.token.accent}16`}
+        addedBg={`${theme.state.token.added}12`}
+        removedBg={`${theme.state.token.removed}12`}
+        addedContentBg={`${theme.state.token.added}12`}
+        removedContentBg={`${theme.state.token.removed}12`}
+        lineNumberFg={theme.state.token.fgMuted}
+        addedLineNumberBg={`${theme.state.token.added}12`}
+        removedLineNumberBg={`${theme.state.token.removed}12`}
+        contextBg={theme.state.token.bg}
+        contextContentBg={theme.state.token.bg}
+        addedSignColor={theme.state.token.added}
+        removedSignColor={theme.state.token.removed}
       />
     </box>
   );

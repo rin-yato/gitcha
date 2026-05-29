@@ -2,10 +2,9 @@ import { TextAttributes } from "@opentui/core";
 
 import { type Accessor, For } from "solid-js";
 
-import { $theme } from "@/store/theme.store";
-
 import { EX_PROMPT_BODY_WIDTH } from "./constants";
 import type { ExPromptSuggestion } from "./ex-command-input";
+import { useTheme } from "@/context/theme";
 
 export type SuggestionRow =
   | { kind: "empty" }
@@ -17,12 +16,13 @@ type SuggestionListProps = {
 };
 
 export function SuggestionList(props: SuggestionListProps) {
+  const theme = useTheme();
   return (
     <box
       id="ex-command-prompt-list"
       width={EX_PROMPT_BODY_WIDTH}
       height={props.rows().length}
-      backgroundColor={$theme.token.surface}
+      backgroundColor={theme.state.token.surface}
       paddingX={1}
       paddingY={0}
       flexDirection="column"
@@ -31,7 +31,11 @@ export function SuggestionList(props: SuggestionListProps) {
         {(row, index) => {
           if (row.kind === "empty") {
             return (
-              <text id="ex-command-prompt-suggestions" fg={$theme.token.fgMuted} height={1}>
+              <text
+                id="ex-command-prompt-suggestions"
+                fg={theme.state.token.fgMuted}
+                height={1}
+              >
                 (no suggestions)
               </text>
             );
@@ -42,22 +46,26 @@ export function SuggestionList(props: SuggestionListProps) {
           return (
             <text
               id={index() === 0 ? "ex-command-prompt-suggestions" : undefined}
-              fg={$theme.token.fg}
+              fg={theme.state.token.fg}
               height={1}
             >
-              <span style={{ fg: isSelected() ? $theme.token.accent : $theme.token.fgMuted }}>
+              <span
+                style={{
+                  fg: isSelected() ? theme.state.token.accent : theme.state.token.fgMuted,
+                }}
+              >
                 {isSelected() ? "> " : "  "}
               </span>
               <span
                 style={{
-                  fg: isSelected() ? $theme.token.fg : $theme.token.success,
+                  fg: isSelected() ? theme.state.token.fg : theme.state.token.success,
                   attributes: TextAttributes.BOLD,
                 }}
               >
                 {row.suggestion.label}
               </span>
-              <span style={{ fg: $theme.token.border }}>{"  "}</span>
-              <span style={{ fg: $theme.token.fgMuted }}>{row.suggestion.desc}</span>
+              <span style={{ fg: theme.state.token.border }}>{"  "}</span>
+              <span style={{ fg: theme.state.token.fgMuted }}>{row.suggestion.desc}</span>
             </text>
           );
         }}
