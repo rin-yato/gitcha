@@ -1,14 +1,8 @@
 import { useBindings } from "@opentui/keymap/solid";
 
-import { createMemo, For, onCleanup, onMount, Show } from "solid-js";
+import { For, onCleanup, onMount, Show } from "solid-js";
 
 import { StatusSection } from "./status-section";
-import {
-  collectReviewFiles,
-  collectSidebarFiles,
-  createReviewSectionViews,
-  createSidebarSectionViews,
-} from "./utils";
 import { useDialog } from "@/context/dialog";
 import { useExCommand } from "@/context/ex-command";
 import { useGit } from "@/context/git";
@@ -37,39 +31,19 @@ export function Sidebar() {
     });
   });
 
-  const allSidebarFiles = createMemo(() =>
-    review.state.active
-      ? collectReviewFiles(review.state.status?.files ?? null, sidebar.state.viewMode)
-      : collectSidebarFiles(gitStore.state.status, sidebar.state.viewMode),
-  );
-  const sidebarTargets = createMemo(() => allSidebarFiles().map((entry) => entry.target));
-  const sections = createMemo(() =>
-    review.state.active
-      ? createReviewSectionViews(
-          review.state.status?.files ?? null,
-          sidebar.state.viewMode,
-          sidebar.state.collapsedDirectoryKeys,
-        )
-      : createSidebarSectionViews(
-          gitStore.state.status,
-          sidebar.state.viewMode,
-          sidebar.state.collapsedDirectoryKeys,
-        ),
-  );
-
   useBindings(() => ({
     enabled: () => dialog.state.stack.length === 0 && !exCommand.state.visible,
     commands: [
       {
         name: "sidebar.select-next",
         run() {
-          sidebar.selectNext(sidebarTargets());
+          sidebar.selectNext();
         },
       },
       {
         name: "sidebar.select-prev",
         run() {
-          sidebar.selectPrevious(sidebarTargets());
+          sidebar.selectPrevious();
         },
       },
       {
@@ -149,7 +123,7 @@ export function Sidebar() {
             </text>
           </Show>
 
-          <For each={sections()}>
+          <For each={sidebar.sections()}>
             {(section) => (
               <StatusSection
                 section={{ ...section, selectedTarget: sidebar.state.selectedTarget }}

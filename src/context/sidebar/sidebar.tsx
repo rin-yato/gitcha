@@ -1,4 +1,12 @@
-import { batch, createContext, type ParentComponent, useContext } from "solid-js";
+import {
+  batch,
+  createContext,
+  createEffect,
+  createMemo,
+  on,
+  type ParentComponent,
+  useContext,
+} from "solid-js";
 import type { SetStoreFunction, Store } from "solid-js/store";
 import { createStore, produce } from "solid-js/store";
 
@@ -6,7 +14,17 @@ import { config } from "@/lib/config";
 import type { GitFileTarget } from "@/lib/git";
 import { isGitFileTargetEqual } from "@/lib/git";
 
+import type { SidebarSectionViewModel } from "@/component/sidebar/utils";
+import {
+  collectReviewFiles,
+  collectSidebarFiles,
+  createReviewSectionViews,
+  createSidebarSectionViews,
+} from "@/component/sidebar/utils";
+
 import { isSidebarDirectoryKeyForTarget } from "./sidebar-key";
+import { useGit } from "@/context/git";
+import { useReview } from "@/context/review";
 
 export type SidebarViewMode = "flat" | "tree";
 
@@ -136,9 +154,11 @@ function decreaseWidth(setState: SetStoreFunction<SidebarState>, delta: number =
 
 type SidebarApi = {
   state: Store<SidebarState>;
+  targets: () => GitFileTarget[];
+  sections: () => SidebarSectionViewModel[];
   setSelectedTarget: (target: GitFileTarget | null) => void;
-  selectNext: (files: GitFileTarget[]) => void;
-  selectPrevious: (files: GitFileTarget[]) => void;
+  selectNext: () => void;
+  selectPrevious: () => void;
   toggle: () => void;
   toggleViewMode: () => void;
   toggleDirectory: (key: string) => void;
@@ -157,11 +177,47 @@ export const SidebarProvider: ParentComponent<{
     ...props.initialState,
   });
 
+  const gitStore = useGit();
+  const review = useReview();
+
+  const allSidebarFiles = createMemo(() =>
+    review.state.active
+      ? collectReviewFiles(review.state.status?.files ?? null, state.viewMode)
+      : collectSidebarFiles(gitStore.state.status, state.viewMode),
+  );
+  const targets = createMemo(() => allSidebarFiles().map((entry) => entry.target));
+  const sections = createMemo(() =>
+    review.state.active
+      ? createReviewSectionViews(
+          review.state.status?.files ?? null,
+          state.viewMode,
+          state.collapsedDirectoryKeys,
+        )
+      : createSidebarSectionViews(
+          gitStore.state.status,
+          state.viewMode,
+          state.collapsedDirectoryKeys,
+        ),
+  );
+
+  createEffect(
+    on(targets, (t) => {
+      if (t.length === 0) return;
+
+      const current = state.selectedTarget;
+      const valid = current && t.some((x) => isGitFileTargetEqual(x, current));
+
+      if (!valid) setState("selectedTarget", t[0]!);
+    }),
+  );
+
   const api: SidebarApi = {
     state,
+    targets,
+    sections,
     setSelectedTarget: (target) => setSelectedTarget(setState, target),
-    selectNext: (files) => selectNext(setState, files, state.selectedTarget),
-    selectPrevious: (files) => selectPrevious(setState, files, state.selectedTarget),
+    selectNext: () => selectNext(setState, targets(), state.selectedTarget),
+    selectPrevious: () => selectPrevious(setState, targets(), state.selectedTarget),
     toggle: () => toggle(setState),
     toggleViewMode: () => toggleViewMode(setState),
     toggleDirectory: (key) => toggleDirectory(setState, key),
