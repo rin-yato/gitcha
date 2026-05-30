@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.12](https://github.com/rin-yato/differ/compare/v0.1.11...v0.1.12) (2026-05-30)
+
+
+### Features
+
+* **sidebar:** sidebar auto-scroll ([935fcee](https://github.com/rin-yato/differ/commit/935fceec3b526cebbf5678861c8d5774d4bce9d8))
+
 ## [0.1.11](https://github.com/rin-yato/differ/compare/v0.1.10...v0.1.11) (2026-05-30)
 
 
