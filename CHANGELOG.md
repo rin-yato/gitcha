@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.11](https://github.com/rin-yato/differ/compare/v0.1.10...v0.1.11) (2026-05-30)
+
+
+### Features
+
+* add review api and refactor git module ([16b90d9](https://github.com/rin-yato/differ/commit/16b90d909c6d9b31e5a6f9c31b69631da599fa0a))
+* auto-select first file when file list changes ([97d1e0c](https://github.com/rin-yato/differ/commit/97d1e0cf4fcd3790eac83dea5a8f541104feea07))
+* review mode ui ([8aed9c8](https://github.com/rin-yato/differ/commit/8aed9c8bf9e3567ded44afd7a17b2a41bfabf075))
+
 ## [0.1.10](https://github.com/rin-yato/differ/compare/v0.1.9...v0.1.10) (2026-05-11)
 
 
