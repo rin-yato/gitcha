@@ -1,7 +1,22 @@
 {
   "name": "gitcha",
   "version": "0.1.11",
+  "homepage": "https://github.com/rin-yato/gitcha#readme",
+  "bugs": {
+    "url": "https://github.com/rin-yato/gitcha/issues"
+  },
+  "author": {
+    "name": "Rin Yato",
+    "url": "https://github.com/rin-yato"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rin-yato/gitcha.git"
+  },
   "description": "A terminal UI for reviewing code changes with syntax highlighting",
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "dist/index.js",
   "bin": {
