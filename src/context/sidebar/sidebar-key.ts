@@ -4,6 +4,10 @@ export function createSidebarDirectoryKey(section: GitFileSection, path: string)
   return `${section}:${path}`;
 }
 
+export function createSidebarFileId(section: string, path: string): string {
+  return `sidebar-file:${section}:${path}`;
+}
+
 export function isSidebarDirectoryKeyForTarget(key: string, target: GitFileTarget): boolean {
   const prefix = `${target.section}:`;
   if (!key.startsWith(prefix)) return false;

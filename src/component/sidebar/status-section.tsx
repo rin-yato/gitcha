@@ -5,6 +5,7 @@ import { createGitFileTarget, isGitFileTargetEqual } from "@/lib/git";
 
 import type { SidebarSectionViewModel } from "./utils";
 import { useSidebar } from "@/context/sidebar";
+import { createSidebarFileId } from "@/context/sidebar/sidebar-key";
 import { useTheme } from "@/context/theme";
 
 const DIRECTORY_ICONS = {
@@ -80,6 +81,7 @@ function StatusRow(props: StatusRowProps) {
 
   return (
     <box
+      id={createSidebarFileId(target().section, target().path)}
       width="100%"
       paddingLeft={1 + (props.depth ?? 0) * 2}
       paddingRight={1}

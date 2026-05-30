@@ -1,6 +1,7 @@
+import type { ScrollBoxRenderable } from "@opentui/core";
 import { useBindings } from "@opentui/keymap/solid";
 
-import { For, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, For, onCleanup, onMount, Show } from "solid-js";
 
 import { StatusSection } from "./status-section";
 import { useDialog } from "@/context/dialog";
@@ -8,6 +9,7 @@ import { useExCommand } from "@/context/ex-command";
 import { useGit } from "@/context/git";
 import { useReview } from "@/context/review";
 import { useSidebar } from "@/context/sidebar";
+import { createSidebarFileId } from "@/context/sidebar/sidebar-key";
 import { useTheme } from "@/context/theme";
 
 export function Sidebar() {
@@ -17,6 +19,8 @@ export function Sidebar() {
   const sidebar = useSidebar();
   const gitStore = useGit();
   const theme = useTheme();
+
+  let scroll: ScrollBoxRenderable | undefined;
 
   // Simple git polling
   onMount(() => {
@@ -84,13 +88,26 @@ export function Sidebar() {
     ],
   }));
 
+  createEffect(() => {
+    const target = sidebar.state.selectedTarget;
+    if (!target || !scroll) return;
+
+    const id = createSidebarFileId(target.section, target.path);
+    const child = scroll.findDescendantById(id);
+    if (!child) return;
+
+    const y = child.y - scroll.y;
+    const centerOffset = Math.floor(scroll.height / 2);
+    scroll.scrollBy(y - centerOffset);
+  });
+
   return (
     <Show when={sidebar.state.open}>
       <box
         backgroundColor={theme.state.token.bg}
+        height="100%"
         width={sidebar.state.width}
         flexDirection="column"
-        overflow="hidden"
         paddingRight={1}
       >
         <box
@@ -107,30 +124,35 @@ export function Sidebar() {
           </text>
         </box>
 
-        <scrollbox
-          backgroundColor={theme.state.token.surface}
-          width={sidebar.state.width}
-          flexDirection="column"
-          contentOptions={{ gap: 1 }}
-          scrollX={false}
-          scrollY={true}
-          flexGrow={1}
-          flexShrink={0}
-        >
-          <Show when={review.state.active ? review.state.error : gitStore.state.error}>
-            <text fg="red">
-              {review.state.active ? review.state.error : gitStore.state.error}
-            </text>
-          </Show>
+        <box>
+          <scrollbox
+            scrollY
+            viewportCulling
+            ref={scroll}
+            backgroundColor={theme.state.token.surface}
+            width={sidebar.state.width}
+            style={{
+              height: "100%",
+              flexGrow: 1,
+              contentOptions: { gap: 1 },
+              scrollbarOptions: { visible: false },
+            }}
+          >
+            <Show when={review.state.active ? review.state.error : gitStore.state.error}>
+              <text fg="red">
+                {review.state.active ? review.state.error : gitStore.state.error}
+              </text>
+            </Show>
 
-          <For each={sidebar.sections()}>
-            {(section) => (
-              <StatusSection
-                section={{ ...section, selectedTarget: sidebar.state.selectedTarget }}
-              />
-            )}
-          </For>
-        </scrollbox>
+            <For each={sidebar.sections()}>
+              {(section) => (
+                <StatusSection
+                  section={{ ...section, selectedTarget: sidebar.state.selectedTarget }}
+                />
+              )}
+            </For>
+          </scrollbox>
+        </box>
       </box>
     </Show>
   );
