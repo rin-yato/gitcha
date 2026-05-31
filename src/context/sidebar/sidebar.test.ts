@@ -10,6 +10,23 @@ import { isGitFileTargetEqual } from "@/lib/git";
 import type { SidebarState } from "./sidebar";
 import { createSidebarDirectoryKey, isSidebarDirectoryKeyForTarget } from "./sidebar-key";
 
+// Pure re-implementation of the auto-selection logic from the SidebarProvider effect.
+// Regression guard: previously used `on(targets, ...)` (function form) which tracked
+// the memo's internal sources instead of its value, causing the effect to fire on
+// irrelevant state changes and overwrite valid user selections.
+function autoSelectTarget(
+  targets: GitFileTarget[],
+  currentSelectedTarget: GitFileTarget | null,
+): GitFileTarget | null {
+  if (targets.length === 0) return null;
+
+  const valid =
+    currentSelectedTarget &&
+    targets.some((x) => isGitFileTargetEqual(x, currentSelectedTarget));
+
+  return valid ? currentSelectedTarget : targets[0]!;
+}
+
 function createTestStore() {
   const [state, setState] = createStore<SidebarState>({
     width: 30,
@@ -85,5 +102,62 @@ describe("sidebar store", () => {
 
     expect(state.selectedTarget).toEqual(util);
     expect(state.collapsedDirectoryKeys).toEqual([]);
+  });
+
+  // --- Regression: sidebar auto-selection effect deps ---
+
+  test("auto-selects first target when none is selected", () => {
+    const targets: GitFileTarget[] = [
+      { section: "changes", path: "a.ts" },
+      { section: "changes", path: "b.ts" },
+    ];
+
+    const result = autoSelectTarget(targets, null);
+
+    expect(result).toBe(targets[0]!);
+  });
+
+  test("preserves valid selection when targets remain the same", () => {
+    const targets: GitFileTarget[] = [
+      { section: "changes", path: "a.ts" },
+      { section: "changes", path: "b.ts" },
+    ];
+    const selected: GitFileTarget = { section: "changes", path: "b.ts" };
+
+    const result = autoSelectTarget(targets, selected);
+
+    expect(result).toEqual(selected);
+  });
+
+  test("preserves valid selection across section boundaries", () => {
+    const targets: GitFileTarget[] = [
+      { section: "staged", path: "a.ts" },
+      { section: "changes", path: "b.ts" },
+    ];
+    const selected: GitFileTarget = { section: "staged", path: "a.ts" };
+
+    const result = autoSelectTarget(targets, selected);
+
+    expect(result).toEqual(selected);
+  });
+
+  test("re-selects first target when current selection is no longer in the list", () => {
+    const targets: GitFileTarget[] = [{ section: "changes", path: "b.ts" }];
+    const selected: GitFileTarget = { section: "changes", path: "a.ts" };
+
+    const result = autoSelectTarget(targets, selected);
+
+    expect(result).toBe(targets[0]!);
+  });
+
+  test("returns null when targets list is empty regardless of selection", () => {
+    const result = autoSelectTarget([], null);
+    const resultWithSelection = autoSelectTarget([], {
+      section: "changes",
+      path: "a.ts",
+    });
+
+    expect(result).toBeNull();
+    expect(resultWithSelection).toBeNull();
   });
 });

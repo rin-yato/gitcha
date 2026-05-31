@@ -201,7 +201,7 @@ export const SidebarProvider: ParentComponent<{
   );
 
   createEffect(
-    on(targets, (t) => {
+    on([targets], ([t]) => {
       if (t.length === 0) return;
 
       const current = state.selectedTarget;
