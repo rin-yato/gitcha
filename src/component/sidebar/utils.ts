@@ -202,7 +202,18 @@ export function collectSidebarFiles(
 export function createReviewSections(files: CategorizedFiles | null): SidebarSectionModel[] {
   if (!files) return [];
 
-  const allFiles = [...files.conflicted, ...files.staged, ...files.changes, ...files.untracked];
+  const seen = new Set<string>();
+  const allFiles = [
+    ...files.conflicted,
+    ...files.staged,
+    ...files.changes,
+    ...files.untracked,
+  ].filter((file) => {
+    const dedupKey = `${file.path}${file.originalPath ?? ""}`;
+    if (seen.has(dedupKey)) return false;
+    seen.add(dedupKey);
+    return true;
+  });
 
   if (allFiles.length === 0) return [];
 

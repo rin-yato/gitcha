@@ -57,7 +57,9 @@ function selectByOffset(
 ): GitFileTarget | null {
   if (files.length === 0) return null;
 
-  const currentIndex = files.findIndex((file) => isGitFileTargetEqual(file, selectedTarget));
+  const currentIndex = files.findLastIndex((file) =>
+    isGitFileTargetEqual(file, selectedTarget),
+  );
 
   if (currentIndex === -1) return files[0] ?? null;
 
@@ -202,7 +204,10 @@ export const SidebarProvider: ParentComponent<{
 
   createEffect(
     on([targets], ([t]) => {
-      if (t.length === 0) return;
+      if (t.length === 0) {
+        setState("selectedTarget", null);
+        return;
+      }
 
       const current = state.selectedTarget;
       const valid = current && t.some((x) => isGitFileTargetEqual(x, current));

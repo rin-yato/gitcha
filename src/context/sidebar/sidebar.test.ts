@@ -150,6 +150,14 @@ describe("sidebar store", () => {
     expect(result).toBe(targets[0]!);
   });
 
+  test("clears selection when targets become empty", () => {
+    const selected: GitFileTarget = { section: "changes", path: "a.ts" };
+
+    const result = autoSelectTarget([], selected);
+
+    expect(result).toBeNull();
+  });
+
   test("returns null when targets list is empty regardless of selection", () => {
     const result = autoSelectTarget([], null);
     const resultWithSelection = autoSelectTarget([], {
