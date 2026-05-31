@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.13](https://github.com/rin-yato/differ/compare/v0.1.12...v0.1.13) (2026-05-31)
+
+
+### Bug Fixes
+
+* sidebar auto selection effect deps ([ef47d53](https://github.com/rin-yato/differ/commit/ef47d536b2734ab6367a5c8dc328f61175781b73))
+
 ## [0.1.12](https://github.com/rin-yato/differ/compare/v0.1.11...v0.1.12) (2026-05-30)
 
 
