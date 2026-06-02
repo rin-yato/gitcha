@@ -21,7 +21,7 @@ export function Diff(props: DiffProps) {
         <text fg={theme.state.token.fg}>{props.filePath}</text>
       </box>
 
-      <diff
+      <virtualized_diff
         width="100%"
         height="100%"
         diff={props.diff}

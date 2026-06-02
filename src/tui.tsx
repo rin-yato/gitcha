@@ -1,6 +1,6 @@
 import { addDefaultParsers } from "@opentui/core";
 import { KeymapProvider, useBindings } from "@opentui/keymap/solid";
-import { useRenderer, useSelectionHandler } from "@opentui/solid";
+import { extend, useRenderer, useSelectionHandler } from "@opentui/solid";
 
 import { copySelection } from "@/lib/clipboard";
 import { createAppKeymap } from "@/lib/keymap";
@@ -13,6 +13,7 @@ import { Sidebar } from "@/component/sidebar";
 import { Dialog } from "@/component/ui/dialog";
 import { Toast } from "@/component/ui/toast";
 
+import { VirtualizedDiffRenderable } from "./component/virtualized-diff";
 import { DialogProvider, useDialog } from "@/context/dialog";
 import { ExCommandProvider, useExCommand } from "@/context/ex-command";
 import { GitProvider } from "@/context/git";
@@ -22,6 +23,10 @@ import { ThemeProvider } from "@/context/theme";
 import { ToastProvider, useToast } from "@/context/toast";
 
 addDefaultParsers(parsers);
+
+extend({
+  virtualized_diff: VirtualizedDiffRenderable,
+});
 
 function AppKeymapBindings() {
   const renderer = useRenderer();
