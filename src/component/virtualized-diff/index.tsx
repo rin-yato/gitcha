@@ -20,7 +20,7 @@ interface LogicalLine {
   content: string;
   lineNum?: number;
   hideLineNumber?: boolean;
-  color?: string | RGBA;
+  color?: string | RGBA | LineColorConfig;
   sign?: LineSign;
   type: "context" | "add" | "remove" | "empty";
 }
@@ -45,6 +45,9 @@ export interface VirtualizedDiffRenderableOptions
   showLineNumbers?: boolean;
   lineNumberFg?: string | RGBA;
   lineNumberBg?: string | RGBA;
+
+  // Virtualization
+  overscan?: number;
 
   // Diff styling
   addedBg?: string | RGBA;
@@ -111,6 +114,18 @@ export class VirtualizedDiffRenderable extends Renderable {
   private _waitingForHighlight: boolean = false;
   private _lineInfoChangeHandler: (() => void) | null = null;
 
+  // Virtualization state
+  private _logicalLines: LogicalLine[] = [];
+  private _leftLogicalLines: LogicalLine[] = [];
+  private _rightLogicalLines: LogicalLine[] = [];
+  private _virtualScrollLine: number = 0;
+  private _visibleLineCount: number = 0;
+  private _overscan: number;
+  private readonly _minVisibleLines: number = 20;
+  private _windowStart: number = -1;
+  private _windowEnd: number = -1;
+  private _updatingWindow: boolean = false;
+
   constructor(ctx: RenderContext, options: VirtualizedDiffRenderableOptions) {
     super(ctx, {
       ...options,
@@ -120,6 +135,9 @@ export class VirtualizedDiffRenderable extends Renderable {
     this._diff = options.diff ?? "";
     this._syncScroll = options.syncScroll ?? false;
     this._view = options.view ?? "unified";
+
+    // Virtualization
+    this._overscan = options.overscan ?? 150;
 
     // CodeRenderable options
     this._fg = options.fg ? parseColor(options.fg) : undefined;
@@ -200,16 +218,35 @@ export class VirtualizedDiffRenderable extends Renderable {
   }
 
   protected override onMouseEvent(event: MouseEvent): void {
-    if (event.type !== "scroll" || this._view !== "split" || !this._syncScroll) return;
-    if (!this.leftCodeRenderable || !this.rightCodeRenderable) return;
-    if (!event.target) return;
+    if (event.type === "scroll") {
+      if (
+        this._view === "split" &&
+        this._syncScroll &&
+        this.leftCodeRenderable &&
+        this.rightCodeRenderable
+      ) {
+        if (event.target) {
+          if (this.isInsideSide(event.target, "left")) {
+            this.rightCodeRenderable.scrollY = this.leftCodeRenderable.scrollY;
+            this.rightCodeRenderable.scrollX = this.leftCodeRenderable.scrollX;
+          } else if (this.isInsideSide(event.target, "right")) {
+            this.leftCodeRenderable.scrollY = this.rightCodeRenderable.scrollY;
+            this.leftCodeRenderable.scrollX = this.rightCodeRenderable.scrollX;
+          }
+        }
+      }
 
-    if (this.isInsideSide(event.target, "left")) {
-      this.rightCodeRenderable.scrollY = this.leftCodeRenderable.scrollY;
-      this.rightCodeRenderable.scrollX = this.leftCodeRenderable.scrollX;
-    } else if (this.isInsideSide(event.target, "right")) {
-      this.leftCodeRenderable.scrollY = this.rightCodeRenderable.scrollY;
-      this.leftCodeRenderable.scrollX = this.rightCodeRenderable.scrollX;
+      this.handleScrollChange();
+      return;
+    }
+
+    if (event.type === "wheel") {
+      event.preventDefault();
+      const wheelEvent = event as unknown as WheelEvent;
+      const delta = wheelEvent.deltaY > 0 ? 3 : wheelEvent.deltaY < 0 ? -3 : 0;
+      if (delta !== 0) {
+        this.scrollBy(delta);
+      }
     }
   }
 
@@ -223,14 +260,92 @@ export class VirtualizedDiffRenderable extends Renderable {
     return false;
   }
 
+  private visibleLineCount(): number {
+    return Math.max(this._minVisibleLines, this._visibleLineCount);
+  }
+
+  private handleScrollChange(): void {
+    const code = this.leftCodeRenderable;
+    if (!code) return;
+
+    const scrollY = code.scrollY ?? 0;
+    const windowSize = this._windowEnd - this._windowStart;
+    if (windowSize === 0) return;
+
+    const maxScrollY = code.maxScrollY ?? 0;
+    const triggerMargin = Math.min(this._overscan, 5);
+
+    const userLine = this._windowStart + scrollY;
+
+    if (scrollY <= triggerMargin && this._windowStart > 0) {
+      this._virtualScrollLine = userLine;
+      this.updateWindow();
+      return;
+    }
+
+    if (
+      maxScrollY > 0 &&
+      scrollY >= maxScrollY - triggerMargin &&
+      this._windowEnd < this.totalLogicalLines
+    ) {
+      const newVirtual = this._windowEnd - this.visibleLineCount();
+      this._virtualScrollLine = Math.max(this._virtualScrollLine, newVirtual);
+      this.updateWindow();
+    }
+  }
+
+  public scrollTo(line: number): void {
+    const total =
+      this._view === "unified" ? this._logicalLines.length : this._leftLogicalLines.length;
+    const visible = this.visibleLineCount();
+    this._virtualScrollLine = Math.max(0, Math.min(line, Math.max(0, total - visible)));
+    this.updateWindow();
+  }
+
+  public scrollBy(delta: number): void {
+    const total =
+      this._view === "unified" ? this._logicalLines.length : this._leftLogicalLines.length;
+    const visible = this.visibleLineCount();
+    const maxScroll = Math.max(0, total - visible);
+    this._virtualScrollLine = Math.max(0, Math.min(this._virtualScrollLine + delta, maxScroll));
+    this.updateWindow();
+  }
+
+  public get firstVisibleLine(): number {
+    return this._virtualScrollLine;
+  }
+
+  public get totalLogicalLines(): number {
+    return this._view === "unified"
+      ? this._logicalLines.length
+      : Math.max(this._leftLogicalLines.length, this._rightLogicalLines.length);
+  }
+
+  private hasLogicalLines(): boolean {
+    return this._view === "unified"
+      ? this._logicalLines.length > 0
+      : this._leftLogicalLines.length > 0;
+  }
+
   protected override onResize(width: number, height: number): void {
     super.onResize(width, height);
+
+    const newVisible = Math.max(1, Math.floor(height));
+    const visibleChanged = this._visibleLineCount !== newVisible;
+    this._visibleLineCount = newVisible;
 
     if (this._view === "split" && this._wrapMode !== "none" && this._wrapMode !== undefined) {
       if (this._lastWidth !== width) {
         this._lastWidth = width;
+        this._windowStart = -1;
+        this._windowEnd = -1;
         this.requestRebuild();
+        return;
       }
+    }
+
+    if (visibleChanged && this.hasLogicalLines()) {
+      this.updateWindow();
     }
   }
 
@@ -250,6 +365,9 @@ export class VirtualizedDiffRenderable extends Renderable {
   }
 
   private rebuildView(): void {
+    this._virtualScrollLine = 0;
+    this._windowStart = -1;
+    this._windowEnd = -1;
     if (this._view === "split") {
       this.requestRebuild();
     } else {
@@ -296,6 +414,9 @@ export class VirtualizedDiffRenderable extends Renderable {
     this.pendingRebuild = false;
     this.leftSideAdded = false;
     this.rightSideAdded = false;
+    this._logicalLines = [];
+    this._leftLogicalLines = [];
+    this._rightLogicalLines = [];
     super.destroyRecursively();
   }
 
@@ -481,26 +602,9 @@ export class VirtualizedDiffRenderable extends Renderable {
     if (!this._parsedDiff) return;
 
     this.flexDirection = "column";
+    this.clearErrorViews();
 
-    if (this.errorTextRenderable) {
-      const errorTextIndex = this.getChildren().indexOf(this.errorTextRenderable);
-      if (errorTextIndex !== -1) {
-        super.remove(this.errorTextRenderable.id);
-      }
-    }
-    if (this.errorCodeRenderable) {
-      const errorCodeIndex = this.getChildren().indexOf(this.errorCodeRenderable);
-      if (errorCodeIndex !== -1) {
-        super.remove(this.errorCodeRenderable.id);
-      }
-    }
-
-    const contentLines: string[] = [];
-    const lineColors = new Map<number, string | RGBA | LineColorConfig>();
-    const lineSigns = new Map<number, LineSign>();
-    const lineNumbers = new Map<number, number>();
-
-    let lineIndex = 0;
+    this._logicalLines = [];
 
     for (const hunk of this._parsedDiff.hunks) {
       let oldLineNum = hunk.oldStart;
@@ -511,7 +615,6 @@ export class VirtualizedDiffRenderable extends Renderable {
         const content = line.slice(1);
 
         if (firstChar === "+") {
-          contentLines.push(content);
           const config: LineColorConfig = {
             gutter: this._addedLineNumberBg,
           };
@@ -520,16 +623,15 @@ export class VirtualizedDiffRenderable extends Renderable {
           } else {
             config.content = this._addedBg;
           }
-          lineColors.set(lineIndex, config);
-          lineSigns.set(lineIndex, {
-            after: " +",
-            afterColor: this._addedSignColor,
+          this._logicalLines.push({
+            content,
+            lineNum: newLineNum,
+            color: config,
+            sign: { after: " +", afterColor: this._addedSignColor },
+            type: "add",
           });
-          lineNumbers.set(lineIndex, newLineNum);
           newLineNum++;
-          lineIndex++;
         } else if (firstChar === "-") {
-          contentLines.push(content);
           const config: LineColorConfig = {
             gutter: this._removedLineNumberBg,
           };
@@ -538,16 +640,15 @@ export class VirtualizedDiffRenderable extends Renderable {
           } else {
             config.content = this._removedBg;
           }
-          lineColors.set(lineIndex, config);
-          lineSigns.set(lineIndex, {
-            after: " -",
-            afterColor: this._removedSignColor,
+          this._logicalLines.push({
+            content,
+            lineNum: oldLineNum,
+            color: config,
+            sign: { after: " -", afterColor: this._removedSignColor },
+            type: "remove",
           });
-          lineNumbers.set(lineIndex, oldLineNum);
           oldLineNum++;
-          lineIndex++;
         } else if (firstChar === " ") {
-          contentLines.push(content);
           const config: LineColorConfig = {
             gutter: this._lineNumberBg,
           };
@@ -556,40 +657,27 @@ export class VirtualizedDiffRenderable extends Renderable {
           } else {
             config.content = this._contextBg;
           }
-          lineColors.set(lineIndex, config);
-          lineNumbers.set(lineIndex, newLineNum);
+          this._logicalLines.push({
+            content,
+            lineNum: newLineNum,
+            color: config,
+            type: "context",
+          });
           oldLineNum++;
           newLineNum++;
-          lineIndex++;
         }
       }
     }
-
-    const content = contentLines.join("\n");
-
-    const codeRenderable = this.createOrUpdateCodeRenderable("left", content, this._wrapMode);
-
-    this.createOrUpdateSide(
-      "left",
-      codeRenderable,
-      lineColors,
-      lineSigns,
-      lineNumbers,
-      new Set<number>(),
-      "100%",
-    );
 
     if (this.rightSide && this.rightSideAdded) {
       super.remove(this.rightSide.id);
       this.rightSideAdded = false;
     }
+
+    this.updateWindow();
   }
 
-  private buildSplitView(): void {
-    if (!this._parsedDiff) return;
-
-    this.flexDirection = "row";
-
+  private clearErrorViews(): void {
     if (this.errorTextRenderable) {
       const errorTextIndex = this.getChildren().indexOf(this.errorTextRenderable);
       if (errorTextIndex !== -1) {
@@ -602,6 +690,189 @@ export class VirtualizedDiffRenderable extends Renderable {
         super.remove(this.errorCodeRenderable.id);
       }
     }
+  }
+
+  private updateWindow(): void {
+    if (this._updatingWindow) return;
+    this._updatingWindow = true;
+    try {
+      if (this._view === "unified") {
+        this.updateUnifiedWindow();
+      } else {
+        this.updateSplitWindow();
+      }
+    } finally {
+      this._updatingWindow = false;
+    }
+  }
+
+  private updateUnifiedWindow(): void {
+    const lines = this._logicalLines;
+    const total = lines.length;
+    const visible = this.visibleLineCount();
+
+    if (total === 0) return;
+
+    if (total <= visible) {
+      this._virtualScrollLine = 0;
+      this._windowStart = 0;
+      this._windowEnd = total;
+      this.renderLinesWindow(lines, 0, total, "left", "100%");
+      return;
+    }
+
+    this._virtualScrollLine = Math.max(0, Math.min(this._virtualScrollLine, total - visible));
+
+    const start = Math.max(0, this._virtualScrollLine - this._overscan);
+    const end = Math.min(total, this._virtualScrollLine + visible + this._overscan);
+
+    if (start === this._windowStart && end === this._windowEnd) return;
+
+    const oldUserLine = this._windowStart + (this.leftCodeRenderable?.scrollY ?? 0);
+    this._windowStart = start;
+    this._windowEnd = end;
+
+    this.renderLinesWindow(lines, start, end, "left", "100%");
+
+    if (this.leftCodeRenderable) {
+      this.leftCodeRenderable.scrollY = Math.max(0, oldUserLine - start);
+    }
+  }
+
+  private updateSplitWindow(): void {
+    const leftLines = this._leftLogicalLines;
+    const rightLines = this._rightLogicalLines;
+    const total = Math.min(leftLines.length, rightLines.length);
+    const visible = this.visibleLineCount();
+
+    if (total === 0) return;
+
+    if (total <= visible) {
+      this._virtualScrollLine = 0;
+      this._windowStart = 0;
+      this._windowEnd = total;
+      this.renderLinesWindow(leftLines, 0, total, "left", "50%");
+      this.renderLinesWindow(rightLines, 0, total, "right", "50%");
+      return;
+    }
+
+    this._virtualScrollLine = Math.max(0, Math.min(this._virtualScrollLine, total - visible));
+
+    const start = Math.max(0, this._virtualScrollLine - this._overscan);
+    const end = Math.min(total, this._virtualScrollLine + visible + this._overscan);
+
+    if (start === this._windowStart && end === this._windowEnd) return;
+
+    const oldUserLine = this._windowStart + (this.leftCodeRenderable?.scrollY ?? 0);
+    this._windowStart = start;
+    this._windowEnd = end;
+
+    this.renderLinesWindow(leftLines, start, end, "left", "50%");
+    this.renderLinesWindow(rightLines, start, end, "right", "50%");
+
+    const newScrollY = Math.max(0, oldUserLine - start);
+    if (this.leftCodeRenderable) {
+      this.leftCodeRenderable.scrollY = newScrollY;
+    }
+    if (this.rightCodeRenderable) {
+      this.rightCodeRenderable.scrollY = newScrollY;
+    }
+  }
+
+  private renderLinesWindow(
+    lines: LogicalLine[],
+    start: number,
+    end: number,
+    side: "left" | "right",
+    width: "50%" | "100%",
+  ): void {
+    const window = lines.slice(start, end);
+
+    const content = window.map((l) => l.content).join("\n");
+    const codeRenderable = this.createOrUpdateCodeRenderable(
+      side,
+      content,
+      this._wrapMode,
+      false,
+    );
+
+    const lineColors = new Map<number, string | RGBA | LineColorConfig>();
+    const lineSigns = new Map<number, LineSign>();
+    const lineNumbers = new Map<number, number>();
+    const hideLineNumbers = new Set<number>();
+
+    window.forEach((line, index) => {
+      if (line.lineNum !== undefined) {
+        lineNumbers.set(index, line.lineNum);
+      }
+      if (line.hideLineNumber) {
+        hideLineNumbers.add(index);
+      }
+      if (line.type === "add") {
+        const config: LineColorConfig = {
+          gutter: this._addedLineNumberBg,
+        };
+        if (this._addedContentBg) {
+          config.content = this._addedContentBg;
+        } else {
+          config.content = this._addedBg;
+        }
+        lineColors.set(index, config);
+      } else if (line.type === "remove") {
+        const config: LineColorConfig = {
+          gutter: this._removedLineNumberBg,
+        };
+        if (this._removedContentBg) {
+          config.content = this._removedContentBg;
+        } else {
+          config.content = this._removedBg;
+        }
+        lineColors.set(index, config);
+      } else if (line.type === "context") {
+        const config: LineColorConfig = {
+          gutter: this._lineNumberBg,
+        };
+        if (this._contextContentBg) {
+          config.content = this._contextContentBg;
+        } else {
+          config.content = this._contextBg;
+        }
+        lineColors.set(index, config);
+      } else if (line.type === "empty") {
+        const config: LineColorConfig = {
+          gutter: this._lineNumberBg,
+        };
+        if (this._contextContentBg) {
+          config.content = this._contextContentBg;
+        } else {
+          config.content = this._contextBg;
+        }
+        lineColors.set(index, config);
+      }
+      if (line.sign) {
+        lineSigns.set(index, line.sign);
+      }
+      if (line.color && line.type === "empty") {
+        lineColors.set(index, line.color);
+      }
+    });
+
+    this.createOrUpdateSide(
+      side,
+      codeRenderable,
+      lineColors,
+      lineSigns,
+      lineNumbers,
+      hideLineNumbers,
+      width,
+    );
+  }
+
+  private buildSplitView(): void {
+    if (!this._parsedDiff) return;
+
+    this.flexDirection = "row";
+    this.clearErrorViews();
 
     const leftLogicalLines: LogicalLine[] = [];
     const rightLogicalLines: LogicalLine[] = [];
@@ -706,208 +977,114 @@ export class VirtualizedDiffRenderable extends Renderable {
     const canDoWrapAlignment =
       this.width > 0 && (this._wrapMode === "word" || this._wrapMode === "char");
 
-    const preLeftContent = leftLogicalLines.map((l) => l.content).join("\n");
-    const preRightContent = rightLogicalLines.map((l) => l.content).join("\n");
+    if (canDoWrapAlignment) {
+      const needsConsistentConcealing =
+        (this._wrapMode === "word" || this._wrapMode === "char") &&
+        this._conceal &&
+        this._filetype;
+      const preLeftContent = leftLogicalLines.map((l) => l.content).join("\n");
+      const preRightContent = rightLogicalLines.map((l) => l.content).join("\n");
 
-    const needsConsistentConcealing =
-      (this._wrapMode === "word" || this._wrapMode === "char") &&
-      this._conceal &&
-      this._filetype;
-    const drawUnstyledText = !needsConsistentConcealing;
-    const leftCodeRenderable = this.createOrUpdateCodeRenderable(
-      "left",
-      preLeftContent,
-      this._wrapMode,
-      drawUnstyledText,
-    );
-    const rightCodeRenderable = this.createOrUpdateCodeRenderable(
-      "right",
-      preRightContent,
-      this._wrapMode,
-      drawUnstyledText,
-    );
+      const leftCode = this.createOrUpdateCodeRenderable(
+        "left",
+        preLeftContent,
+        this._wrapMode,
+        false,
+      );
+      const rightCode = this.createOrUpdateCodeRenderable(
+        "right",
+        preRightContent,
+        this._wrapMode,
+        false,
+      );
 
-    let finalLeftLines: LogicalLine[];
-    let finalRightLines: LogicalLine[];
+      const leftIsHighlighting = leftCode.isHighlighting;
+      const rightIsHighlighting = rightCode.isHighlighting;
+      const highlightingInProgress =
+        needsConsistentConcealing && (leftIsHighlighting || rightIsHighlighting);
 
-    const leftIsHighlighting = leftCodeRenderable.isHighlighting;
-    const rightIsHighlighting = rightCodeRenderable.isHighlighting;
-    const highlightingInProgress =
-      needsConsistentConcealing && (leftIsHighlighting || rightIsHighlighting);
-
-    if (highlightingInProgress) {
-      this._waitingForHighlight = true;
-      this.attachLineInfoListeners();
-    }
-
-    const shouldDoAlignment = canDoWrapAlignment && !highlightingInProgress;
-
-    if (shouldDoAlignment) {
-      const leftLineInfo = leftCodeRenderable.lineInfo;
-      const rightLineInfo = rightCodeRenderable.lineInfo;
-
-      const leftSources = leftLineInfo.lineSources || [];
-      const rightSources = rightLineInfo.lineSources || [];
-
-      const leftVisualCounts = new Map<number, number>();
-      const rightVisualCounts = new Map<number, number>();
-
-      for (const logicalLine of leftSources) {
-        leftVisualCounts.set(logicalLine, (leftVisualCounts.get(logicalLine) || 0) + 1);
-      }
-      for (const logicalLine of rightSources) {
-        rightVisualCounts.set(logicalLine, (rightVisualCounts.get(logicalLine) || 0) + 1);
+      if (highlightingInProgress) {
+        this._waitingForHighlight = true;
+        this.attachLineInfoListeners();
       }
 
-      finalLeftLines = [];
-      finalRightLines = [];
+      const shouldDoAlignment = canDoWrapAlignment && !highlightingInProgress;
 
-      let leftVisualPos = 0;
-      let rightVisualPos = 0;
+      if (shouldDoAlignment) {
+        const leftLineInfo = leftCode.lineInfo;
+        const rightLineInfo = rightCode.lineInfo;
 
-      for (let i = 0; i < leftLogicalLines.length; i++) {
-        const leftLine = leftLogicalLines[i];
-        const rightLine = rightLogicalLines[i];
+        const leftSources = leftLineInfo.lineSources || [];
+        const rightSources = rightLineInfo.lineSources || [];
 
-        const leftVisualCount = leftVisualCounts.get(i) || 1;
-        const rightVisualCount = rightVisualCounts.get(i) || 1;
+        const leftVisualCounts = new Map<number, number>();
+        const rightVisualCounts = new Map<number, number>();
+
+        for (const logicalLine of leftSources) {
+          leftVisualCounts.set(logicalLine, (leftVisualCounts.get(logicalLine) || 0) + 1);
+        }
+        for (const logicalLine of rightSources) {
+          rightVisualCounts.set(logicalLine, (rightVisualCounts.get(logicalLine) || 0) + 1);
+        }
+
+        const finalLeftLines: LogicalLine[] = [];
+        const finalRightLines: LogicalLine[] = [];
+
+        let leftVisualPos = 0;
+        let rightVisualPos = 0;
+
+        for (let k = 0; k < leftLogicalLines.length; k++) {
+          const leftLine = leftLogicalLines[k];
+          const rightLine = rightLogicalLines[k];
+
+          const leftVisualCount = leftVisualCounts.get(k) || 1;
+          const rightVisualCount = rightVisualCounts.get(k) || 1;
+
+          if (leftVisualPos < rightVisualPos) {
+            const pad = rightVisualPos - leftVisualPos;
+            for (let p = 0; p < pad; p++) {
+              finalLeftLines.push({ content: "", hideLineNumber: true, type: "empty" });
+            }
+            leftVisualPos += pad;
+          } else if (rightVisualPos < leftVisualPos) {
+            const pad = leftVisualPos - rightVisualPos;
+            for (let p = 0; p < pad; p++) {
+              finalRightLines.push({ content: "", hideLineNumber: true, type: "empty" });
+            }
+            rightVisualPos += pad;
+          }
+
+          finalLeftLines.push(leftLine);
+          finalRightLines.push(rightLine);
+
+          leftVisualPos += leftVisualCount;
+          rightVisualPos += rightVisualCount;
+        }
 
         if (leftVisualPos < rightVisualPos) {
           const pad = rightVisualPos - leftVisualPos;
           for (let p = 0; p < pad; p++) {
             finalLeftLines.push({ content: "", hideLineNumber: true, type: "empty" });
           }
-          leftVisualPos += pad;
         } else if (rightVisualPos < leftVisualPos) {
           const pad = leftVisualPos - rightVisualPos;
           for (let p = 0; p < pad; p++) {
             finalRightLines.push({ content: "", hideLineNumber: true, type: "empty" });
           }
-          rightVisualPos += pad;
         }
 
-        finalLeftLines.push(leftLine);
-        finalRightLines.push(rightLine);
-
-        leftVisualPos += leftVisualCount;
-        rightVisualPos += rightVisualCount;
-      }
-
-      if (leftVisualPos < rightVisualPos) {
-        const pad = rightVisualPos - leftVisualPos;
-        for (let p = 0; p < pad; p++) {
-          finalLeftLines.push({ content: "", hideLineNumber: true, type: "empty" });
-        }
-      } else if (rightVisualPos < leftVisualPos) {
-        const pad = leftVisualPos - rightVisualPos;
-        for (let p = 0; p < pad; p++) {
-          finalRightLines.push({ content: "", hideLineNumber: true, type: "empty" });
-        }
+        this._leftLogicalLines = finalLeftLines;
+        this._rightLogicalLines = finalRightLines;
+      } else {
+        this._leftLogicalLines = leftLogicalLines;
+        this._rightLogicalLines = rightLogicalLines;
       }
     } else {
-      finalLeftLines = leftLogicalLines;
-      finalRightLines = rightLogicalLines;
+      this._leftLogicalLines = leftLogicalLines;
+      this._rightLogicalLines = rightLogicalLines;
     }
 
-    const leftLineColors = new Map<number, string | RGBA | LineColorConfig>();
-    const rightLineColors = new Map<number, string | RGBA | LineColorConfig>();
-    const leftLineSigns = new Map<number, LineSign>();
-    const rightLineSigns = new Map<number, LineSign>();
-    const leftHideLineNumbers = new Set<number>();
-    const rightHideLineNumbers = new Set<number>();
-    const leftLineNumbers = new Map<number, number>();
-    const rightLineNumbers = new Map<number, number>();
-
-    finalLeftLines.forEach((line, index) => {
-      if (line.lineNum !== undefined) {
-        leftLineNumbers.set(index, line.lineNum);
-      }
-      if (line.hideLineNumber) {
-        leftHideLineNumbers.add(index);
-      }
-      if (line.type === "remove") {
-        const config: LineColorConfig = {
-          gutter: this._removedLineNumberBg,
-        };
-        if (this._removedContentBg) {
-          config.content = this._removedContentBg;
-        } else {
-          config.content = this._removedBg;
-        }
-        leftLineColors.set(index, config);
-      } else if (line.type === "context") {
-        const config: LineColorConfig = {
-          gutter: this._lineNumberBg,
-        };
-        if (this._contextContentBg) {
-          config.content = this._contextContentBg;
-        } else {
-          config.content = this._contextBg;
-        }
-        leftLineColors.set(index, config);
-      }
-      if (line.sign) {
-        leftLineSigns.set(index, line.sign);
-      }
-    });
-
-    finalRightLines.forEach((line, index) => {
-      if (line.lineNum !== undefined) {
-        rightLineNumbers.set(index, line.lineNum);
-      }
-      if (line.hideLineNumber) {
-        rightHideLineNumbers.add(index);
-      }
-      if (line.type === "add") {
-        const config: LineColorConfig = {
-          gutter: this._addedLineNumberBg,
-        };
-        if (this._addedContentBg) {
-          config.content = this._addedContentBg;
-        } else {
-          config.content = this._addedBg;
-        }
-        rightLineColors.set(index, config);
-      } else if (line.type === "context") {
-        const config: LineColorConfig = {
-          gutter: this._lineNumberBg,
-        };
-        if (this._contextContentBg) {
-          config.content = this._contextContentBg;
-        } else {
-          config.content = this._contextBg;
-        }
-        rightLineColors.set(index, config);
-      }
-      if (line.sign) {
-        rightLineSigns.set(index, line.sign);
-      }
-    });
-
-    const leftContentFinal = finalLeftLines.map((l) => l.content).join("\n");
-    const rightContentFinal = finalRightLines.map((l) => l.content).join("\n");
-
-    leftCodeRenderable.content = leftContentFinal;
-    rightCodeRenderable.content = rightContentFinal;
-
-    this.createOrUpdateSide(
-      "left",
-      leftCodeRenderable,
-      leftLineColors,
-      leftLineSigns,
-      leftLineNumbers,
-      leftHideLineNumbers,
-      "50%",
-    );
-    this.createOrUpdateSide(
-      "right",
-      rightCodeRenderable,
-      rightLineColors,
-      rightLineSigns,
-      rightLineNumbers,
-      rightHideLineNumbers,
-      "50%",
-    );
+    this.updateWindow();
   }
 
   public get diff(): string {
@@ -918,6 +1095,12 @@ export class VirtualizedDiffRenderable extends Renderable {
     if (this._diff !== value) {
       this._diff = value;
       this._waitingForHighlight = false;
+      this._virtualScrollLine = 0;
+      this._windowStart = -1;
+      this._windowEnd = -1;
+      this._logicalLines = [];
+      this._leftLogicalLines = [];
+      this._rightLogicalLines = [];
       this.parseDiff();
       this.rebuildView();
     }
@@ -944,6 +1127,12 @@ export class VirtualizedDiffRenderable extends Renderable {
     if (this._view !== value) {
       this._view = value;
       this.flexDirection = value === "split" ? "row" : "column";
+      this._virtualScrollLine = 0;
+      this._windowStart = -1;
+      this._windowEnd = -1;
+      this._logicalLines = [];
+      this._leftLogicalLines = [];
+      this._rightLogicalLines = [];
       this.buildView();
     }
   }
@@ -977,12 +1166,9 @@ export class VirtualizedDiffRenderable extends Renderable {
   public set wrapMode(value: "word" | "char" | "none" | undefined) {
     if (this._wrapMode !== value) {
       this._wrapMode = value;
-
-      if (this._view === "unified" && this.leftCodeRenderable) {
-        this.leftCodeRenderable.wrapMode = value ?? "none";
-      } else if (this._view === "split") {
-        this.requestRebuild();
-      }
+      this._windowStart = -1;
+      this._windowEnd = -1;
+      this.rebuildView();
     }
   }
 
@@ -1205,6 +1391,19 @@ export class VirtualizedDiffRenderable extends Renderable {
       if (this.rightCodeRenderable) {
         this.rightCodeRenderable.fg = parsed;
       }
+    }
+  }
+
+  public get overscan(): number {
+    return this._overscan;
+  }
+
+  public set overscan(value: number) {
+    if (this._overscan !== value) {
+      this._overscan = Math.max(1, value);
+      this._windowStart = -1;
+      this._windowEnd = -1;
+      this.updateWindow();
     }
   }
 

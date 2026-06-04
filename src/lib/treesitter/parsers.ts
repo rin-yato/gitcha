@@ -291,4 +291,40 @@ export const parsers = [
       ],
     },
   },
+  {
+    filetype: "sql",
+    wasm: "https://github.com/DerekStride/tree-sitter-sql/releases/download/v0.3.11/tree-sitter-sql.wasm",
+    queries: {
+      highlights: [
+        "https://raw.githubusercontent.com/nvim-treesitter/nvim-treesitter/refs/heads/master/queries/sql/highlights.scm",
+      ],
+    },
+  },
+  {
+    filetype: "dockerfile",
+    wasm: "https://github.com/camdencheek/tree-sitter-dockerfile/releases/download/v0.2.0/tree-sitter-dockerfile.wasm",
+    queries: {
+      highlights: [
+        "https://raw.githubusercontent.com/nvim-treesitter/nvim-treesitter/refs/heads/master/queries/dockerfile/highlights.scm",
+      ],
+    },
+  },
+  {
+    filetype: "elixir",
+    wasm: "https://github.com/elixir-lang/tree-sitter-elixir/releases/download/v0.3.5/tree-sitter-elixir.wasm",
+    queries: {
+      highlights: [
+        "https://raw.githubusercontent.com/nvim-treesitter/nvim-treesitter/refs/heads/master/queries/elixir/highlights.scm",
+      ],
+    },
+  },
+  {
+    filetype: "make",
+    wasm: "https://github.com/tree-sitter-grammars/tree-sitter-make/releases/download/v1.1.1/tree-sitter-make.wasm",
+    queries: {
+      highlights: [
+        "https://raw.githubusercontent.com/nvim-treesitter/nvim-treesitter/refs/heads/master/queries/make/highlights.scm",
+      ],
+    },
+  },
 ];
