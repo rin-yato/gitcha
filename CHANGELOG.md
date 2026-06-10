@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.14](https://github.com/rin-yato/differ/compare/v0.1.13...v0.1.14) (2026-06-10)
+
+
+### Bug Fixes
+
+* sidebar auto selection when no changes ([7352717](https://github.com/rin-yato/differ/commit/73527178e1edd59cb667c49dbb63b227f66ed858))
+* unmemo targets ([ec2fe13](https://github.com/rin-yato/differ/commit/ec2fe132b567c8f4fee5aaafe52d9a609f00fc74))
+
+
+### Features
+
+* custom virtualized diff ([6794b15](https://github.com/rin-yato/differ/commit/6794b15144d9b89a65a208275780f217c28a3233))
+* expose overscan ([2a1dfb0](https://github.com/rin-yato/differ/commit/2a1dfb07538edb6d382599c8df03b9337757ea4c))
+
 ## [0.1.13](https://github.com/rin-yato/differ/compare/v0.1.12...v0.1.13) (2026-05-31)
 
 
