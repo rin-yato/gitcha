@@ -4,6 +4,7 @@ import {
   type LineColorConfig,
   LineNumberRenderable,
   type LineSign,
+  type MouseEvent,
   parseColor,
   Renderable,
   type RenderableOptions,
@@ -192,7 +193,7 @@ export class VirtualizedDiffRenderable extends Renderable {
         return;
       }
 
-      this._parsedDiff = patches[0];
+      this._parsedDiff = patches[0] ?? null;
       this._parseError = null;
     } catch (error) {
       this._parsedDiff = null;
@@ -240,10 +241,8 @@ export class VirtualizedDiffRenderable extends Renderable {
       return;
     }
 
-    if (event.type === "wheel") {
-      event.preventDefault();
-      const wheelEvent = event as unknown as WheelEvent;
-      const delta = wheelEvent.deltaY > 0 ? 3 : wheelEvent.deltaY < 0 ? -3 : 0;
+    if (event.scroll) {
+      const delta = event.scroll.delta > 0 ? 3 : event.scroll.delta < 0 ? -3 : 0;
       if (delta !== 0) {
         this.scrollBy(delta);
       }
@@ -883,7 +882,7 @@ export class VirtualizedDiffRenderable extends Renderable {
 
       let i = 0;
       while (i < hunk.lines.length) {
-        const line = hunk.lines[i];
+        const line = hunk.lines[i]!;
         const firstChar = line[0];
 
         if (firstChar === " ") {
@@ -910,7 +909,7 @@ export class VirtualizedDiffRenderable extends Renderable {
           const adds: { content: string; lineNum: number }[] = [];
 
           while (i < hunk.lines.length) {
-            const currentLine = hunk.lines[i];
+            const currentLine = hunk.lines[i]!;
             const currentChar = currentLine[0];
 
             if (currentChar === " " || currentChar === "\\") {
@@ -934,8 +933,8 @@ export class VirtualizedDiffRenderable extends Renderable {
           for (let j = 0; j < maxLength; j++) {
             if (j < removes.length) {
               leftLogicalLines.push({
-                content: removes[j].content,
-                lineNum: removes[j].lineNum,
+                content: removes[j]!.content,
+                lineNum: removes[j]!.lineNum,
                 color: this._removedBg,
                 sign: {
                   after: " -",
@@ -953,8 +952,8 @@ export class VirtualizedDiffRenderable extends Renderable {
 
             if (j < adds.length) {
               rightLogicalLines.push({
-                content: adds[j].content,
-                lineNum: adds[j].lineNum,
+                content: adds[j]!.content,
+                lineNum: adds[j]!.lineNum,
                 color: this._addedBg,
                 sign: {
                   after: " +",
@@ -1054,8 +1053,8 @@ export class VirtualizedDiffRenderable extends Renderable {
             rightVisualPos += pad;
           }
 
-          finalLeftLines.push(leftLine);
-          finalRightLines.push(rightLine);
+          finalLeftLines.push(leftLine!);
+          finalRightLines.push(rightLine!);
 
           leftVisualPos += leftVisualCount;
           rightVisualPos += rightVisualCount;
