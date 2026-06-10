@@ -182,12 +182,14 @@ export const SidebarProvider: ParentComponent<{
   const gitStore = useGit();
   const review = useReview();
 
-  const allSidebarFiles = createMemo(() =>
-    review.state.active
+  const targets = () => {
+    const files = review.state.active
       ? collectReviewFiles(review.state.status?.files ?? null, state.viewMode)
-      : collectSidebarFiles(gitStore.state.status, state.viewMode),
-  );
-  const targets = createMemo(() => allSidebarFiles().map((entry) => entry.target));
+      : collectSidebarFiles(gitStore.state.status, state.viewMode);
+
+    return files.map((f) => f.target);
+  };
+
   const sections = createMemo(() =>
     review.state.active
       ? createReviewSectionViews(
