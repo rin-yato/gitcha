@@ -36,9 +36,7 @@ const EMPTY_FILE_TREE_SNAPSHOT: FileTreeSnapshot = {
   orderedFiles: [],
 };
 
-function parseStatusCode(value: string | undefined): GitFileStatus {
-  return (value || " ") as GitFileStatus;
-}
+import { parseStatusCode } from "../status-code";
 
 function isRenameOrCopy(indexStatus: GitFileStatus, workingTreeStatus: GitFileStatus): boolean {
   return (

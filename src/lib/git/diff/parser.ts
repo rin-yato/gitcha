@@ -1,13 +1,11 @@
 import { Result } from "better-result";
 
 import { GitParseError } from "../errors";
-import type { GitFileStatus, GitResult, GitStatusFile } from "../types";
+import type { GitResult, GitStatusFile } from "../types";
 
 export type GitDiffStatusLine = { path: string; originalPath?: string; status: string };
 
-function parseStatusCode(value: string | undefined): GitFileStatus {
-  return (value || " ") as GitFileStatus;
-}
+import { parseStatusCode } from "../status-code";
 
 export function parseNameStatusLine(line: string): GitDiffStatusLine | null {
   if (!line || line.length < 2) return null;
