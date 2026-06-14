@@ -1,6 +1,7 @@
 import { createMemo, createResource, Match, Switch } from "solid-js";
 
 import { findGitScopedFile, git, toGitUnifiedDiffTarget } from "@/lib/git";
+import { formatGitError, type GitError } from "@/lib/git/errors";
 
 import { collectReviewFiles, collectSidebarFiles } from "@/component/sidebar/utils";
 
@@ -26,29 +27,41 @@ export function DiffPane() {
 
   const [diffResource] = createResource(
     () => selectedFile(),
-    async (file) => {
+    async (file): Promise<Result<string, GitError> | undefined> => {
       if (!file) return undefined;
       if (review.state.active) {
         const target = review.state.target;
         if (!target) return undefined;
-        return git.review.diff(target, toGitUnifiedDiffTarget(file)).then(Result.unwrap);
+        return git.review.diff(target, toGitUnifiedDiffTarget(file));
       }
-      return git.diff.get(toGitUnifiedDiffTarget(file)).then(Result.unwrap);
+      return git.diff.get(toGitUnifiedDiffTarget(file));
     },
   );
+
+  const diffError = createMemo(() => {
+    const res = diffResource();
+    if (res && Result.isError(res)) return formatGitError(res.error);
+    return undefined;
+  });
+
+  const diffText = createMemo(() => {
+    const res = diffResource();
+    if (res && Result.isOk(res)) return res.value;
+    return undefined;
+  });
 
   return (
     <Switch>
       <Match when={!selectedFile()}>
         <BlankView />
       </Match>
-      <Match when={diffResource.error}>
+      <Match when={diffError()}>
         <box width="100%" height="100%" alignItems="center" justifyContent="center">
-          <text fg="red">Error: {String(diffResource.error)}</text>
+          <text fg="red">Error: {diffError()}</text>
         </box>
       </Match>
-      <Match when={diffResource()}>
-        {(diff) => <Diff filePath={selectedFile()!.file.path} diff={diff()} />}
+      <Match when={diffText()}>
+        <Diff filePath={selectedFile()!.file.path} diff={diffText()!} />
       </Match>
     </Switch>
   );
