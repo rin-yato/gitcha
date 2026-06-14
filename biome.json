@@ -19,8 +19,6 @@
               ":BLANK_LINE:",
               ["solid-js", "solid-js/**"],
               ":BLANK_LINE:",
-              ["@/store/**"],
-              ":BLANK_LINE:",
               ["@/lib/**"],
               ":BLANK_LINE:",
               ["@/component/**"],

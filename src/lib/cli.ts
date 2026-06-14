@@ -7,26 +7,24 @@ const HELP_TEXT = `
 
   Commands
     version  Show version information
-    which    Show the current target
 `;
 
 const COMMANDS = {
   version: "version",
-  which: "which",
   help: "help",
 } as const;
 
 const buildCli = () =>
   meow(HELP_TEXT, {
     importMeta: import.meta,
-    commands: [COMMANDS.version, COMMANDS.which, COMMANDS.help],
+    commands: [COMMANDS.version, COMMANDS.help],
     version: process.env.GITCHA_VERSION,
     autoHelp: true,
     autoVersion: true,
     allowUnknownFlags: true,
   });
 
-async function handle(fn: () => Promise<void>) {
+async function _handle(fn: () => Promise<void>) {
   await Result.tryPromise({
     try: fn,
     catch: (error) => {
@@ -46,13 +44,6 @@ async function handleCli(cli: CliResult<AnyFlags>) {
   // handle help
   if (cli.flags.help || cli.command === COMMANDS.help) {
     return cli.showHelp();
-  }
-
-  // handle which
-  if (cli.command === COMMANDS.which) {
-    return handle(async () => {
-      console.log("which placeholder");
-    });
   }
 
   return "TUI";

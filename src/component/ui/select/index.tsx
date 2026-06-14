@@ -297,7 +297,6 @@ export function Select<T>(props: SelectProps<T>) {
           <For each={rows()}>
             {(row, index) => {
               if (row.kind === "group") {
-                console.log("rendering group", row);
                 return (
                   <box paddingTop={index() > 0 ? 1 : 0} paddingLeft={3}>
                     <Show
