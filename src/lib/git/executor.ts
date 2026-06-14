@@ -175,15 +175,22 @@ export class GitExecutor {
 
     const cwd = cwdResult.value;
     const key = commandKey(args, options, cwd);
-    const cached = key ? this.inflight.get(key) : undefined;
-    if (cached) return cached;
 
-    const promise = this.runQueued(args, cwd, options);
-    if (key) {
-      this.inflight.set(key, promise);
-      promise.finally(() => this.inflight.delete(key));
+    if (!key) {
+      return this.runQueued(args, cwd, options);
     }
 
+    const existing = this.inflight.get(key);
+    if (existing) return existing;
+
+    let promise: Promise<GitResult<GitCommandOutput>>;
+    promise = this.runQueued(args, cwd, options).finally(() => {
+      if (this.inflight.get(key) === promise) {
+        this.inflight.delete(key);
+      }
+    });
+
+    this.inflight.set(key, promise);
     return promise;
   }
 
