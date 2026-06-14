@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { config } from "./index";
+import { ConfigManager, config } from "./index";
 
 let dir: string;
 let path: string;
@@ -100,5 +100,29 @@ describe("config", () => {
     expect(loaded.sidebar.defaultWidth).toBe(40);
     expect(loaded.theme).toBe("opencode");
     expect(loaded.themeMode).toBe("light");
+  });
+});
+
+describe("config parse error handling", () => {
+  test("does not overwrite a file with invalid JSON", () => {
+    const original = "{ invalid json content !!! }";
+    writeFileSync(path, original);
+
+    const loaded = new ConfigManager().get({ path, homeDir: dir });
+
+    expect(loaded.theme).toBeDefined();
+
+    const onDisk = readFileSync(path, "utf8");
+    expect(onDisk).toBe(original);
+  });
+
+  test("creates config file when it does not exist", () => {
+    const loaded = new ConfigManager().get({ path, homeDir: dir });
+
+    expect(loaded.theme).toBeDefined();
+
+    const onDisk = readFileSync(path, "utf8");
+    const parsed = JSON.parse(onDisk);
+    expect(parsed).toHaveProperty("theme");
   });
 });

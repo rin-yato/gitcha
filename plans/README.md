@@ -9,8 +9,8 @@ Each executor: read the plan fully before starting, honor its STOP conditions, a
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
 | 001 | Fix race condition in GitExecutor inflight deduplication | P1 | S | — | DONE |
-| 002 | Fix DiffPane error handling — use Result instead of unwrap | P1 | S | — | TODO |
-| 003 | Don't overwrite corrupted config file | P1 | S | — | TODO |
+| 002 | Fix DiffPane error handling — use Result instead of unwrap | P1 | S | — | DONE |
+| 003 | Don't overwrite corrupted config file | P1 | S | — | DONE |
 | 004 | Extract duplicate parseStatusCode to shared module | P1 | S | — | TODO |
 | 005 | Remove dead and duplicate dependencies | P2 | S | — | TODO |
 | 006 | Move chokidar to devDependencies | P2 | S | — | TODO |

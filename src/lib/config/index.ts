@@ -30,11 +30,21 @@ class ConfigManager {
   fresh(options: ConfigArgs = {}): AppConfig {
     const path = options.path ?? this.getAppConfigPath(options.homeDir);
 
-    const config = this.load(path).match({
-      ok: (value) => value,
-      err: () => this.createDefaultAppConfig(path),
-    });
+    const loaded = this.load(path);
+    if (Result.isOk(loaded)) {
+      const config = loaded.value;
+      this.cache = { path, config };
+      return config;
+    }
 
+    const error = loaded.error;
+    if (error instanceof ConfigReadError) {
+      const config = this.createDefaultAppConfig(path);
+      this.cache = { path, config };
+      return config;
+    }
+
+    const config = configSchema.parse({});
     this.cache = { path, config };
     return config;
   }
@@ -79,4 +89,5 @@ class ConfigManager {
   }
 }
 
+export { ConfigManager };
 export const config = new ConfigManager();
