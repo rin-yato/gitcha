@@ -13,7 +13,7 @@ Each executor: read the plan fully before starting, honor its STOP conditions, a
 | 003 | Don't overwrite corrupted config file | P1 | S | — | DONE |
 | 004 | Extract duplicate parseStatusCode to shared module | P1 | S | — | DONE |
 | 005 | Remove dead and duplicate dependencies | P2 | S | — | DONE |
-| 006 | Move chokidar to devDependencies | P2 | S | — | TODO |
+| 006 | Move chokidar to devDependencies | P2 | S | — | DONE |
 | 007 | File watcher to replace 1-second git polling | P2 | M | 006 | TODO |
 | 008 | Quick DX fixes: which placeholder, stale console.log, dead store.ts | P2 | S | — | TODO |
 | 009 | Fix README config documentation to match actual schema | P2 | S | — | TODO |
