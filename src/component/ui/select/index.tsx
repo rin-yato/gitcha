@@ -12,7 +12,7 @@ import { createStore } from "solid-js/store";
 
 import { getScrollAcceleration } from "@/lib/scroll";
 
-import { isDeepEqual } from "remeda";
+import { dequal as isDeepEqual } from "dequal";
 
 import { getSelectListHeight, getSelectRowsHeight } from "./height";
 import { buildRowsFromGroups, getFilteredOptions, groupFilteredOptions } from "./logic";
