@@ -26,15 +26,16 @@ With `gitcha`, the goal is to make that final review fast and focused.
 
 Supported keys:
 
-- `themeId`
-- `sidebarWidth`
-- `keybindings`
-
-The generated config includes a `$schema` field pointing at:
-
-`https://raw.githubusercontent.com/rin-yato/gitcha/main/legacy/src/config.schema.json`
-
-If you want editor validation, point your local config file at that schema URL.
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `theme` | string | `"opencode"` | Theme ID (see available themes) |
+| `themeMode` | `"light"` \| `"dark"` | `"light"` | Light or dark mode |
+| `sidebar.defaultOpen` | boolean | `true` | Whether sidebar starts open |
+| `sidebar.defaultWidth` | number | `40` | Default sidebar width in columns |
+| `window.paddingTop` | number | `0` | Top padding |
+| `window.paddingRight` | number | `0` | Right padding |
+| `window.paddingBottom` | number | `0` | Bottom padding |
+| `window.paddingLeft` | number | `0` | Left padding |
 
 ## Quick Start
 

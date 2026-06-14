@@ -16,7 +16,7 @@ Each executor: read the plan fully before starting, honor its STOP conditions, a
 | 006 | Move chokidar to devDependencies | P2 | S | — | DONE |
 | 007 | File watcher to replace 1-second git polling | P2 | M | 006 | TODO |
 | 008 | Quick DX fixes: which placeholder, stale console.log, dead store.ts | P2 | S | — | DONE |
-| 009 | Fix README config documentation to match actual schema | P2 | S | — | TODO |
+| 009 | Fix README config documentation to match actual schema | P2 | S | — | DONE |
 | 010 | Add branch-based review mode | P3 | M | — | TODO |
 | 011 | Wire diff-view toggle and runtime theme switching | P3 | M | — | TODO |
 | 012 | Add GitExecutor integration tests | P3 | L | — | TODO |
