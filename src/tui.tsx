@@ -10,6 +10,7 @@ import { DiffPane } from "@/component/diff-pane";
 import { ExCommandPrompt } from "@/component/ex-command-prompt";
 import { ModeSelect } from "@/component/review/mode-select";
 import { Sidebar } from "@/component/sidebar";
+import { ThemePicker } from "@/component/theme-picker";
 import { Dialog } from "@/component/ui/dialog";
 import { Toast } from "@/component/ui/toast";
 
@@ -57,6 +58,12 @@ function AppKeymapBindings() {
           dialog.show({ component: ModeSelect });
         },
       },
+      {
+        name: "theme.choose",
+        run() {
+          dialog.show({ component: ThemePicker });
+        },
+      },
     ],
     bindings: [
       {
@@ -68,6 +75,11 @@ function AppKeymapBindings() {
         key: "v",
         cmd: "review.open",
         desc: "Review",
+      },
+      {
+        key: "t",
+        cmd: "theme.choose",
+        desc: "Choose theme",
       },
     ],
   }));

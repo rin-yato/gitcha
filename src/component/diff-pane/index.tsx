@@ -1,4 +1,6 @@
-import { createMemo, createResource, Match, Switch } from "solid-js";
+import { useBindings } from "@opentui/keymap/solid";
+
+import { createMemo, createResource, createSignal, Match, Switch } from "solid-js";
 
 import { findGitScopedFile, git, toGitUnifiedDiffTarget } from "@/lib/git";
 import { formatGitError, type GitError } from "@/lib/git/errors";
@@ -17,6 +19,8 @@ export function DiffPane() {
   const review = useReview();
   const sidebar = useSidebar();
   const gitStore = useGit();
+
+  const [diffView, setDiffView] = createSignal<"unified" | "split">("unified");
 
   const selectedFile = createMemo(() => {
     const files = review.state.active
@@ -50,6 +54,24 @@ export function DiffPane() {
     return undefined;
   });
 
+  useBindings(() => ({
+    commands: [
+      {
+        name: "diff.toggle-view",
+        run() {
+          setDiffView((v) => (v === "unified" ? "split" : "unified"));
+        },
+      },
+    ],
+    bindings: [
+      {
+        key: "d",
+        cmd: "diff.toggle-view",
+        desc: "Toggle diff view",
+      },
+    ],
+  }));
+
   return (
     <Switch>
       <Match when={!selectedFile()}>
@@ -61,7 +83,7 @@ export function DiffPane() {
         </box>
       </Match>
       <Match when={diffText()}>
-        <Diff filePath={selectedFile()!.file.path} diff={diffText()!} />
+        <Diff filePath={selectedFile()!.file.path} diff={diffText()!} view={diffView()} />
       </Match>
     </Switch>
   );

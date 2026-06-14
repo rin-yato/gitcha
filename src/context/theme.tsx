@@ -24,13 +24,12 @@ function createThemeState(themeId: ThemeId, mode: ThemeMode): ThemeState {
   };
 }
 
-const cfg = config.get();
-const INITIAL_STATE: ThemeState = createThemeState(cfg.theme, cfg.themeMode);
-
 // --- Context + Provider ---
 
 type ThemeApi = {
   state: Store<ThemeState>;
+  setTheme: (themeId: ThemeId) => void;
+  setMode: (mode: ThemeMode) => void;
 };
 
 const ThemeContext = createContext<ThemeApi>();
@@ -38,12 +37,18 @@ const ThemeContext = createContext<ThemeApi>();
 export const ThemeProvider: ParentComponent<{
   initialState?: Partial<ThemeState>;
 }> = (props) => {
-  const [state, _setState] = createStore<ThemeState>({
-    ...INITIAL_STATE,
-    ...props.initialState,
-  });
+  const cfg = config.get();
+  const [state, setState] = createStore<ThemeState>(createThemeState(cfg.theme, cfg.themeMode));
 
-  const api: ThemeApi = { state };
+  const api: ThemeApi = {
+    state,
+    setTheme: (themeId: ThemeId) => {
+      setState(createThemeState(themeId, state.mode));
+    },
+    setMode: (mode: ThemeMode) => {
+      setState(createThemeState(state.themeId, mode));
+    },
+  };
 
   return <ThemeContext.Provider value={api}>{props.children}</ThemeContext.Provider>;
 };

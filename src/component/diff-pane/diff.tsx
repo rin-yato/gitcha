@@ -5,6 +5,7 @@ import { useTheme } from "@/context/theme";
 interface DiffProps {
   filePath: string;
   diff: string;
+  view?: "unified" | "split";
 }
 
 export function Diff(props: DiffProps) {
@@ -22,6 +23,7 @@ export function Diff(props: DiffProps) {
       </box>
 
       <virtualized_diff
+        view={props.view}
         width="100%"
         height="100%"
         diff={props.diff}
