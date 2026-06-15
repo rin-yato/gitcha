@@ -4,9 +4,11 @@ import {
   applyExPromptSuggestion,
   buildExPromptSuggestions,
   type ExPromptCommand,
+  getExPromptCommandText,
   getExPromptSuggestionRowCount,
   getExPromptSuggestions,
   moveExPromptSelection,
+  moveExPromptSelectionInList,
   normalizeExPromptName,
   parseExPromptInput,
 } from "./ex-command-input";
@@ -112,5 +114,61 @@ describe("ex command prompt logic", () => {
       value: "quit",
       selection: 0,
     });
+  });
+
+  // --- Edge cases ---
+
+  test("handles empty commands list", () => {
+    expect(buildExPromptSuggestions([])).toEqual([]);
+  });
+
+  test("deduplicates commands by label", () => {
+    const dupes: ExPromptCommand[] = [
+      { name: "git", desc: "first" },
+      { name: "git", desc: "second" },
+    ];
+    const suggestions = buildExPromptSuggestions(dupes);
+    expect(suggestions.length).toBe(1);
+  });
+
+  test("produces correct expectsArgs for all nargs values", () => {
+    const withNargs = (nargs: string): ExPromptCommand[] => [{ name: "cmd", nargs }];
+
+    expect(buildExPromptSuggestions(withNargs("0"))[0]?.expectsArgs).toBe(false);
+    expect(buildExPromptSuggestions(withNargs("1"))[0]?.expectsArgs).toBe(true);
+    expect(buildExPromptSuggestions(withNargs("?"))[0]?.expectsArgs).toBe(true);
+    expect(buildExPromptSuggestions(withNargs("*"))[0]?.expectsArgs).toBe(true);
+    expect(buildExPromptSuggestions(withNargs("+"))[0]?.expectsArgs).toBe(true);
+  });
+
+  test("returns first N suggestions when query is empty", () => {
+    const suggestions = getExPromptSuggestions(commands, "", 2);
+    expect(suggestions.length).toBe(2);
+  });
+
+  test("substring match excludes non-matching prefixes", () => {
+    const extended: ExPromptCommand[] = [
+      ...commands,
+      { name: "git", aliases: ["g"], desc: "Run git commands" },
+    ];
+    const suggestions = getExPromptSuggestions(extended, ":g");
+    const labels = suggestions.map((s) => s.label);
+    expect(labels).toContain("git");
+    expect(labels).toContain("g");
+    expect(labels).not.toContain("quit");
+  });
+
+  test("moveExPromptSelectionInList wraps at both ends", () => {
+    const suggestions = buildExPromptSuggestions(commands);
+    const lastIndex = suggestions.length - 1;
+
+    expect(moveExPromptSelectionInList(suggestions, lastIndex, 1)).toBe(0);
+    expect(moveExPromptSelectionInList(suggestions, 0, -1)).toBe(lastIndex);
+  });
+
+  test("getExPromptCommandText returns undefined for non-string field", () => {
+    expect(
+      getExPromptCommandText({ usage: 123 as unknown } as ExPromptCommand, "usage"),
+    ).toBeUndefined();
   });
 });

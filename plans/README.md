@@ -19,8 +19,8 @@ Each executor: read the plan fully before starting, honor its STOP conditions, a
 | 009 | Fix README config documentation to match actual schema | P2 | S | — | DONE |
 | 010 | Add branch-based review mode | P3 | M | — | TODO |
 | 011 | Wire diff-view toggle and runtime theme switching | P3 | M | — | DONE |
-| 012 | Add GitExecutor integration tests | P3 | L | — | TODO |
-| 013 | Add ExCommandPrompt and SidebarProvider component tests | P3 | L | — | TODO |
+| 012 | Add GitExecutor integration tests | P3 | L | — | DONE |
+| 013 | Add ExCommandPrompt and SidebarProvider component tests | P3 | L | — | DONE |
 
 ## Dependency notes
 

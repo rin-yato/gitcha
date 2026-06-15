@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { batch } from "solid-js";
+import { batch, createComputed, createMemo, createRoot, on } from "solid-js";
 import type { SetStoreFunction } from "solid-js/store";
 import { createStore } from "solid-js/store";
 
@@ -167,5 +167,114 @@ describe("sidebar store", () => {
 
     expect(result).toBeNull();
     expect(resultWithSelection).toBeNull();
+  });
+});
+
+// --- Reactive effect tests (regression guards for createEffect in SidebarProvider) ---
+
+describe("sidebar auto-selection effect", () => {
+  test("effect selects first target when targets change and selection is null", () => {
+    createRoot((dispose) => {
+      const [state, setState] = createStore<SidebarState>({
+        width: 30,
+        open: true,
+        selectedTarget: null,
+        viewMode: "tree",
+        collapsedDirectoryKeys: [],
+      });
+
+      const targets = createMemo(() => [
+        { section: "changes" as const, path: "a.ts" },
+        { section: "changes" as const, path: "b.ts" },
+      ]);
+
+      createComputed(
+        on([targets], ([t]) => {
+          if (t.length === 0) {
+            setState("selectedTarget", null);
+            return;
+          }
+
+          const current = state.selectedTarget;
+          const valid = current && t.some((x) => isGitFileTargetEqual(x, current));
+
+          if (!valid) setState("selectedTarget", t[0]!);
+        }),
+      );
+
+      expect(state.selectedTarget).toEqual({
+        section: "changes",
+        path: "a.ts",
+      });
+      dispose();
+    });
+  });
+
+  test("effect preserves valid selection when targets contain it", () => {
+    createRoot((dispose) => {
+      const [state, setState] = createStore<SidebarState>({
+        width: 30,
+        open: true,
+        selectedTarget: { section: "changes", path: "b.ts" },
+        viewMode: "tree",
+        collapsedDirectoryKeys: [],
+      });
+
+      const targets = createMemo(() => [
+        { section: "changes" as const, path: "a.ts" },
+        { section: "changes" as const, path: "b.ts" },
+      ]);
+
+      createComputed(
+        on([targets], ([t]) => {
+          if (t.length === 0) {
+            setState("selectedTarget", null);
+            return;
+          }
+
+          const current = state.selectedTarget;
+          const valid = current && t.some((x) => isGitFileTargetEqual(x, current));
+
+          if (!valid) setState("selectedTarget", t[0]!);
+        }),
+      );
+
+      expect(state.selectedTarget).toEqual({
+        section: "changes",
+        path: "b.ts",
+      });
+      dispose();
+    });
+  });
+
+  test("effect clears selection when targets become empty", () => {
+    createRoot((dispose) => {
+      const [state, setState] = createStore<SidebarState>({
+        width: 30,
+        open: true,
+        selectedTarget: { section: "changes", path: "a.ts" },
+        viewMode: "tree",
+        collapsedDirectoryKeys: [],
+      });
+
+      const targets = createMemo(() => [] as GitFileTarget[]);
+
+      createComputed(
+        on([targets], ([t]) => {
+          if (t.length === 0) {
+            setState("selectedTarget", null);
+            return;
+          }
+
+          const current = state.selectedTarget;
+          const valid = current && t.some((x) => isGitFileTargetEqual(x, current));
+
+          if (!valid) setState("selectedTarget", t[0]!);
+        }),
+      );
+
+      expect(state.selectedTarget).toBeNull();
+      dispose();
+    });
   });
 });
