@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.15](https://github.com/rin-yato/differ/compare/v0.1.14...v0.1.15) (2026-06-15)
+
+
+### Bug Fixes
+
+* **config:** preserve corrupted config file instead of overwriting it ([98587a6](https://github.com/rin-yato/differ/commit/98587a6c3b6fb8f8c7b9e0c97768a82d11456142))
+* **diff-pane:** use Result instead of unwrap to preserve error details ([e0baf0e](https://github.com/rin-yato/differ/commit/e0baf0e3dc68f058be7a81fc334685d7f4f9952e))
+* **executor:** close race window in inflight command deduplication ([d479eca](https://github.com/rin-yato/differ/commit/d479eca204e3ccf9118239a1ac10dc3467213cad))
+
+
+### Features
+
+* wire diff-view toggle and runtime theme switching ([b128f0c](https://github.com/rin-yato/differ/commit/b128f0c30f2c11b8c3995c4de748d8603d036077))
+
 ## [0.1.14](https://github.com/rin-yato/differ/compare/v0.1.13...v0.1.14) (2026-06-10)
 
 
